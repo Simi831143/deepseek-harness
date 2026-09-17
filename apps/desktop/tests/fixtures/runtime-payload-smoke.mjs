@@ -121,7 +121,9 @@ function checkHtml() {
 }
 
 try {
-  checkFsExt()
+  // 本地打包补丁：fs-ext 已从依赖图移除（JSONL 写入改用 @deepseek-ai/node-addon-system，
+  // 见 .agents/notes/implemented/architecture/2026-09-07-prebuilt-system-primitives.md），
+  // 该项自检永远不会通过。上游修复后用 git checkout 还原本文件。
   checkKoffi()
   await checkSharp()
   checkHtml()
@@ -134,5 +136,5 @@ try {
 // Natural event-loop drain includes node-pty's worker and console-list helper teardown.
 process.once('beforeExit', () => {
   console.log(JSON.stringify({ node: process.versions.node, platform: process.platform, arch: process.arch,
-    fsExt: true, koffi: true, sharp: true, html: true, pty: true }))
+    fsExt: false, koffi: true, sharp: true, html: true, pty: true }))
 })
