@@ -41,6 +41,7 @@ apps/web/dist/
 .artifacts/
 .dsh-build/
 .playwright-mcp/
+.workbuddy/
 .orig
 .worktrees/
 worktrees/
