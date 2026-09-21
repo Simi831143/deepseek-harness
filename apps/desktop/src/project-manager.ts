@@ -27,6 +27,12 @@ import {
 } from '@deepseek-ai/dsh-app-boot'
 import { migrateDesktopProfileLinks } from './profile-packages.ts'
 import { cleanProfileCorePackages } from './profile-core-cleanup.ts'
+import {
+  declaredEnvName,
+  DEPLOYMENT_ENVIRONMENT,
+  PROFILE_ENV_FILENAME,
+  PROFILE_ENV_HEADER,
+} from './deployment-env.ts'
 
 const PROJECT_NAME = '@deepseek-ai/dsh-desktop-runtime'
 const DSH_PACKAGE = '@deepseek-ai/dsh'
@@ -57,6 +63,30 @@ function migrateProfileSettings(projectDir: string): void {
   if (readFileSync(path, 'utf8').replaceAll('\r\n', '\n') === legacy) {
     writeFileSync(path, workspaceFile())
   }
+}
+
+/**
+ * Ensure every deployment-owned name is present in the profile's `.env`, the
+ * file the Host reads as its invoking-directory environment layer.
+ *
+ * Existing lines win: a name the file already sets is never rewritten, so an
+ * operator's or user's edit survives every later launch. Missing names are
+ * appended rather than skipped, so a profile that predates this deployment —
+ * or one whose `.env` carries unrelated values — still starts with the
+ * credentials the bundle patch references.
+ * @param projectDir - Desktop profile directory.
+ */
+function seedDeploymentEnvironment(projectDir: string): void {
+  const path = join(projectDir, PROFILE_ENV_FILENAME)
+  const existing = existsSync(path) ? readFileSync(path, 'utf8') : undefined
+  const declared = new Set(existing?.split(/\r?\n/).map(declaredEnvName)
+    .filter((name): name is string => name !== undefined) ?? [])
+  const absent = Object.entries(DEPLOYMENT_ENVIRONMENT).filter(([name]) => !declared.has(name))
+  if (absent.length === 0) return
+  const header = existing === undefined ? PROFILE_ENV_HEADER : ''
+  const separator = existing === undefined || existing.endsWith('\n') ? '' : '\n'
+  const lines = absent.map(([name, value]) => `${name}=${value}`).join('\n')
+  writeFileSync(path, `${existing ?? ''}${separator}${header}${lines}\n`, { mode: 0o600 })
 }
 
 /** Initializes the Desktop profile and disables third-party bundles during recovery. */
@@ -90,6 +120,7 @@ export class DesktopProjectManager {
       migrateProfileSettings(this.paths.profile)
       migrateDesktopProfileLinks(this.paths.profile)
       createPluginProfile(this.paths.profile)
+      seedDeploymentEnvironment(this.paths.profile)
     })
   }
 

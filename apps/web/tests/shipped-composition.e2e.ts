@@ -516,7 +516,7 @@ it('assembles the shipped Web transport, catalog, guidance, and defaults', async
   expect(existsSync(join(scaffold.harnessHome, 'profiles', 'node_modules'))).toBe(false)
   const ctx = scaffold.ctx
   expect(ctx.llm.listProviders().some(provider => provider.id === 'deepseek-messages')).toBe(false)
-  expect(ctx.agentDefaultModel.currentSelection()).toEqual({ provider: 'deepseek-official', model: 'deepseek-flash' })
+  expect(ctx.agentDefaultModel.currentSelection()).toEqual({ provider: 'longcheer', model: 'qwen3.8-plus' })
   const index = await fetch(`http://127.0.0.1:${String(ctx.webServer.port)}`, {
     headers: { 'accept-encoding': 'gzip' },
   })

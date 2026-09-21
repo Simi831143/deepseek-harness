@@ -79,11 +79,12 @@
 
     # The transport-independent default for Agents created by entry points.
     # Settings may supply a saved selection; consumers read it at creation time.
+    # This deployment defaults to its own gateway route; a saved selection wins.
     - id: agent-default-model
       name: '@deepseek-ai/dsh-agent-default-model'
       config:
-        provider: deepseek-official
-        model: deepseek-flash
+        provider: longcheer
+        model: qwen3.8-plus
 
     - id: jobs
       name: '@deepseek-ai/dsh-jobs-local'
@@ -111,8 +112,70 @@
     # Supplying those profiles is exactly what the web Models page does. Which
     # adapters exist is composition; which providers run is the user's settings
     # document.
+    #
+    # This deployment seeds one route below so a fresh installation arrives with
+    # its own gateway already selectable. The composition layer is the settings
+    # `base`; a user section still replaces it, provider by provider.
     - id: llm-pi-ai
       name: '@deepseek-ai/dsh-llm-pi-ai'
+      config:
+        providers:
+          longcheer:
+            displayName: longcheer
+            api: anthropic-messages
+            baseURL: 'http://172.16.92.211:23323'
+            apiKeyEnv: LONGCHEER_API_KEY
+            # The deployment's default model leads the picker; the rest keep the
+            # gateway's own order.
+            models:
+              - id: qwen3.8-plus
+                name: qwen3.8-plus
+              - id: muse-glimmer-30b-fp8
+                name: muse-glimmer-30b-fp8
+              - id: deepseek-v4-flash-260425
+                name: deepseek-v4-flash-260425
+              - id: qwen3.6-plus
+                name: qwen3.6-plus
+              - id: qwen3.8-flash-openai
+                name: qwen3.8-flash-openai
+              - id: qwen3.8-flash
+                name: qwen3.8-flash
+              - id: deepseek-v4-pro-260425-openai
+                name: deepseek-v4-pro-260425-openai
+              - id: qwen3.8-plus-openai
+                name: qwen3.8-plus-openai
+              - id: DeepSeek-V4-Flash-openai
+                name: DeepSeek-V4-Flash-openai
+              - id: qwen3.8-flash-next-openai
+                name: qwen3.8-flash-next-openai
+              - id: qwen3.6-plus-openai
+                name: qwen3.6-plus-openai
+              - id: deepseek-v4-flash-260425-openai
+                name: deepseek-v4-flash-260425-openai
+              - id: qwen3.6-max
+                name: qwen3.6-max
+              - id: qwen3.8-flash-v2
+                name: qwen3.8-flash-v2
+              - id: qwen3.6
+                name: qwen3.6
+              - id: doubao-seed-2.1-pro-openai
+                name: doubao-seed-2.1-pro-openai
+              - id: DeepSeek-V4-Flash
+                name: DeepSeek-V4-Flash
+              - id: qwen3.8-plus-test
+                name: qwen3.8-plus-test
+              - id: qwen3.6-openai
+                name: qwen3.6-openai
+              - id: deepseek-v4-flash-260731-openai
+                name: deepseek-v4-flash-260731-openai
+              - id: DeepSeek-V4.1-Flash-openai
+                name: DeepSeek-V4.1-Flash-openai
+              - id: deepseek-v4-flash-260731
+                name: deepseek-v4-flash-260731
+              - id: DeepSeek-V4.1-Flash
+                name: DeepSeek-V4.1-Flash
+              - id: qwen3.8-flash-next
+                name: qwen3.8-flash-next
 
     - id: session-persistence-jsonl
       name: '@deepseek-ai/dsh-session-persistence-jsonl'

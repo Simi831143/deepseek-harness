@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { resolveDesktopPaths } from '../src/paths.ts'
 import { DesktopProjectManager } from '../src/project-manager.ts'
+import { DEPLOYMENT_ENVIRONMENT, PROFILE_ENV_FILENAME } from '../src/deployment-env.ts'
 import { readProfilePlugins } from '@deepseek-ai/dsh-app-boot'
 import { runtimeFixture } from './runtime-fixture.ts'
 
@@ -227,6 +228,37 @@ describe('desktop external plugin profile', () => {
     await expect(next.applyRelease()).resolves.toBeUndefined()
     await next.disableAllPlugins()
     expect(plugins(next)).toEqual([{ name: 'plugin', version: '1.0.0', enabled: false }])
+  })
+})
+
+describe('deployment environment seeding', () => {
+  const seeded = Object.entries(DEPLOYMENT_ENVIRONMENT)
+  it('seeds every deployment name into a new profile environment file', async () => {
+    const { manager } = setup()
+    await manager.applyRelease()
+    const text = readFileSync(join(manager.paths.profile, PROFILE_ENV_FILENAME), 'utf8')
+    for (const [name, value] of seeded) expect(text).toContain(`${name}=${value}`)
+  })
+
+  it('leaves a value an operator edited in place across later launches', async () => {
+    const { manager } = setup()
+    await manager.applyRelease()
+    const path = join(manager.paths.profile, PROFILE_ENV_FILENAME)
+    writeFileSync(path, 'LONGCHEER_API_KEY=edited\n')
+    await manager.applyRelease()
+    expect(readFileSync(path, 'utf8')).toBe('LONGCHEER_API_KEY=edited\n')
+  })
+
+  it('appends only the names an existing environment file does not declare', async () => {
+    const { manager } = setup()
+    mkdirSync(manager.paths.profile, { recursive: true })
+    const path = join(manager.paths.profile, PROFILE_ENV_FILENAME)
+    // No trailing newline: the appended block must not fuse with the last line.
+    writeFileSync(path, 'UNRELATED=1')
+    await manager.applyRelease()
+    const lines = readFileSync(path, 'utf8').split(/\r?\n/)
+    expect(lines[0]).toBe('UNRELATED=1')
+    for (const [name, value] of seeded) expect(lines).toContain(`${name}=${value}`)
   })
 })
 
