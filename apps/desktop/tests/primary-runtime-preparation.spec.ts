@@ -3,8 +3,8 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { basename, join } from 'node:path'
 import { zipSync } from 'fflate'
-import { expect, it } from 'vitest'
-import { downloadPrimaryRuntimeAsset, prepareOfficeSkillAssets, primaryRuntimePayloadDigest, smokePrimaryRuntime, unpackPrimaryRuntimeWheel } from '../scripts/prepare-primary-runtime.ts'
+import { expect, it, vi } from 'vitest'
+import { downloadPrimaryRuntimeAsset, prepareOfficeSkillAssets, preparePptSkillAssets, primaryRuntimePayloadDigest, resolvePptSkillSource, smokePrimaryRuntime, unpackPrimaryRuntimeWheel } from '../scripts/prepare-primary-runtime.ts'
 import lock from '../scripts/primary-runtime-lock.json' with { type: 'json' }
 
 const libraryWheel = Buffer.from('UEsDBAoAAAAAAASeLl0sYMPjDAAAAAwAAAAJAAAAc2FtcGxlLnB5c2FtcGxlID0gNDIKUEsBAh4DCgAAAAAABJ4uXSxgw+MMAAAADAAAAAkAAAAAAAAAAQAAAKSBAAAAAHNhbXBsZS5weVBLBQYAAAAAAQABADcAAAAzAAAAAAA=', 'base64')
@@ -127,5 +127,38 @@ it('copies complete Office resources outside the application archive and removes
     }
     expect(await readFile(join(destination, 'scripts', 'check_office.py'), 'utf8')).toBe('print("checker")\n')
     await expect(readFile(join(destination, 'obsolete.py'))).rejects.toMatchObject({ code: 'ENOENT' })
+  } finally { await rm(root, { recursive: true, force: true }) }
+})
+
+it('copies the presentation skill without interpreter bytecode or stale entries', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'desktop-ppt-assets-'))
+  try {
+    const source = join(root, 'upstream', 'ppt-master')
+    const destination = join(root, 'Contents', 'Resources', 'runtime', 'ppt-skills', 'ppt-master')
+    await mkdir(join(source, 'scripts', '__pycache__'), { recursive: true })
+    await writeFile(join(source, 'SKILL.md'), '# ppt-master\n')
+    await writeFile(join(source, 'scripts', 'svg_to_pptx.py'), 'print("export")\n')
+    await writeFile(join(source, 'scripts', 'svg_to_pptx.pyc'), 'bytecode')
+    await writeFile(join(source, 'scripts', '__pycache__', 'svg_to_pptx.cpython-312.pyc'), 'bytecode')
+    await preparePptSkillAssets(source, destination)
+    await writeFile(join(destination, 'obsolete.md'), 'previous release')
+    await preparePptSkillAssets(source, destination)
+    expect(await readFile(join(destination, 'SKILL.md'), 'utf8')).toBe('# ppt-master\n')
+    expect(await readFile(join(destination, 'scripts', 'svg_to_pptx.py'), 'utf8')).toBe('print("export")\n')
+    for (const absent of ['scripts/svg_to_pptx.pyc', 'scripts/__pycache__', 'obsolete.md']) {
+      await expect(readFile(join(destination, ...absent.split('/')))).rejects.toMatchObject({ code: 'ENOENT' })
+    }
+  } finally { await rm(root, { recursive: true, force: true }) }
+})
+
+it('resolves an explicit skill source and rejects one that carries no skill', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'desktop-ppt-source-'))
+  try {
+    await writeFile(join(root, 'SKILL.md'), '# ppt-master\n')
+    vi.stubEnv('DSH_DESKTOP_PPT_SKILL_DIR', root)
+    expect(resolvePptSkillSource()).toBe(root)
+    vi.stubEnv('DSH_DESKTOP_PPT_SKILL_DIR', join(root, 'missing'))
+    expect(() => resolvePptSkillSource()).toThrow('does not name a skill directory')
+    vi.unstubAllEnvs()
   } finally { await rm(root, { recursive: true, force: true }) }
 })

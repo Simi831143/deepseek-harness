@@ -2,7 +2,7 @@
 
 import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { cp } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
@@ -10,9 +10,19 @@ import { dirname, join, resolve } from 'node:path'
 import extractZip from 'extract-zip'
 import { x as extractTar } from 'tar'
 import { workspaceDependencyPaths, type PrimaryRuntimeManifest } from '../../desktop-host/src/primary-runtime.ts'
+import { PAYLOAD_DIRECTORY, SKILL_ENTRY } from '../../desktop-host/src/ppt-payload.ts'
 import { resolveDesktopBuildTarget, resolveDesktopTargetBuildPaths } from './desktop-build-paths.mjs'
 import { scrubWindowsSigningEnvironment } from './windows-sign.mjs'
 import lock from './primary-runtime-lock.json' with { type: 'json' }
+
+/** Repository root, used to locate a checkout of a bundled skill beside this one. */
+const REPOSITORY_ROOT = resolve(import.meta.dirname, '..', '..', '..')
+
+/** Environment override naming the ppt-master skill directory copied into the Desktop payload. */
+const PPT_SKILL_SOURCE_ENV = 'DSH_DESKTOP_PPT_SKILL_DIR'
+
+/** Upstream skill layout expected in a checkout beside this repository. */
+const PPT_SKILL_SOURCE = join(REPOSITORY_ROOT, '..', 'ppt-master', 'skills', 'ppt-master')
 
 /**
  * Download or reuse an archive only when its bytes match the release lock.
@@ -77,14 +87,59 @@ export async function unpackPrimaryRuntimeWheel(archive: string, destination: st
 }
 
 /**
+ * Replace one distribution directory with a copy of an assembled asset tree.
+ * @param source - The directory to distribute.
+ * @param destination - Desktop runtime resource directory outside ASAR.
+ * @param keep - Optional predicate; a rejected entry is skipped with its subtree.
+ * @returns Resolves after replacing the destination with the copied tree.
+ */
+async function copyAssembledAssets(
+  source: string, destination: string, keep?: (path: string) => boolean,
+): Promise<void> {
+  rmSync(destination, { recursive: true, force: true })
+  await cp(source, destination, { recursive: true, dereference: true, ...keep === undefined ? {} : { filter: keep } })
+}
+
+/**
  * Copy the skill package's complete asset tree to ordinary filesystem resources.
  * @param source - The package's assets directory.
  * @param destination - Desktop runtime resource directory outside ASAR.
  * @returns Resolves after replacing the external assets with the complete package tree.
  */
 export async function prepareOfficeSkillAssets(source: string, destination: string): Promise<void> {
-  rmSync(destination, { recursive: true, force: true })
-  await cp(source, destination, { recursive: true, dereference: true })
+  await copyAssembledAssets(source, destination)
+}
+
+/**
+ * Copy the ppt-master skill tree to ordinary filesystem resources.
+ * @param source - The skill directory from an upstream checkout.
+ * @param destination - Desktop runtime resource directory outside ASAR.
+ * @returns Resolves after replacing the destination with the distributable skill tree.
+ */
+export async function preparePptSkillAssets(source: string, destination: string): Promise<void> {
+  await copyAssembledAssets(source, destination, isDistributablePptSkillPath)
+}
+
+/**
+ * Keep interpreter bytecode and caches out of the distributed skill.
+ * @param path - Absolute source path offered to the recursive copy.
+ * @returns Whether the entry belongs to the released skill tree.
+ */
+function isDistributablePptSkillPath(path: string): boolean {
+  return !path.split(/[\\/]/u).includes('__pycache__') && !path.endsWith('.pyc')
+}
+
+/**
+ * Locate the ppt-master skill copied into the Desktop payload.
+ * @returns The skill directory, or `undefined` when this checkout carries none.
+ * @throws when an explicit override does not name a skill directory.
+ */
+export function resolvePptSkillSource(): string | undefined {
+  const configured = process.env[PPT_SKILL_SOURCE_ENV]
+  const source = configured ?? PPT_SKILL_SOURCE
+  if (existsSync(join(source, 'SKILL.md'))) return source
+  if (configured === undefined) return undefined
+  throw new Error(`primary runtime: ${PPT_SKILL_SOURCE_ENV} does not name a skill directory: ${source}`)
 }
 
 /**
@@ -147,6 +202,12 @@ export async function preparePrimaryRuntime(options: { deferSmoke?: boolean } = 
   const hostRequire = createRequire(resolve(import.meta.dirname, '..', '..', 'desktop-host', 'package.json'))
   await prepareOfficeSkillAssets(join(dirname(hostRequire.resolve('@deepseek-ai/dsh-skill-office/package.json')), 'assets'),
     join(paths.runtime, 'office-skills'))
+  const pptSkillSource = resolvePptSkillSource()
+  if (pptSkillSource === undefined) {
+    console.log(`primary runtime: no bundled presentation skill; set ${PPT_SKILL_SOURCE_ENV} to include one`)
+  } else {
+    await preparePptSkillAssets(pptSkillSource, join(paths.runtime, PAYLOAD_DIRECTORY, SKILL_ENTRY))
+  }
   if (!options.deferSmoke) smokePrimaryRuntime(join(paths.runtime, 'primary-runtime'))
 }
 
