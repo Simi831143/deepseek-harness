@@ -2,6 +2,7 @@
 import { Context } from '@deepseek-ai/cordis'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, render } from '@testing-library/react'
+import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
 import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
 import { apply, inject } from '../src/client/index.ts'
 import { OfficialBrandMark, OfficialBrandName } from '../src/client/Brand.tsx'
@@ -22,13 +23,15 @@ const HERO_HOLE = 'conversation.hero.brand.mark'
 async function bench(declare = true) {
   const ctx = new Context()
   await ctx.plugin(SlotRegistry).await()
+  const locale = new LocaleRuntime(ctx)
+  ctx.provide('locale', locale)
   const slots = ctx.get('slots') as SlotRegistry
   const declareHoles = () => slots.register({
     name: 'root',
     children: Object.fromEntries([...HOLES, HERO_HOLE].map(name => [name, { kind: 'single', scope: 'root' }])),
   } as never, () => null)
   const disposeHoles = declare ? declareHoles() : undefined
-  return { ctx, slots, declareHoles, disposeHoles }
+  return { ctx, locale, slots, declareHoles, disposeHoles }
 }
 
 describe('official browser-brand plugin', () => {
@@ -36,8 +39,8 @@ describe('official browser-brand plugin', () => {
     expect(hostApply).not.toThrow()
   })
 
-  it('declares only the slot service it uses', () => {
-    expect(inject).toEqual(['slots'])
+  it('declares only the services it uses', () => {
+    expect(inject).toEqual(['slots', 'locale'])
   })
 
   it('leaves every slot empty outside the official build profile', async () => {
@@ -78,8 +81,12 @@ describe('official browser-brand plugin', () => {
     expect(subject.slots.entries(HERO_HOLE)).toHaveLength(0)
   })
 
-  it('renders the product name independently from both requested mark sizes', () => {
-    const name = render(<OfficialBrandName />)
+  it('renders the dictionary product name inside the occupant and both requested mark sizes', async () => {
+    vi.stubEnv('DSH_CLIENT_BUILD_PROFILE', 'official')
+    const subject = await bench()
+    await subject.ctx.plugin({ inject: [...inject], apply }).await()
+
+    const name = render(<OfficialBrandName t={subject.locale.bind('brand')} />)
     expect(name.container.textContent).toBe('LongCheer Agent')
     name.unmount()
 

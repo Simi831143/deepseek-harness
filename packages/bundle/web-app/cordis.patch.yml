@@ -15,9 +15,15 @@
 
 - id: system-prompt
   config:
+    # This deployment owns its identity. The shipped first-party opener
+    # ("You are an AI agent powered by DeepSeek Harness.") is suppressed, and the
+    # persona prefix below states who the agent is instead - only a deployment
+    # that owns the complete system prompt may do this, which is exactly what a
+    # surface bundle patch is. `dsh-sdk-minimal` sets the same flag.
+    includeHarnessIdentity: false
     personaSuffix: Your working directory is {{cwd}}.
     personaPrefix: >-
-      You are a coding agent powered by the {{model}} model.
+      You are a coding agent running in LongCheer Agent, powered by the {{model}} model.
 
 # Full-text session search is opt-in (the base row's `openAt: never`). This
 # restatement keeps the Web values on one ephemeral in-memory index; a
