@@ -223,7 +223,7 @@ describe('web e2e: fresh round trip through the real assembly', () => {
     // This deployment suppresses the shipped identity opener and states its own
     // identity in the Web persona prefix, so the prompt now opens with that.
     expect(paragraphs.slice(0, 1)).toEqual([
-      'You are a coding agent running in LongCheer Agent, powered by the deepseek-v4-flash model.',
+      'You are a coding agent running in LC Camera Agent, powered by the deepseek-v4-flash model.',
     ])
     const suffix = paragraphs.slice(-3).join('\n\n')
       .split(REPO_ROOT).join('{{sourceRoot}}')

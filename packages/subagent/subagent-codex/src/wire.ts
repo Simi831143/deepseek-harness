@@ -268,7 +268,7 @@ export class CodexAppServerWire {
     object(await this.guarded(this.transport.request('initialize', {
       clientInfo: {
         name: 'deepseek-harness',
-        title: 'LongCheer Agent',
+        title: 'LC Camera Agent',
         version: '0.0.1',
       },
       capabilities: {

@@ -87,7 +87,7 @@ describe('official browser-brand plugin', () => {
     await subject.ctx.plugin({ inject: [...inject], apply }).await()
 
     const name = render(<OfficialBrandName t={subject.locale.bind('brand')} />)
-    expect(name.container.textContent).toBe('LongCheer Agent')
+    expect(name.container.textContent).toBe('LC Camera Agent')
     name.unmount()
 
     const mark = render(<OfficialBrandMark size={34} />)

@@ -8,7 +8,7 @@
 
 /** Simplified Chinese dictionary (the key-set source of truth). */
 export const zh = {
-  'product.name': 'LongCheer Agent',
+  'product.name': 'LC Camera Agent',
 } satisfies Record<string, string>
 
 /** The brand namespace key union. */
@@ -16,5 +16,5 @@ export type BrandKey = keyof typeof zh
 
 /** English dictionary, checked complete against the zh key set. */
 export const en = {
-  'product.name': 'LongCheer Agent',
+  'product.name': 'LC Camera Agent',
 } satisfies Record<BrandKey, string>

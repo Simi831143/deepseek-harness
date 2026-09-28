@@ -23,7 +23,7 @@
     includeHarnessIdentity: false
     personaSuffix: Your working directory is {{cwd}}.
     personaPrefix: >-
-      You are a coding agent running in LongCheer Agent, powered by the {{model}} model.
+      You are a coding agent running in LC Camera Agent, powered by the {{model}} model.
 
 # Full-text session search is opt-in (the base row's `openAt: never`). This
 # restatement keeps the Web values on one ephemeral in-memory index; a

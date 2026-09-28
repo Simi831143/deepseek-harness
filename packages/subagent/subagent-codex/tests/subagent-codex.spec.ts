@@ -732,7 +732,7 @@ describe('CodexAppServerWire', () => {
     expect(initialize.params).toEqual({
       clientInfo: {
         name: 'deepseek-harness',
-        title: 'LongCheer Agent',
+        title: 'LC Camera Agent',
         version: '0.0.1',
       },
       capabilities: {
