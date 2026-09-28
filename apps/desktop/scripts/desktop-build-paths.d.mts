@@ -48,3 +48,15 @@ export function resolveDesktopTargetBuildPaths(
   hostPlatform?: NodeJS.Platform,
   hostArch?: string,
 ): DesktopTargetBuildPaths
+
+/**
+ * Resolve the entry name electron-builder gave the packaged application inside a build output directory.
+ *
+ * electron-builder names that entry after the configured `productName`, which a rebranding
+ * consumer of this build is expected to change, so the name is read back from the artifacts
+ * instead of being duplicated as a constant that can drift out of sync.
+ * @param directory - Directory that holds exactly one packaged application entry.
+ * @param suffix - Artifact suffix identifying that entry ('.exe' on Windows, '.app' on macOS).
+ * @returns The packaged application's entry name.
+ */
+export function packagedApplicationEntry(directory: string, suffix: string): string

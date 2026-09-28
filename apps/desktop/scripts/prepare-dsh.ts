@@ -81,6 +81,12 @@ function runPnpm(args: readonly string[]): Promise<void> {
       `--config.registry=${registry}`,
       `--config.store-dir=${STORE_ROOT}`,
       '--config.enable-global-virtual-store=false',
+      // The LibreOffice engine tarball is ~114MB. At the measured ~1.8MB/s single-stream
+      // rate it needs ~65s, which exceeds pnpm's default 60s fetch-timeout, and the
+      // default 16-way concurrency splits that bandwidth further. Raise the per-request
+      // budget and lower concurrency so one large artifact can actually finish.
+      '--fetch-timeout=600000',
+      '--network-concurrency=4',
       `--config.userconfig=${userConfig}`,
       command,
       ...commandArgs,

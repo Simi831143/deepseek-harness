@@ -691,7 +691,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/jobs/jobs
       '@deepseek-ai/dsh-skill-filesystem':
-        specifier: workspace:^
+        specifier: workspace:*
         version: link:../../packages/skill/skill-filesystem
       '@deepseek-ai/dsh-skill-office':
         specifier: workspace:*
@@ -3040,7 +3040,7 @@ importers:
         specifier: workspace:~
         version: link:../../../vendor/cordis
       '@deepseek-ai/dsh-client-locale':
-        specifier: workspace:^
+        specifier: workspace:*
         version: link:../locale
       '@deepseek-ai/dsh-client-ui-primitives':
         specifier: workspace:*
@@ -3052,7 +3052,7 @@ importers:
         specifier: workspace:*
         version: link:../ui-sidebar
       '@deepseek-ai/dsh-client-ui-slots':
-        specifier: workspace:^
+        specifier: workspace:*
         version: link:../ui-slots
       '@testing-library/react':
         specifier: ^16.1.0

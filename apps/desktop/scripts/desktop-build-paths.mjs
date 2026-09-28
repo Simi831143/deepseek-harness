@@ -1,5 +1,6 @@
 /** Resolve build-owned Desktop paths without sharing mutable state across release targets. */
 
+import { readdirSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 
 const APP_ROOT = resolve(import.meta.dirname, '..')
@@ -69,4 +70,23 @@ export function resolveDesktopTargetBuildPaths(
   hostArch = process.arch,
 ) {
   return desktopTargetBuildPaths(resolveDesktopBuildTarget(env, hostPlatform, hostArch))
+}
+
+/**
+ * Resolve the entry name electron-builder gave the packaged application inside a build output directory.
+ *
+ * electron-builder names that entry after the configured `productName`, which a rebranding
+ * consumer of this build is expected to change, so the name is read back from the artifacts
+ * instead of being duplicated as a constant that can drift out of sync.
+ * @param {string} directory - Directory that holds exactly one packaged application entry.
+ * @param {string} suffix - Artifact suffix identifying that entry ('.exe' on Windows, '.app' on macOS).
+ * @returns {string} The packaged application's entry name.
+ */
+export function packagedApplicationEntry(directory, suffix) {
+  const matches = readdirSync(directory).filter(entry => entry.endsWith(suffix))
+  const [match] = matches
+  if (match === undefined || matches.length > 1) {
+    throw new Error(`desktop build paths: expected exactly one "${suffix}" in ${directory}, found ${matches.length}`)
+  }
+  return match
 }
