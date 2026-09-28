@@ -23,6 +23,7 @@ import {
   type MenuItemConstructorOptions,
 } from 'electron'
 import { resolveDesktopPaths } from './paths.ts'
+import { BUNDLED_PLUGIN_DIRECTORY } from './bundled-plugins.ts'
 import { DesktopProjectManager } from './project-manager.ts'
 import { DesktopHostFatalError, DesktopHostProcess, DesktopHostUncleanExitError } from './host-process.ts'
 import { DesktopPlatformView, PLATFORM_IPC, platformBounds } from './platform-view.ts'
@@ -143,6 +144,8 @@ interface RuntimeResources {
   readonly node: string
   readonly pnpm: string
   readonly dsh: string
+  /** Resources directory holding one subdirectory per bundled plugin payload. */
+  readonly plugins: string
 }
 
 function runtimeResources(): RuntimeResources {
@@ -154,7 +157,10 @@ function runtimeResources(): RuntimeResources {
       : join(process.resourcesPath, 'runtime', 'pnpm', 'bin', 'pnpm.mjs'))
   const dsh = (development ? process.env.DSH_DESKTOP_DSH_DIR : undefined)
     ?? (development ? join(app.getAppPath(), '.desktop-build', 'development', 'project') : join(app.getAppPath(), 'dsh'))
-  return { node, nodeBin, pnpm, dsh }
+  const plugins = process.env.DSH_DESKTOP_BUNDLED_PLUGINS_DIR
+    ?? (development ? join(app.getAppPath(), 'resources', BUNDLED_PLUGIN_DIRECTORY)
+      : join(process.resourcesPath, BUNDLED_PLUGIN_DIRECTORY))
+  return { node, nodeBin, pnpm, dsh, plugins }
 }
 
 function developmentPrimaryRuntime(): string {

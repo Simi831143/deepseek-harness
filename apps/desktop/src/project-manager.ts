@@ -1,19 +1,20 @@
 /** Desktop profile initialization and native recovery. */
 
 import {
+  closeSync,
   existsSync,
   fsyncSync,
   lstatSync,
   mkdirSync,
   openSync,
-  realpathSync,
-  closeSync,
   readFileSync,
+  realpathSync,
   unlinkSync,
   writeFileSync,
   writeSync,
 } from 'node:fs'
 import { join } from 'node:path'
+import { reconcileBundledPlugins } from './bundled-plugins.ts'
 import {
   DESKTOP_HOST_PACKAGE,
   desktopCorePackageOverrides,
@@ -95,7 +96,7 @@ export class DesktopProjectManager {
    */
   constructor(
     readonly paths: DesktopPaths,
-    readonly runtime: { readonly dsh: string },
+    readonly runtime: { readonly dsh: string; readonly plugins?: string | undefined },
   ) {}
 
   /**
@@ -115,7 +116,11 @@ export class DesktopProjectManager {
       // Validation only: an unreadable or mismatched runtime descriptor stops preparation before the Host starts.
       readDesktopRuntime(this.runtime.dsh)
       migrateProfileSettings(this.paths.profile)
-      createPluginProfile(this.paths.profile)
+      // The shipped template creates a profile that does not exist yet; the reconciliation that
+      // follows adds the plugin payloads this build carries and refreshes the ones already held,
+      // so a plugin a newer build introduces reaches an existing profile too.
+      createPluginProfile(this.paths.profile, WEB_PROFILE.bundles)
+      reconcileBundledPlugins(this.paths.profile, this.runtime.plugins)
       seedDeploymentEnvironment(this.paths.profile)
       removeLinkProjections(this.paths.profile)
     })
@@ -201,7 +206,11 @@ export function createDevelopmentProjectMetadata(projectDir: string, release: De
   writeFileSync(join(projectDir, 'pnpm-workspace.yaml'), workspaceFile(), { mode: 0o600 })
 }
 
-/** Create the first external plugin profile without running a package manager. */
-export function createPluginProfile(projectDir: string): void {
-  initProfile(projectDir, WEB_PROFILE.bundles)
+/**
+ * Create the first external plugin profile without running a package manager.
+ * @param projectDir - the profile directory.
+ * @param bundles - initial `dsh.profile.bundles` layer list; defaults to the web profile's.
+ */
+export function createPluginProfile(projectDir: string, bundles: readonly string[] = WEB_PROFILE.bundles): void {
+  initProfile(projectDir, bundles)
 }

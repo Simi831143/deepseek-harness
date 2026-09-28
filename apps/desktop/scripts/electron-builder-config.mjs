@@ -1,6 +1,6 @@
 import { officePackageDirectories } from '../../../scripts/libreoffice-packages.mjs'
 import { X509Certificate } from 'node:crypto'
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { join, relative, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -12,6 +12,7 @@ import {
   resolveMacOSSigningEnvironment,
 } from './desktop-release-environment.mjs'
 import { notarizeMacOSDiskImageArtifact } from './notarize-macos-disk-images.mjs'
+import { BUNDLED_PLUGIN_DIRECTORY, BUNDLED_PLUGINS, bundledPluginSource } from './bundled-plugins.mjs'
 import { verifyMacOSSignatureAfterSign } from './verify-macos-signature.mjs'
 import {
   createWindowsTokenSigner,
@@ -33,6 +34,33 @@ import {
   verifyMacOSAppUpdateConfig,
   writeMacOSAppUpdateConfig,
 } from './macos-app-update-config.mjs'
+
+/**
+ * Extra-resource entries for the plugin payloads this build carries.
+ *
+ * A bundled plugin is copied from the sibling checkout beside this repository, stripped of
+ * its own development directories, and reaches the application as one resources directory.
+ * A checkout that is absent only omits that plugin, so a build without it still succeeds.
+ * @param {NodeJS.ProcessEnv} env - Packaging environment.
+ * @returns {{ from: string, to: string, filter: string[] }[]} entries for electron-builder's `extraResources`.
+ */
+function bundledPluginResources(env) {
+  const entries = []
+  for (const name of BUNDLED_PLUGINS) {
+    const from = bundledPluginSource(name, env)
+    if (!existsSync(join(from, 'package.json'))) {
+      console.warn(`electron-builder config: bundled plugin ${name} is absent at ${from}; this build omits it`)
+      continue
+    }
+    entries.push({
+      from,
+      to: `${BUNDLED_PLUGIN_DIRECTORY}/${name}`,
+      // The payload ships built files only: no dependencies to install, no history, no packed inputs.
+      filter: ['**/*', '!node_modules/**', '!.git/**', '!*.tgz'],
+    })
+  }
+  return entries
+}
 
 /**
  * Create electron-builder configuration from one release environment.
@@ -146,6 +174,8 @@ export function createElectronBuilderConfig(
       { from: fileURLToPath(new URL('../resources/icon-windows.png', import.meta.url)), to: 'icon.png' },
       // Windows tray bitmaps; macOS keeps the Dock and ships no menu bar icon.
       ...(packagesWindows ? [{ from: fileURLToPath(new URL('../resources/tray-windows.ico', import.meta.url)), to: 'tray.ico' }] : []),
+      // Plugin payloads a freshly created profile starts with.
+      ...bundledPluginResources(env),
     ],
     mac: {
       icon: fileURLToPath(new URL('../resources/icon-macos.png', import.meta.url)),
