@@ -68,6 +68,9 @@ const SENTENCE_MODEL_EXPERIENCE: Readonly<Record<string, SentenceContract>> = {
   'packages/credentials/deepseek-account-platform': { kind: 'none', reason: 'Account authorization registers no model context or tools; credentials affect HTTP authentication only.' },
   'packages/api/account-controller': { kind: 'none', reason: 'Account authorization registers no model context or tools; credentials affect HTTP authentication only.' },
   'packages/client/ui-settings-account': { kind: 'none', reason: 'Account authorization registers no model context or tools; credentials affect HTTP authentication only.' },
+  'packages/credentials/email-code-account': { kind: 'none', reason: 'Email sign-in authorization registers no model context or tools; the issuer token never reaches a model request.' },
+  'packages/client/ui-account-email': { kind: 'none', reason: 'Browser-side sign-in surface; registers no model surface.' },
+  'packages/bundle/account-email': { kind: 'none', reason: 'The bundle is a patch-list carrier replacing a sign-in surface; each inserted row\'s package owns its model-facing behavior.' },
 
   'packages/attachment/attachment': { kind: 'indirect', reason: 'The storage seam delegates model request rendering to provider adapters.' },
   'packages/attachment/attachment-local': { kind: 'indirect', reason: 'The local backend delegates model request rendering to provider adapters.' },

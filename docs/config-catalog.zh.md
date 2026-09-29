@@ -4319,6 +4319,7 @@ export interface Config {
 | `@deepseek-ai/dsh-client-locale` | — | [`packages/client/locale/src/index.ts`](../packages/client/locale/src/index.ts) |
 | `@deepseek-ai/dsh-client-modules` | `loader` | [`packages/client/modules/src/index.ts`](../packages/client/modules/src/index.ts) |
 | `@deepseek-ai/dsh-client-resources` | — | [`packages/client/resources/src/index.ts`](../packages/client/resources/src/index.ts) |
+| `@deepseek-ai/dsh-client-ui-account-email` | — | [`packages/client/ui-account-email/src/index.ts`](../packages/client/ui-account-email/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-agent-preset` | — | [`packages/client/ui-agent-preset/src/index.ts`](../packages/client/ui-agent-preset/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-approval` | — | [`packages/client/ui-approval/src/index.ts`](../packages/client/ui-approval/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-attachment` | — | [`packages/client/ui-attachment/src/index.ts`](../packages/client/ui-attachment/src/index.ts) |
@@ -4373,6 +4374,7 @@ export interface Config {
 | `@deepseek-ai/dsh-config-editor` | `loader` · `profileContext` | [`packages/boot/config-editor/src/index.ts`](../packages/boot/config-editor/src/index.ts) |
 | `@deepseek-ai/dsh-cordis-client-runner` | — | [`packages/extensions/cordis-client-runner/src/index.ts`](../packages/extensions/cordis-client-runner/src/index.ts) |
 | `@deepseek-ai/dsh-deepseek-llm-api-extensions` | — | [`packages/llm/deepseek-llm-api-extensions/src/index.ts`](../packages/llm/deepseek-llm-api-extensions/src/index.ts) |
+| `@deepseek-ai/dsh-email-code-account` | `credentials` | [`packages/credentials/email-code-account/src/index.ts`](../packages/credentials/email-code-account/src/index.ts) |
 | `@deepseek-ai/dsh-experimental-auto-review` | `approval` · `llm` · `permissionPresets` · `sessions` · `tools` | [`packages/experimental/auto-review/src/index.ts`](../packages/experimental/auto-review/src/index.ts) |
 | `@deepseek-ai/dsh-experimental-client-ui-agent-team` | — | [`packages/experimental/client-ui-agent-team/src/index.ts`](../packages/experimental/client-ui-agent-team/src/index.ts) |
 | `@deepseek-ai/dsh-experimental-client-ui-voice-input` | — | [`packages/experimental/client-ui-voice-input/src/index.ts`](../packages/experimental/client-ui-voice-input/src/index.ts) |
@@ -4440,6 +4442,7 @@ export interface Config {
 <!-- BEGIN GENERATED config-catalog:library -->
 | `package` | `inject` | `source` |
 | --- | --- | --- |
+| `@deepseek-ai/dsh-account-email` | — | [`packages/bundle/account-email/src/index.ts`](../packages/bundle/account-email/src/index.ts) |
 | `@deepseek-ai/dsh-agent-loop-testkit` | — | [`packages/test-support/agent-loop-testkit/src/index.ts`](../packages/test-support/agent-loop-testkit/src/index.ts) |
 | `@deepseek-ai/dsh-anonymous-user-id` | — | [`packages/identity/anonymous-user-id/src/index.ts`](../packages/identity/anonymous-user-id/src/index.ts) |
 | `@deepseek-ai/dsh-app-boot` | — | [`packages/boot/app-boot/src/index.ts`](../packages/boot/app-boot/src/index.ts) |
