@@ -8,9 +8,6 @@ import commandsRemote from '@deepseek-ai/dsh-commands/remote'
 import accountRemote from '@deepseek-ai/dsh-api-account-controller/remote'
 import settingsControllerRemote from '@deepseek-ai/dsh-api-settings-controller/remote'
 import officeToPdfRemote from '@deepseek-ai/dsh-office-to-pdf/remote'
-// Email one-time-code sign-in: the two steps the settings card calls. It has no
-// account-contract equivalent, so it travels as its own namespace.
-import emailLoginRemote from '@deepseek-ai/dsh-email-code-account/remote'
 import goalsRemote from '@deepseek-ai/dsh-goal/remote'
 import scheduleRemote from '@deepseek-ai/dsh-schedule/remote'
 import llmRemote from '@deepseek-ai/dsh-llm/remote'
@@ -45,11 +42,6 @@ export type {} from '@deepseek-ai/dsh-agent-preset-registry/remote'
 export type {} from '@deepseek-ai/dsh-commands/remote'
 export type {} from '@deepseek-ai/dsh-api-settings-controller/remote'
 export type {} from '@deepseek-ai/dsh-api-account-controller/remote'
-// The email sign-in namespace. Kept as an explicit type-only re-export so the
-// augmentation survives into this assembly's declaration output: the value
-// import above is dropped from the emitted .d.ts, and a consumer program reads
-// that output rather than this source.
-export type {} from '@deepseek-ai/dsh-email-code-account/remote'
 export type {} from '@deepseek-ai/dsh-goal/remote'
 export type {} from '@deepseek-ai/dsh-schedule/remote'
 export type {} from '@deepseek-ai/dsh-office-to-pdf/remote'
@@ -190,7 +182,7 @@ export async function apply(ctx: Context): Promise<() => Promise<void>> {
       pluginInventoryRemote, pluginManagerRemote, pluginRegistryProbeRemote, messageFeedbackRemote, sessionFeedbackRemote,
       fileUploadsRemote, sessionReferencesRemote,
       permissionPresetsRemote, subagentsRemote, sessionRemote, jobRemote, workspaceRemote, workspaceFilesRemote, terminalRemote,
-      officeToPdfRemote, emailLoginRemote,
+      officeToPdfRemote,
     ]) {
       disposers.push(await ctx.remote.$mount(contribution))
     }

@@ -17,17 +17,6 @@ it('projects only safe account fields and refuses non-browser authorization sche
   expect(() => accountView({ ...state, attempt: { ...state.attempt, errorCode: 'raw-server-message' } })).toThrow()
 })
 
-it('accepts a provider that reports no platform destination', () => {
-  // Email sign-in grants identity without a wallet or usage page, so both
-  // destinations arrive empty; rejecting the snapshot would stop the app from
-  // opening its first window at all, long before any link could be clicked.
-  const signedOut = { links: { usageUrl: '', topUpUrl: '' }, status: 'signed-out', attempt: null }
-  expect(accountView(signedOut)).toEqual(signedOut)
-  // An empty destination only means "none"; the other still has to be a browser destination.
-  expect(() => accountView({ ...signedOut, links: { usageUrl: '', topUpUrl: 'file:///tmp/example' } })).toThrow()
-  expect(() => accountView({ ...signedOut, links: { usageUrl: 'not a url', topUpUrl: '' } })).toThrow()
-})
-
 it('uses account Remote commands without returning additional wire fields', async () => {
   const requests: unknown[] = []
   const backend = desktopAccountBackend('http://127.0.0.1:1234', (request) => {

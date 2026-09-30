@@ -107,9 +107,6 @@
     },
     {
       "path": "../../credentials/deepseek-account"
-    },
-    {
-      "path": "../../credentials/email-code-account"
     }
   ]
 }

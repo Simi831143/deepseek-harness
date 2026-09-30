@@ -1,6 +1,0 @@
-{
-  "meta": {
-    "title": "Email sign-in",
-    "description": "Sign in with a one-time code mailed to your address, through your own issuer."
-  }
-}
