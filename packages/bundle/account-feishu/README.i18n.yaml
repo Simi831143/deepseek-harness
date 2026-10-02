@@ -1,0 +1,46 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/bundle/account-feishu/README.md
+/:
+  en: 420accbc4a5d51fb
+  zh: 43f3aed1cbfdfe12
+/deepseek-ai-dsh-account-feishu:
+  en: e05cc14b382c880e
+  zh: ee84ddf28158dca6
+/deepseek-ai-dsh-account-feishu/summary:
+  en: c49fdfc1001ea8a5
+  zh: 79d55057476ebace
+/deepseek-ai-dsh-account-feishu/table-of-contents:
+  en: d152484eb41ac6b4
+  zh: 09388d293f9be9cb
+/deepseek-ai-dsh-account-feishu/use-this-package:
+  en: 47d0454f4a13c6a5
+  zh: 5194f9525045d096
+/deepseek-ai-dsh-account-feishu/understand-the-implementation:
+  en: bcfbcb3ab9965cdf
+  zh: 02c3265b4977d6f5
+/deepseek-ai-dsh-account-feishu/further-exploration:
+  en: ca2d7e7de1de3c23
+  zh: cd608b2327d85fb6
+/deepseek-ai-dsh-account-feishu/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/deepseek-ai-dsh-account-feishu/model-experience/account-only-composition:
+  en: ffca7e2d0167fe5e
+  zh: 60487349680f52b7
+/deepseek-ai-dsh-account-feishu/model-experience/account-only-composition/what-the-model-sees:
+  en: 6625b5c6fe04779a
+  zh: 898e753712c102da
+/deepseek-ai-dsh-account-feishu/model-experience/account-only-composition/token-effect:
+  en: 83746dea3f5569f0
+  zh: caa8191f4e9d24b2
+/deepseek-ai-dsh-account-feishu/model-experience/account-only-composition/kv-cache-effect:
+  en: 4f912e6f343086de
+  zh: 617803c558367430
+/deepseek-ai-dsh-account-feishu/known-limitations-and-deferred-work:
+  en: ade9a21372da6702
+  zh: d60f52c3145bf31f
+/deepseek-ai-dsh-account-feishu/known-limitations-and-deferred-work/dev-note:
+  en: 0225ba087c5266f3
+  zh: 3bb0c20c93f16f98

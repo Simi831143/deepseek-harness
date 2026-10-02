@@ -125,7 +125,6 @@
     # Supplying those profiles is exactly what the web Models page does. Which
     # adapters exist is composition; which providers run is the user's settings
     # document.
-    #
     # This deployment seeds one route below so a fresh installation arrives with
     # its own gateway already selectable. The composition layer is the settings
     # `base`; a user section still replaces it, provider by provider.

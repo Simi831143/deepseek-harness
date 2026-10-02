@@ -46,6 +46,7 @@ export function accountView(value: unknown): AccountView {
 
 /** Only HTTP loopback or HTTPS destinations can leave the native app. */
 function validateBrowserDestination(value: string): void {
+  if (value === '') return
   const url = new URL(value)
   const loopback = ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)
   if (url.username || url.password || !(url.protocol === 'https:' || (loopback && url.protocol === 'http:'))) {

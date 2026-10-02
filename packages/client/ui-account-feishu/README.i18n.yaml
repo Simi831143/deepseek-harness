@@ -1,0 +1,46 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/client/ui-account-feishu/README.md
+/:
+  en: 9c3be4259709568e
+  zh: 4a357e477254a699
+/deepseek-ai-dsh-client-ui-account-feishu:
+  en: ba5201b4e682d780
+  zh: e472040440d1a5ac
+/deepseek-ai-dsh-client-ui-account-feishu/summary:
+  en: 6e646e8d8fa6ef6f
+  zh: 5a1a612ea299a1bd
+/deepseek-ai-dsh-client-ui-account-feishu/table-of-contents:
+  en: d152484eb41ac6b4
+  zh: 09388d293f9be9cb
+/deepseek-ai-dsh-client-ui-account-feishu/use-this-package:
+  en: abe0ae7b7e42755d
+  zh: 25acb0317238e1d9
+/deepseek-ai-dsh-client-ui-account-feishu/understand-the-implementation:
+  en: 9553e1f191d74866
+  zh: 49a1c646476b30bb
+/deepseek-ai-dsh-client-ui-account-feishu/further-exploration:
+  en: 473ff952b346ab8e
+  zh: acbcec19ab786665
+/deepseek-ai-dsh-client-ui-account-feishu/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/deepseek-ai-dsh-client-ui-account-feishu/model-experience/account-ui-only:
+  en: 7aaaf60d81dc725a
+  zh: ecca71df400344b6
+/deepseek-ai-dsh-client-ui-account-feishu/model-experience/account-ui-only/what-the-model-sees:
+  en: c9b08e2777f54761
+  zh: 5fc7889091c16b1e
+/deepseek-ai-dsh-client-ui-account-feishu/model-experience/account-ui-only/token-effect:
+  en: b08f9d7f7558d8a6
+  zh: fad4c65285f7a6df
+/deepseek-ai-dsh-client-ui-account-feishu/model-experience/account-ui-only/kv-cache-effect:
+  en: 390ed1348de1718a
+  zh: dbc67c48a3791b30
+/deepseek-ai-dsh-client-ui-account-feishu/known-limitations-and-deferred-work:
+  en: 79c693e1617eaf5f
+  zh: bccdbd58053086a7
+/deepseek-ai-dsh-client-ui-account-feishu/known-limitations-and-deferred-work/dev-note:
+  en: 0225ba087c5266f3
+  zh: 3bb0c20c93f16f98

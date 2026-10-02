@@ -18,6 +18,9 @@
       "path": "../../packages/credentials/deepseek-account"
     },
     {
+      "path": "../../packages/credentials/feishu-account"
+    },
+    {
       "path": "../../packages/api/gateway/tsconfig.host.json"
     },
     {

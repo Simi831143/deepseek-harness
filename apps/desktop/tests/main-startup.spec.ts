@@ -269,6 +269,18 @@ vi.mock('../src/policy-test-auth.ts', () => ({ DesktopPolicyTestAuth: class {
   readonly request: typeof fetch = (input, init) => fetch(input, init)
 } }))
 
+const signInWindow = vi.hoisted(() => ({ open: vi.fn(), close: vi.fn(), dispose: vi.fn(async () => {}),
+  closedByUser: undefined as ((attemptId: string) => void) | undefined }))
+vi.mock('../src/sign-in-window.ts', async importOriginal => ({
+  ...await importOriginal<typeof import('../src/sign-in-window.ts')>(),
+  DesktopSignInWindow: class {
+    constructor(options: { closedByUser: (attemptId: string) => void }) { signInWindow.closedByUser = options.closedByUser }
+    readonly open = signInWindow.open
+    readonly close = signInWindow.close
+    readonly dispose = signInWindow.dispose
+  },
+}))
+
 vi.mock('electron', () => ({
   app: harness.app,
   BrowserWindow: harness.FakeWindow,
@@ -511,7 +523,7 @@ describe('desktop main startup', () => {
     await vi.advanceTimersByTimeAsync(0)
     const zh = locale === 'zh-CN'
     expect(harness.dialog.showMessageBox).toHaveBeenLastCalledWith(expect.objectContaining({
-      type: 'info', title: zh ? '关于 DeepSeek Harness' : 'About DeepSeek Harness', message: 'DeepSeek Harness',
+      type: 'info', title: zh ? '关于 LC Camera Agent' : 'About LC Camera Agent', message: 'LC Camera Agent',
       detail: zh ? '版本 V1.0.0' : 'Version V1.0.0', buttons: [zh ? '确定' : 'OK'], cancelId: 0,
     }))
     // A dialog that cannot open is logged, not surfaced as an unhandled rejection.
@@ -833,7 +845,7 @@ describe('desktop main startup', () => {
     expect(() => handler(event, 'application', NaN, 34)).toThrow('invalid popup request')
     const application = handler(event, 'application', 48, 34)
     expect(harness.menu.buildFromTemplate.mock.lastCall![0].map(item => item.label ?? item.type)).toEqual([
-      '关于 DeepSeek Harness', 'separator', '检查更新…', 'separator', '退出',
+      '关于 LC Camera Agent', 'separator', '检查更新…', 'separator', '退出',
     ])
     expect(harness.popup.mock.lastCall![0]).toMatchObject({ window, x: 48, y: 34 })
     expect(harness.popup.mock.lastCall![0].callback).toBeTypeOf('function')
@@ -2190,6 +2202,26 @@ it.each([['light', false], ['dark', true]] as const)('opens Platform authorizati
   harness.publishAccount(state)
   harness.publishAccount(state)
   expect(harness.openExternal).toHaveBeenCalledExactlyOnceWith(`https://platform.deepseek.com/dsh/authorize?state=state-1&theme=${theme}`)
+})
+
+it('opens Feishu authorization in the isolated in-app window and closes it once the attempt moves on', async () => {
+  await import('../src/main.ts')
+  await harness.preparing.promise
+  harness.prepared.resolve()
+  await harness.hostStarted.promise
+  harness.hosts[0]!.ready.resolve()
+  await Promise.resolve(invoke(DESKTOP_IPC.boot))
+  const id = 'feishu-attempt' as NonNullable<AccountView['attempt']>['id']
+  const authorizeUrl = 'https://accounts.feishu.cn/open-apis/authen/v1/authorize?state=state-1'
+  const links = { usageUrl: '', topUpUrl: '' }
+  signInWindow.open.mockClear(); signInWindow.close.mockClear()
+  harness.publishAccount({ status: 'signed-out', links, attempt: { id, phase: 'waiting-browser', authorizeUrl } })
+  harness.publishAccount({ status: 'signed-out', links, attempt: { id, phase: 'waiting-browser', authorizeUrl } })
+  expect(signInWindow.open).toHaveBeenCalledExactlyOnceWith(id, authorizeUrl)
+  expect(harness.openExternal).not.toHaveBeenCalled()
+  expect(signInWindow.close).not.toHaveBeenCalled()
+  harness.publishAccount({ status: 'credential-stored', links, attempt: { id, phase: 'exchanging' } })
+  expect(signInWindow.close).toHaveBeenCalledOnce()
 })
 
 it('disables native product events for a disabled Desktop launch', async () => {

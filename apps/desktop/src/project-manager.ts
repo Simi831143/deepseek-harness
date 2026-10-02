@@ -22,21 +22,24 @@ import {
 } from './core-package-set.ts'
 import {
   declaredEnvName,
-  DEPLOYMENT_ENVIRONMENT,
+  DEPLOYMENT_ENVIRONMENT_NAMES,
   PROFILE_ENV_FILENAME,
-  PROFILE_ENV_HEADER,
 } from './deployment-env.ts'
 import type { DesktopPaths } from './paths.ts'
 import type { DesktopRelease } from './release.ts'
 import { readDesktopRuntime } from './runtime-tree.ts'
 import {
-  initProfile, PROFILE_TEMPLATES, removeLinkProjections, sanitizeProfile, type ProfileTemplate,
+  initProfile, PROFILE_TEMPLATES, readProfileManifest, removeLinkProjections, sanitizeProfile,
+  writeProfileManifest, type ProfileTemplate,
 } from '@deepseek-ai/dsh-app-boot'
 
 const PROJECT_NAME = '@deepseek-ai/dsh-desktop-runtime'
 const DSH_PACKAGE = '@deepseek-ai/dsh'
 const CORE_BUILD_PACKAGE = '@deepseek-ai/dsh-subprocess-local'
 const WEB_PROFILE = PROFILE_TEMPLATES.web as ProfileTemplate
+const OWN_BUNDLE = '@deepseek-ai/dsh-account-feishu'
+const DESKTOP_PROFILE_BUNDLES: readonly string[] = [...WEB_PROFILE.bundles, OWN_BUNDLE]
+const DEPLOYMENT_PROFILE_ENVIRONMENT_NAMES = new Set<string>(DEPLOYMENT_ENVIRONMENT_NAMES)
 const WORKSPACE_SETTINGS = 'nodeLinker: hoisted\nautoInstallPeers: false\n'
 function writeJson(path: string, value: unknown): void {
   writeFileSync(path, `${JSON.stringify(value, undefined, 2)}\n`, { mode: 0o600 })
@@ -64,28 +67,36 @@ function migrateProfileSettings(projectDir: string): void {
   }
 }
 
+function reconcileProfileBundles(projectDir: string): void {
+  const manifest = readProfileManifest('dsh', projectDir)
+  const bundles = manifest.dsh?.profile?.bundles
+  if (bundles === undefined) return
+  const migrated = bundles.filter(bundle => bundle !== '@deepseek-ai/dsh-account-email'
+    && bundle !== '@deepseek-ai/dsh-account' && bundle !== OWN_BUNDLE)
+  const firstExternalBundle = migrated.findIndex(bundle => !WEB_PROFILE.bundles.includes(bundle))
+  migrated.splice(firstExternalBundle === -1 ? migrated.length : firstExternalBundle, 0, OWN_BUNDLE)
+  if (migrated.length === bundles.length && migrated.every((bundle, index) => bundle === bundles[index])) return
+  writeProfileManifest(projectDir, {
+    ...manifest,
+    dsh: { ...manifest.dsh, profile: { ...manifest.dsh?.profile, bundles: migrated } },
+  })
+}
+
 /**
- * Ensure every deployment-owned name is present in the profile's `.env`, the
- * file the Host reads as its invoking-directory environment layer.
- *
- * Existing lines win: a name the file already sets is never rewritten, so an
- * operator's or user's edit survives every later launch. Missing names are
- * appended rather than skipped, so a profile that predates this deployment —
- * or one whose `.env` carries unrelated values — still starts with the
- * credentials the bundle patch references.
+ * Remove deployment values written by older Desktop releases from the profile.
  * @param projectDir - Desktop profile directory.
  */
-function seedDeploymentEnvironment(projectDir: string): void {
+function removeLegacyDeploymentEnvironment(projectDir: string): void {
   const path = join(projectDir, PROFILE_ENV_FILENAME)
-  const existing = existsSync(path) ? readFileSync(path, 'utf8') : undefined
-  const declared = new Set(existing?.split(/\r?\n/).map(declaredEnvName)
-    .filter((name): name is string => name !== undefined) ?? [])
-  const absent = Object.entries(DEPLOYMENT_ENVIRONMENT).filter(([name]) => !declared.has(name))
-  if (absent.length === 0) return
-  const header = existing === undefined ? PROFILE_ENV_HEADER : ''
-  const separator = existing === undefined || existing.endsWith('\n') ? '' : '\n'
-  const lines = absent.map(([name, value]) => `${name}=${value}`).join('\n')
-  writeFileSync(path, `${existing ?? ''}${separator}${header}${lines}\n`, { mode: 0o600 })
+  if (!existsSync(path)) return
+  const existing = readFileSync(path, 'utf8')
+  const lines = existing.split(/\r?\n/)
+  const filtered = lines.filter((line) => {
+    const name = declaredEnvName(line)
+    return name === undefined || !DEPLOYMENT_PROFILE_ENVIRONMENT_NAMES.has(name)
+  })
+  if (filtered.length === lines.length) return
+  writeFileSync(path, filtered.join('\n'), { mode: 0o600 })
 }
 
 /** Initializes the Desktop profile and disables third-party bundles during recovery. */
@@ -105,7 +116,7 @@ export class DesktopProjectManager {
    * @returns Backup path after the locked profile write, or undefined if the patch was absent.
    */
   async disableAllPlugins(): Promise<string | undefined> {
-    return this.withLock(() => sanitizeProfile('dsh', this.paths.profile, WEB_PROFILE.bundles))
+    return this.withLock(() => sanitizeProfile('dsh', this.paths.profile, DESKTOP_PROFILE_BUNDLES))
   }
 
   /**
@@ -119,9 +130,10 @@ export class DesktopProjectManager {
       // The shipped template creates a profile that does not exist yet; the reconciliation that
       // follows adds the plugin payloads this build carries and refreshes the ones already held,
       // so a plugin a newer build introduces reaches an existing profile too.
-      createPluginProfile(this.paths.profile, WEB_PROFILE.bundles)
+      createPluginProfile(this.paths.profile, DESKTOP_PROFILE_BUNDLES)
+      reconcileProfileBundles(this.paths.profile)
       reconcileBundledPlugins(this.paths.profile, this.runtime.plugins)
-      seedDeploymentEnvironment(this.paths.profile)
+      removeLegacyDeploymentEnvironment(this.paths.profile)
       removeLinkProjections(this.paths.profile)
     })
   }
@@ -175,7 +187,7 @@ export function createRuntimeProjectMetadata(projectDir: string, release: Deskto
     private: true,
     version: '0.0.0',
     dependencies: desktopCorePackageOverrides(packageSet),
-    dsh: { profile: { bundles: [...WEB_PROFILE.bundles] } },
+    dsh: { profile: { bundles: [...DESKTOP_PROFILE_BUNDLES] } },
   }
   writeJson(join(projectDir, 'package.json'), manifest)
   writeFileSync(
@@ -200,7 +212,7 @@ export function createDevelopmentProjectMetadata(projectDir: string, release: De
       [DSH_PACKAGE]: release.version,
       [DESKTOP_HOST_PACKAGE]: release.version,
     },
-    dsh: { profile: { bundles: [...WEB_PROFILE.bundles] } },
+    dsh: { profile: { bundles: [...DESKTOP_PROFILE_BUNDLES] } },
   }
   writeJson(join(projectDir, 'package.json'), manifest)
   writeFileSync(join(projectDir, 'pnpm-workspace.yaml'), workspaceFile(), { mode: 0o600 })
@@ -209,8 +221,8 @@ export function createDevelopmentProjectMetadata(projectDir: string, release: De
 /**
  * Create the first external plugin profile without running a package manager.
  * @param projectDir - the profile directory.
- * @param bundles - initial `dsh.profile.bundles` layer list; defaults to the web profile's.
+ * @param bundles - initial `dsh.profile.bundles` layer list; defaults to the Desktop profile's.
  */
-export function createPluginProfile(projectDir: string, bundles: readonly string[] = WEB_PROFILE.bundles): void {
+export function createPluginProfile(projectDir: string, bundles: readonly string[] = DESKTOP_PROFILE_BUNDLES): void {
   initProfile(projectDir, bundles)
 }

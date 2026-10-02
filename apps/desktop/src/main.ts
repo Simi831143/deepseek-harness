@@ -3,7 +3,7 @@ import { WINDOWS_TITLEBAR_HEIGHT } from './windows-layout.ts'
 /** Electron shell: desktop project ownership, custom protocol, windows, and lifecycle. */
 
 import { readFile, writeFile } from 'node:fs/promises'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
   app,
@@ -57,6 +57,9 @@ import { DesktopUpdateOverlays } from './update-overlay.ts'
 import { DesktopQuitConfirmation } from './quit-confirmation.ts'
 import { DesktopTray } from './tray.ts'
 import { DesktopBackgroundNotice } from './background-notice.ts'
+import { readDeploymentEnvironment } from './deployment-env.ts'
+import { DesktopSignInWindow, opensInApp } from './sign-in-window.ts'
+import type { SignInAttemptId } from '@deepseek-ai/dsh-deepseek-account/types'
 
 let focusPrimaryWindow = (): void => {}
 let stopForRecovery = async (): Promise<void> => {}
@@ -319,6 +322,11 @@ async function main(): Promise<void> {
   const journalDirectory = process.env.DSH_DESKTOP_UPDATE_JOURNAL_DIR
   const updateJournal = journalDirectory === undefined ? undefined : new DesktopUpdateJournal(journalDirectory, app.getVersion())
   const resources = runtimeResources()
+  const deploymentEnvironment = readDeploymentEnvironment({
+    packaged: app.isPackaged,
+    repositoryRoot: resolve(app.getAppPath(), '..', '..'),
+    resourcesPath: process.resourcesPath,
+  })
   const paths = resolveDesktopPaths()
   const development = !app.isPackaged
   const primaryRuntime = development
@@ -418,12 +426,18 @@ async function main(): Promise<void> {
     navigation = next
     return next.promise
   }
+  const signInWindow = new DesktopSignInWindow({
+    copy: () => ({ title: locale.messages.signInWindowTitle, loading: locale.messages.policyLoginLoading }),
+    closedByUser: (attemptId) => {
+      void welcomeBackend?.account.cancel(attemptId as SignInAttemptId).catch((_settled: unknown) => undefined)
+    },
+  })
   const platformView = new DesktopPlatformView(join(app.getAppPath(), 'lib', 'preload-platform-account.cjs'),
     () => locale.id === 'zh-CN' ? 'zh_CN' : 'en_US', process.platform === 'win32' ? 'win32' : 'darwin')
   const backend = new DesktopBackendController((onFailure) => {
     const hostInspectPort = developmentHostInspectPort(development)
     const host = new DesktopHostProcess(resources.node, resources.dsh, activeProject,
-      hostInspectPort, { ...process.env, DSH_CLIENT_VERSION: desktopClientVersion() }, onFailure,
+      hostInspectPort, { ...process.env, ...deploymentEnvironment, DSH_CLIENT_VERSION: desktopClientVersion() }, onFailure,
       primaryRuntime,
       resources, (next) => { platformView.setSession(next) })
     return {
@@ -444,8 +458,11 @@ async function main(): Promise<void> {
           const attempt = state.attempt
           if (attempt?.phase === 'waiting-browser' && attempt.authorizeUrl !== undefined && openedAttempt !== attempt.id) {
             openedAttempt = attempt.id
-            void shell.openExternal(platformLoginUrl(attempt.authorizeUrl)).catch(() => undefined)
+            if (opensInApp(attempt.authorizeUrl)) signInWindow.open(attempt.id, attempt.authorizeUrl)
+            else void shell.openExternal(platformLoginUrl(attempt.authorizeUrl)).catch(() => undefined)
           }
+          // The window serves only a waiting attempt; once the Host moves on, the page has nothing left to do.
+          if (attempt?.phase !== 'waiting-browser') signInWindow.close()
           if ((attempt?.phase === 'failed' || attempt?.phase === 'expired') && returnedAttempt !== attempt.id) {
             returnedAttempt = attempt.id
             focusPrimaryWindow()
@@ -1225,6 +1242,7 @@ async function main(): Promise<void> {
     updateDialog.dispose()
     mandatoryUI?.dispose()
     void Promise.all([Promise.resolve(mandatoryPolicy?.dispose()).then(() => policyAuth?.dispose()), backend.close(),
+      signInWindow.dispose(),
       // A Platform cleanup failure is logged without cutting the remaining Host shutdown short.
       platformView.dispose().catch((error: unknown) => { console.error(error) })])
       .catch((error: unknown) => { console.error(error) }).finally(() => { app.quit() })

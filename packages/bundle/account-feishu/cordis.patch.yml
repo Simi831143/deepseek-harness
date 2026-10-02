@@ -1,0 +1,28 @@
+# Feishu OAuth sign-in, layered over the shipped Web composition.
+#
+# The Feishu account names the user; it is not a model credential. Models keep
+# their own API keys on the Models page, so this layer disables the upstream
+# account provider, its Settings card, and the account-token model route, then
+# inserts the Feishu provider and its account UI. The app secret is read from
+# FEISHU_APP_SECRET in the Host environment; it is never stored in the profile
+# manifest or patch.
+
+- id: deepseek-account
+  disabled: true
+
+- id: ui-settings-account
+  disabled: true
+
+- id: llm-deepseek-account
+  disabled: true
+
+- insert:
+    - id: feishu-account
+      name: '@deepseek-ai/dsh-feishu-account'
+      config:
+        appId: cli_a8522a438ebb1013
+        appSecretRef: FEISHU_APP_SECRET
+        scope: offline_access contact:user.email:readonly
+
+    - id: ui-account-feishu
+      name: '@deepseek-ai/dsh-client-ui-account-feishu'

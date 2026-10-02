@@ -32,6 +32,10 @@
       "@deepseek-ai/dsh-client-product-analytics/types": ["./packages/client/product-analytics/src/events.ts"],
       "@deepseek-ai/dsh-client-product-analytics/client": ["./packages/client/product-analytics/src/client/index.ts"],
       "@deepseek-ai/dsh-otel": ["./packages/telemetry/otel/src"],
+      "@deepseek-ai/dsh-feishu-account": ["./packages/credentials/feishu-account/src/index.ts"],
+      "@deepseek-ai/dsh-feishu-account/types": ["./packages/credentials/feishu-account/src/types.ts"],
+      "@deepseek-ai/dsh-client-ui-account-feishu": ["./packages/client/ui-account-feishu/src/index.ts"],
+      "@deepseek-ai/dsh-client-ui-account-feishu/client": ["./packages/client/ui-account-feishu/src/client/index.ts"],
       "@deepseek-ai/dsh-client-ui-settings-account": ["./packages/client/ui-settings-account/src/index.ts"],
       "@deepseek-ai/dsh-client-ui-settings-account/client": ["./packages/client/ui-settings-account/src/client/index.ts"],
       "@deepseek-ai/dsh-api-gateway/stream-protocol": ["./packages/api/gateway/src/stream-protocol.ts"],
@@ -337,6 +341,7 @@
       "@deepseek-ai/dsh-session-format-catalog/message-projections": ["./packages/session/session-format-catalog/src/message-projections.ts"],
       "@deepseek-ai/dsh-native-command/types": ["./packages/util/native-command/src/types.ts"],
       // BEGIN generated package aliases — pnpm run gen-tsconfig-paths
+      "@deepseek-ai/dsh-account-feishu": ["./packages/bundle/account-feishu/src"],
       "@deepseek-ai/dsh-acp": ["./packages/acp/acp/src"],
       "@deepseek-ai/dsh-acp-app": ["./packages/bundle/acp-app/src"],
       "@deepseek-ai/dsh-agent": ["./packages/core/agent/src"],

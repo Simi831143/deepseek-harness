@@ -1,48 +1,88 @@
-/**
- * Deployment-owned environment values seeded into a new Desktop profile.
- *
- * The Host reads its invoking directory's `.env` — this profile directory — as
- * one layer of its launch environment: below the inherited environment, above
- * the Harness home's `.env` (`loadLayeredEnv` in `@deepseek-ai/dsh-app-boot`).
- * Seeding that file is what lets a packaged installation arrive with its
- * provider credentials already resolvable, and it is one of the layers the
- * credentials seam reads when no store entry exists
- * (`resolve` in `@deepseek-ai/dsh-credentials-local`: inherited environment,
- * then `$DSH_HOME/.credentials.yaml`, then the project and home `.env` files).
- *
- * A name is written only when the profile's `.env` does not already set it, so
- * an operator's or user's edit survives every later launch. A value stored
- * through the Models page lands in `$DSH_HOME/.credentials.yaml`, which
- * outranks this file either way.
- */
+/** Read deployment-owned values without placing them in a Desktop profile. */
 
-/**
- * Environment names this deployment ships, with the values it ships.
- *
- * The `longcheer` route these authenticate is configured by the base bundle
- * patch (`packages/bundle/base/cordis.patch.yml`), which names the reference
- * through the profile's `apiKeyEnv`, never the value. Rotate a value here and
- * rebuild; nothing else needs to change.
- */
-export const DEPLOYMENT_ENVIRONMENT: Readonly<Record<string, string>> = {
-  /** Credential for the `longcheer` pi-ai route the base bundle patch mounts. */
-  LONGCHEER_API_KEY: 'sk-Vo5osohYxIIQG5k3S5XuyzeaOVz1RlpXBYyx1FPliM2mcdes',
-}
+import { existsSync, readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { parseEnv } from 'node:util'
 
-/** Basename of the profile environment file the Host reads as its invoking-directory layer. */
+/** Names that the Desktop shell may inject into the Host environment. */
+export const DEPLOYMENT_ENVIRONMENT_NAMES = ['FEISHU_APP_SECRET', 'LONGCHEER_API_KEY'] as const
+
+/** Deployment environment values accepted by the Desktop shell. */
+export type DeploymentEnvironment = Partial<Record<typeof DEPLOYMENT_ENVIRONMENT_NAMES[number], string>>
+
+/** Name of the profile environment file whose legacy deployment entries are removed during migration. */
 export const PROFILE_ENV_FILENAME = '.env'
 
-/** Comment block written only when the seeding creates the file. */
-export const PROFILE_ENV_HEADER = '# Written by this deployment on first launch.\n'
-  + '# A value stored through the Models page outranks this file; a value\n'
-  + '# edited here is left as written on every later launch.\n'
+/** Name of the packaged deployment environment resource. */
+export const DEPLOYMENT_ENV_FILENAME = 'deployment-env.json'
+
+/** Name of the development-only repository secret file. */
+export const SECRETS_ENV_FILENAME = '.secrets.env'
 
 /**
- * The dotenv name a line declares, or `undefined` for a blank line, a comment,
- * or anything this file is not expected to carry. Only the name is read —
- * a seeded value must never be pattern-matched or echoed.
- * @param line - one line of the profile environment file.
- * @returns the declared name, if the line declares one.
+ * Read a development or packaged deployment environment for the Host.
+ * @param options - Application mode and the two environment roots.
+ * @returns Allowed deployment values, or an empty object when the source is absent.
+ */
+export function readDeploymentEnvironment(options: {
+  readonly packaged: boolean
+  readonly repositoryRoot: string
+  readonly resourcesPath: string
+}): DeploymentEnvironment {
+  return options.packaged
+    ? readJsonEnvironment(join(options.resourcesPath, DEPLOYMENT_ENV_FILENAME))
+    : readSecretsEnvironment(join(options.repositoryRoot, SECRETS_ENV_FILENAME))
+}
+
+/**
+ * Read an allowed subset of a JSON deployment resource.
+ * @param path - JSON resource path.
+ * @returns Allowed deployment values, or an empty object when the resource is absent.
+ */
+function readJsonEnvironment(path: string): DeploymentEnvironment {
+  if (!existsSync(path)) return {}
+  let value: unknown
+  try {
+    value = JSON.parse(readFileSync(path, 'utf8'))
+  } catch {
+    throw new Error(`dsh desktop: invalid deployment environment resource at ${path}`)
+  }
+  return selectDeploymentValues(value)
+}
+
+/**
+ * Read the repository-local dotenv file used by unpackaged development.
+ * @param path - Dotenv path.
+ * @returns Allowed deployment values, or an empty object when the file is absent.
+ */
+function readSecretsEnvironment(path: string): DeploymentEnvironment {
+  if (!existsSync(path)) return {}
+  try {
+    return selectDeploymentValues(parseEnv(readFileSync(path, 'utf8').replace(/^\uFEFF/u, '')))
+  } catch {
+    throw new Error(`dsh desktop: invalid deployment environment dotenv at ${path}`)
+  }
+}
+
+/**
+ * Keep only the names owned by the Desktop deployment and ignore unrelated dotenv or JSON fields.
+ * @param value - Parsed dotenv or JSON value.
+ * @returns Allowed non-empty deployment values.
+ */
+function selectDeploymentValues(value: unknown): DeploymentEnvironment {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return {}
+  const result: DeploymentEnvironment = {}
+  for (const name of DEPLOYMENT_ENVIRONMENT_NAMES) {
+    const candidate = Object.getOwnPropertyDescriptor(value, name)?.value
+    if (typeof candidate === 'string' && candidate !== '') result[name] = candidate
+  }
+  return result
+}
+
+/**
+ * Return the dotenv name declared by one profile line.
+ * @param line - One line of the profile environment file.
+ * @returns The declared name, or `undefined` for non-assignment lines.
  */
 export function declaredEnvName(line: string): string | undefined {
   return /^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=/.exec(line)?.[1]
