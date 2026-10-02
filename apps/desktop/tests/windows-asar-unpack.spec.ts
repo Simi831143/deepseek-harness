@@ -24,10 +24,10 @@ vi.mock('../scripts/windows-runtime-signature.mjs', async importOriginal => ({
   ...await importOriginal<typeof import('../scripts/windows-runtime-signature.mjs')>(),
   signWindowsCode: async () => {},
 }))
-// The fixture packages no runtime resources; bundled-skills.spec.ts owns the skill check.
-vi.mock('../scripts/bundled-skills.mjs', async importOriginal => ({
-  ...await importOriginal<typeof import('../scripts/bundled-skills.mjs')>(),
-  verifyBundledSkills: () => {},
+// The fixture packages no runtime resources; bundled-content.spec.ts owns the bundled-content check.
+vi.mock('../scripts/bundled-content.mjs', async importOriginal => ({
+  ...await importOriginal<typeof import('../scripts/bundled-content.mjs')>(),
+  verifyBundledContent: () => {},
 }))
 // Vite's root-relative IDs also resolve mocked build outputs on a clean checkout.
 vi.mock('/apps/desktop/lib/types/runtime-tree.js', () => ({ verifyDesktopRuntime: async () => {} }))

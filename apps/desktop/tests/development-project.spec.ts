@@ -6,6 +6,7 @@ import { prepareDevelopmentProject } from '../scripts/development-project.ts'
 import { DESKTOP_HOST_PROTOCOL_VERSION } from '../src/host-protocol.ts'
 import { DesktopProjectManager } from '../src/project-manager.ts'
 import { resolveDesktopPaths } from '../src/paths.ts'
+import { bundledContentFixture } from './runtime-fixture.ts'
 import type { DesktopRelease } from '../src/release.ts'
 
 const roots: string[] = []
@@ -94,6 +95,7 @@ describe('desktop development project', () => {
     expect(descriptor).toMatchObject({ platform: 'win32', arch: 'x64' })
     const manager = new DesktopProjectManager(resolveDesktopPaths(join(root, 'home')), {
       dsh: project,
+      bundled: bundledContentFixture(join(root, 'runtime', 'bundled')),
     })
     await manager.applyRelease()
     await manager.disableAllPlugins()

@@ -3,7 +3,7 @@ import { WINDOWS_TITLEBAR_HEIGHT } from './windows-layout.ts'
 /** Electron shell: desktop project ownership, custom protocol, windows, and lifecycle. */
 
 import { readFile, writeFile } from 'node:fs/promises'
-import { join, resolve } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
   app,
@@ -23,7 +23,7 @@ import {
   type MenuItemConstructorOptions,
 } from 'electron'
 import { resolveDesktopPaths } from './paths.ts'
-import { BUNDLED_PLUGIN_DIRECTORY } from './bundled-plugins.ts'
+import { BUNDLED_CONTENT_DIRECTORY } from './bundled-plugins.ts'
 import { DesktopProjectManager } from './project-manager.ts'
 import { DesktopHostFatalError, DesktopHostProcess, DesktopHostUncleanExitError } from './host-process.ts'
 import { DesktopPlatformView, PLATFORM_IPC, platformBounds } from './platform-view.ts'
@@ -147,8 +147,10 @@ interface RuntimeResources {
   readonly node: string
   readonly pnpm: string
   readonly dsh: string
-  /** Resources directory holding one subdirectory per bundled plugin payload. */
-  readonly plugins: string
+  /** Prepared primary runtime the Host executes Python and Office routes from. */
+  readonly primaryRuntime: string
+  /** Bundled skills and plugins, prepared beside the primary runtime. */
+  readonly bundled: string
 }
 
 function runtimeResources(): RuntimeResources {
@@ -160,10 +162,9 @@ function runtimeResources(): RuntimeResources {
       : join(process.resourcesPath, 'runtime', 'pnpm', 'bin', 'pnpm.mjs'))
   const dsh = (development ? process.env.DSH_DESKTOP_DSH_DIR : undefined)
     ?? (development ? join(app.getAppPath(), '.desktop-build', 'development', 'project') : join(app.getAppPath(), 'dsh'))
-  const plugins = process.env.DSH_DESKTOP_BUNDLED_PLUGINS_DIR
-    ?? (development ? join(app.getAppPath(), 'resources', BUNDLED_PLUGIN_DIRECTORY)
-      : join(process.resourcesPath, BUNDLED_PLUGIN_DIRECTORY))
-  return { node, nodeBin, pnpm, dsh, plugins }
+  const primaryRuntime = development ? developmentPrimaryRuntime() : join(process.resourcesPath, 'runtime', 'primary-runtime')
+  const bundled = join(dirname(primaryRuntime), BUNDLED_CONTENT_DIRECTORY)
+  return { node, nodeBin, pnpm, dsh, primaryRuntime, bundled }
 }
 
 function developmentPrimaryRuntime(): string {
@@ -329,9 +330,7 @@ async function main(): Promise<void> {
   })
   const paths = resolveDesktopPaths()
   const development = !app.isPackaged
-  const primaryRuntime = development
-    ? developmentPrimaryRuntime()
-    : join(process.resourcesPath, 'runtime', 'primary-runtime')
+  const { primaryRuntime } = resources
   const activeProject = paths.profile
   const manager = new DesktopProjectManager(paths, resources)
   let quitting = false

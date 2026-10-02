@@ -6,7 +6,7 @@ import { resolveDesktopPaths } from '../src/paths.ts'
 import { DesktopProjectManager } from '../src/project-manager.ts'
 import { PROFILE_ENV_FILENAME } from '../src/deployment-env.ts'
 import { readProfilePlugins } from '@deepseek-ai/dsh-app-boot'
-import { runtimeFixture } from './runtime-fixture.ts'
+import { bundledContentFixture, runtimeFixture } from './runtime-fixture.ts'
 
 const roots: string[] = []
 function temporaryRoot(): string {
@@ -37,7 +37,8 @@ function setup(): { root: string; manager: DesktopProjectManager } {
   const root = temporaryRoot()
   const dsh = join(root, 'resources', 'dsh')
   runtimeFixture(dsh)
-  return { root, manager: new DesktopProjectManager(resolveDesktopPaths(join(root, '.dsh')), { dsh }) }
+  const bundled = bundledContentFixture(join(root, 'resources', 'runtime', 'bundled'))
+  return { root, manager: new DesktopProjectManager(resolveDesktopPaths(join(root, '.dsh')), { dsh, bundled }) }
 }
 afterEach(() => {
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true })

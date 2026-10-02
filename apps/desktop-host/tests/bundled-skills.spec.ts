@@ -7,7 +7,7 @@ import * as skillFilesystem from '@deepseek-ai/dsh-skill-filesystem'
 import { expect, it } from 'vitest'
 import * as desktopBundledSkills from '../src/bundled-skills.ts'
 
-const { BUNDLED_SKILL_DIRECTORY } = desktopBundledSkills
+const { BUNDLED_CONTENT_DIRECTORY, BUNDLED_SKILL_DIRECTORY } = desktopBundledSkills
 
 /**
  * Build a runtime tree for one case.
@@ -18,9 +18,9 @@ async function scaffold(skills: readonly string[] | undefined): Promise<string> 
   const root = await mkdtemp(join(tmpdir(), 'desktop-bundled-skills-'))
   await mkdir(join(root, 'runtime', 'primary-runtime'), { recursive: true })
   if (skills !== undefined) {
-    await mkdir(join(root, 'runtime', BUNDLED_SKILL_DIRECTORY), { recursive: true })
+    await mkdir(join(root, 'runtime', BUNDLED_CONTENT_DIRECTORY, BUNDLED_SKILL_DIRECTORY), { recursive: true })
     for (const skill of skills) {
-      const directory = join(root, 'runtime', BUNDLED_SKILL_DIRECTORY, skill)
+      const directory = join(root, 'runtime', BUNDLED_CONTENT_DIRECTORY, BUNDLED_SKILL_DIRECTORY, skill)
       await mkdir(directory, { recursive: true })
       await writeFile(join(directory, 'SKILL.md'), `---\nname: ${skill}\ndescription: ${skill} workflow.\n---\n\n# ${skill}\n`)
     }
@@ -46,7 +46,7 @@ it('publishes every bundled skill from one provider and removes them on disposal
       expect(skill).toMatchObject({ source: 'bundled', provider: 'desktop-bundled', invocation: { modelInvocable: true, userInvocable: true } })
     }
     const loaded = await ctx.skills.get('ppt-master')
-    expect(loaded?.resourceBase).toEqual({ kind: 'directory', path: join(root, 'runtime', BUNDLED_SKILL_DIRECTORY, 'ppt-master') })
+    expect(loaded?.resourceBase).toEqual({ kind: 'directory', path: join(root, 'runtime', BUNDLED_CONTENT_DIRECTORY, BUNDLED_SKILL_DIRECTORY, 'ppt-master') })
     expect(loaded?.content).toBe('# ppt-master')
     await fiber.dispose()
     expect(await ctx.skills.list()).toEqual([])

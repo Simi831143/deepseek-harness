@@ -48,3 +48,15 @@ export function runtimeFixture(root: string, version = '1.0.0', nodeVersion = '2
   writeFileSync(join(root, 'package.json'), '{"type":"module"}\n')
   return writeDesktopRuntime(root, { schemaVersion: 1, version, nodeVersion, pnpmVersion: '11.7.0', hostProtocolVersion: DESKTOP_HOST_PROTOCOL_VERSION }, names)
 }
+
+/**
+ * Write the bundled content of a build that carries no skills or plugins.
+ * @param root - New content directory.
+ * @returns the content directory.
+ */
+export function bundledContentFixture(root: string): string {
+  mkdirSync(root, { recursive: true })
+  writeFileSync(join(root, 'manifest.json'), `${JSON.stringify({ schemaVersion: 1, skills: [], plugins: [] })}
+`)
+  return root
+}

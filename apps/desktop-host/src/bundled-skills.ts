@@ -6,19 +6,22 @@ import type { Context } from '@deepseek-ai/cordis'
 import * as skillFilesystem from '@deepseek-ai/dsh-skill-filesystem'
 
 /**
- * Runtime subdirectory holding one directory per bundled skill.
+ * Runtime subdirectory holding the Desktop's bundled content.
  *
- * Must agree with `BUNDLED_SKILL_DIRECTORY` in `apps/desktop/scripts/bundled-skills.mjs`,
+ * Must agree with `BUNDLED_CONTENT_DIRECTORY` in `apps/desktop/scripts/bundled-content.mjs`,
  * which decides what preparation copies there; a build script and the Host bundle
  * cannot share a module.
  */
-export const BUNDLED_SKILL_DIRECTORY = 'bundled-skills'
+export const BUNDLED_CONTENT_DIRECTORY = 'bundled'
+
+/** Content subdirectory holding one directory per bundled skill. */
+export const BUNDLED_SKILL_DIRECTORY = 'skills'
 
 /** Loader identity for the application-owned bundled skill composition. */
 export const name = 'desktop-bundled-skills'
 /** Application-selected bundled payload location. */
 export interface Config {
-  /** Bundled payload directory. A missing sibling `bundled-skills` resource omits every bundled skill. */
+  /** Bundled payload directory. A missing sibling `bundled/skills` resource omits every bundled skill. */
   readonly source: string
 }
 
@@ -38,7 +41,7 @@ export interface Config {
  * @returns Resolves after the provider is mounted, or immediately when the payload carries no skills.
  */
 export async function apply(ctx: Context, config: Config): Promise<void> {
-  const bundledSkillDir = join(dirname(config.source), BUNDLED_SKILL_DIRECTORY)
+  const bundledSkillDir = join(dirname(config.source), BUNDLED_CONTENT_DIRECTORY, BUNDLED_SKILL_DIRECTORY)
   if (statSync(bundledSkillDir, { throwIfNoEntry: false })?.isDirectory() !== true) {
     ctx.logger.warn(`desktop bundled skills: payload carries no skills; expected ${bundledSkillDir}`)
     return

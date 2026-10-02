@@ -103,11 +103,11 @@ function removeLegacyDeploymentEnvironment(projectDir: string): void {
 export class DesktopProjectManager {
   /**
    * @param paths - Electron-owned package state and reserved desktop profile paths.
-   * @param runtime - location of the bundled application runtime.
+   * @param runtime - location of the bundled application runtime and of the build's bundled content.
    */
   constructor(
     readonly paths: DesktopPaths,
-    readonly runtime: { readonly dsh: string; readonly plugins?: string | undefined },
+    readonly runtime: { readonly dsh: string; readonly bundled: string },
   ) {}
 
   /**
@@ -123,16 +123,18 @@ export class DesktopProjectManager {
    * Load application metadata and prepare the external plugin profile without installing packages.
    */
   async applyRelease(): Promise<void> {
-    await this.withLock(() => {
+    await this.withLock(async () => {
       // Validation only: an unreadable or mismatched runtime descriptor stops preparation before the Host starts.
       readDesktopRuntime(this.runtime.dsh)
       migrateProfileSettings(this.paths.profile)
-      // The shipped template creates a profile that does not exist yet; the reconciliation that
-      // follows adds the plugin payloads this build carries and refreshes the ones already held,
-      // so a plugin a newer build introduces reaches an existing profile too.
+      // The template creates a profile that does not exist yet; the bundled-plugin reconciliation
+      // then applies this build's plugins to a new and an existing profile alike.
       createPluginProfile(this.paths.profile, DESKTOP_PROFILE_BUNDLES)
       reconcileProfileBundles(this.paths.profile)
-      reconcileBundledPlugins(this.paths.profile, this.runtime.plugins)
+      const changes = await reconcileBundledPlugins(this.paths.profile, this.runtime.bundled)
+      if (changes.installed.length + changes.updated.length + changes.removed.length > 0) {
+        console.info('Desktop bundled plugins reconciled:', changes)
+      }
       removeLegacyDeploymentEnvironment(this.paths.profile)
       removeLinkProjections(this.paths.profile)
     })

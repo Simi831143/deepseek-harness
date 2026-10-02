@@ -58,7 +58,7 @@ Desktop 携带独立的 Python、Node.js 和 pnpm 分发包。Python 包含 nump
 
 Desktop 默认注册 `office-docx`、`office-pptx` 和 `office-xlsx`。这些技能使用内置 Python 库创建文件和进行定点编辑，随后重新打开文件，并在交付前运行共享结构检查器。PowerPoint 的创建和编辑使用 python-pptx。技能资源复制到 ASAR 外的 `runtime/office-skills`，让 Python 可以读取检查器。可用的 `render_document` 工具可以补充视觉检查；缺少该工具不妨碍创作或交付。检查范围与限制见 [Office 技能包](../../packages/skill/skill-office/README.zh.md)。
 
-Desktop 还会注册 [`scripts/bundled-skills.mjs`](scripts/bundled-skills.mjs) 列出的技能：`ppt-master`，以及来自 `superpowers` 检出目录 `dsh` 分支的 13 个 Superpowers 流程技能，该分支把一个上游发布版本适配为 DSH 工具名。准备阶段从本仓库旁的检出目录（其父目录可用 `DSH_DESKTOP_BUNDLED_SKILLS_DIR` 覆盖）把每个列出的技能目录平铺复制到 ASAR 外的 `runtime/bundled-skills/<name>`，剔除解释器字节码、缓存与依赖目录，把来源声明的许可证文件复制到 `runtime/bundled-skill-licenses/<checkout>/`，并在 `runtime/bundled-skills.json` 记录每个技能的检出目录、提交、本地改动状态与许可证。列出的检出目录缺失时准备阶段失败，除非 `DSH_DESKTOP_ALLOW_MISSING_SKILLS=1` 将其省略并记录警告；检出目录不在声明的分支上或缺少声明的许可证时，以及 `SKILL.md` 未声明与目录同名的名称和描述时，同样失败；打包产物缺少已记录的技能或许可证时打包失败。Host 从只读资源把该目录挂载为一个随包技能根目录，因此这些技能不依赖用户主目录状态，升级会原地替换，同名的项目或用户技能优先。`ppt-master` 的 Python 依赖不属于随包分发包：需要 PyYAML、skia-pathops、uharfbuzz、PyMuPDF、EbookLib 或 edge-tts 的路由，在所用解释器提供这些包之前会报告缺少包。
+Desktop 随包携带 [`scripts/bundled-content.mjs`](scripts/bundled-content.mjs) 列出的技能和插件：`ppt-master` 技能；来自 `superpowers` 检出目录 `dsh` 分支的 13 个 Superpowers 流程技能，该分支把一个上游发布版本适配为 DSH 工具名；以及 `dsh-bundle-exa-search` 插件。准备阶段从本仓库旁的检出目录（其父目录可用 `DSH_DESKTOP_BUNDLED_SOURCES_DIR` 覆盖）把每个列出的条目复制到 ASAR 外的 `runtime/bundled/`：技能目录平铺到 `skills/<name>`，剔除解释器字节码、缓存与依赖目录；每个插件的 `package.json` 及其 `files` 列出的路径复制到 `plugins/<name>`。准备阶段把来源声明的许可证文件复制到 `licenses/<checkout>/`，并在 `runtime/bundled/manifest.json` 记录每个条目的检出目录、提交、本地改动状态与许可证，以及每个插件的版本和内容摘要。列出的检出目录缺失时准备阶段失败，除非 `DSH_DESKTOP_ALLOW_MISSING_SOURCES=1` 将其省略并记录警告；检出目录不在声明的分支上或缺少声明的许可证时、`SKILL.md` 未声明与目录同名的名称和描述时，以及插件不是已构建、无运行时依赖且在 `files` 中列出分发路径的 dsh bundle 时，同样失败；打包产物缺少已记录的条目或许可证，或打包后的插件与准备阶段的副本不一致时，打包失败。Host 从只读资源把 `skills/` 挂载为一个随包技能根目录，因此这些技能不依赖用户主目录状态，升级会原地替换，同名的项目或用户技能优先。`ppt-master` 的 Python 依赖不属于随包分发包：需要 PyYAML、skia-pathops、uharfbuzz、PyMuPDF、EbookLib 或 edge-tts 的路由，在所用解释器提供这些包之前会报告缺少包。
 
 该产物随 Desktop 版本发布。`runtime.json` 记录 Desktop 版本、目标平台、顶层解释器和包管理器版本及 Python 分发包版本表，以及所选目标的锁定产物输入与组装格式的摘要。分发包名称按 PEP 503 归一化；名称归一化后重复时，清单会被拒绝。旧 `components` 清单通过归一化继续可读，并保留其原有库版本一致性校验。匹配的安装会被复用；依赖或压缩包变化后，即使 Desktop 版本不变，也会在完整暂存副本完成后替换目录。不含摘要的旧清单会在下次安装时被替换。用户自行添加的 Python 包仅在产物身份一致时保留。目录替换失败时保留之前的安装；解释器仍在运行时，Windows 可能拒绝替换。
 
@@ -111,6 +111,8 @@ macOS 上自定义菜单保留 Electron 的标准 Window 菜单及应用隐藏�
 5. 共享管理器负责安装错误、激活和重启要求。即使 Host 无法启动，原生恢复仍可禁用第三方 bundle。
 
 [Web 插件 UI](../../packages/client/ui-plugin-manager/README.zh.md)负责管理界面。Desktop profile 初始化和恢复保留已安装插件文件。
+
+每次启动时，Host 启动前还会对照 profile 中的 `bundled-plugins.json` 对账随包插件。该文件记录此 profile 已获得的插件，以及其所持副本的内容摘要。profile 以 `file:./bundled-plugins/<name>` 声明的随包插件归构建所有；以其他方式声明的同名依赖归用户所有，不会被改动。profile 从未获得过的插件会被复制到 `node_modules/<name>` 与 `bundled-plugins/<name>`，加入依赖声明并启用；新 profile 和新版构建引入的插件都按此处理。归构建所有的插件，若记录的摘要与构建携带的不同（包括同一版本号下重新构建，或换回旧版构建），会原地替换代码，并保留启用状态与 `cordis.patch.yml` 中的配置。profile 获得插件后又将其删除的，插件保持删除，即使后续构建先下架再重新引入也不会加回。构建不再携带的、归构建所有的插件会连同依赖声明和启用项一起从 profile 移除，配置保留。每一步都可重复执行，中断的启动会在下次启动时收敛；构建记录缺失或台账无法读取时停止准备，不会把它当作空记录处理。
 
 主窗口创建、主文档加载、preload、渲染器、Web 初始化或后端的致命失败，会在每个应用进程中打开一次原生恢复对话框。对话框显示首次错误末尾的限长摘要，标明截断情况，并提供退出、重启、禁用第三方插件、备份 profile patch 并重启。启动失败保留 Web 加载页和动画；运行中失败保留当前页面。预期关闭、取消导航和普通请求错误不会触发恢复。共享 Web 插件管理器报告包操作错误；插件变更后的 Host 启动失败会进入原生恢复。不通过启动超时推断故障。 包含 `listen EADDRINUSE` 的监听失败以退出其他正在运行的 DSH 实例的提示替代诊断和重装建议，仅提供退出和重启。
 
