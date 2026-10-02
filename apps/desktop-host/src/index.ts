@@ -9,7 +9,7 @@ import type {} from '@deepseek-ai/dsh-host-webserver'
 import type {} from '@deepseek-ai/dsh-deepseek-account'
 import { resolveDshHome } from '@deepseek-ai/dsh-home-paths'
 import * as desktopOffice from './office.ts'
-import * as desktopPptSkills from './ppt-skills.ts'
+import * as desktopBundledSkills from './bundled-skills.ts'
 
 import { installDesktopUpdateTaskControl } from './update-tasks.ts'
 import { installDesktopQuitInspection } from './quit-inspection.ts'
@@ -99,7 +99,7 @@ async function main(): Promise<void> {
     source: bundledPayload,
     root: join(resolveDshHome(), 'dsh-runtimes', 'dsh-primary-runtime'),
   })
-  await ctx.plugin(desktopPptSkills, { source: bundledPayload })
+  await ctx.plugin(desktopBundledSkills, { source: bundledPayload })
   installPlatformSessionPublisher(ctx, (session) => {
     if (process.connected) process.send?.({ type: 'platform-session', session })
   })

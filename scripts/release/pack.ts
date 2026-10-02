@@ -7,9 +7,10 @@
  * ([rationale](../../.agents/notes/implemented/process/2026-08-10-npm-release-sequences.md)).
  */
 
-import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
-import { join, resolve } from 'node:path'
+import { existsSync, mkdirSync, mkdtempSync, renameSync, rmSync, writeFileSync } from 'node:fs'
+import { dirname, join, resolve } from 'node:path'
 import { parseArgs } from 'node:util'
+import { withFileLock } from '@deepseek-ai/dsh-atomic-write'
 import { pnpmInvocation } from '../pnpm-invocation.ts'
 import { releaseFamily, tarballName, type ReleaseFamily, type ReleaseMember } from './families.ts'
 import { isEntry, runConcurrent } from './process.ts'
@@ -17,6 +18,7 @@ import { PUBLISH_ORDER_FILE, tarballFiles } from './tarball.ts'
 
 /** Where pack output lands when `--out` is omitted. */
 const DEFAULT_OUTPUT = 'dist/npm'
+const PACK_ATTEMPTS = 2
 
 /**
  * Pack one member and check what its tarball carries.
@@ -26,14 +28,33 @@ const DEFAULT_OUTPUT = 'dist/npm'
  * @returns The tarball filename.
  */
 async function packMember(family: ReleaseFamily, member: ReleaseMember, destination: string): Promise<string> {
-  const invocation = pnpmInvocation(['--dir', member.directory, 'pack', '--pack-destination', destination])
-  await runConcurrent(invocation.command, invocation.args)
-
   const filename = tarballName(member)
-  const tarball = join(destination, filename)
-  if (!existsSync(tarball)) throw new Error(`${member.name} produced no tarball at ${tarball}`)
-  family.validatePayload(member, tarballFiles(tarball))
-  return filename
+  for (let attempt = 1; attempt <= PACK_ATTEMPTS; attempt += 1) {
+    const staging = mkdtempSync(join(destination, '.pack-'))
+    try {
+      const invocation = pnpmInvocation(['--dir', member.directory, 'pack', '--pack-destination', staging])
+      await runConcurrent(invocation.command, invocation.args)
+
+      const tarball = join(staging, filename)
+      if (!existsSync(tarball)) throw new Error(`${member.name} produced no tarball at ${tarball}`)
+      let files: string[]
+      try {
+        files = tarballFiles(tarball)
+      } catch (error) {
+        if (attempt === PACK_ATTEMPTS) {
+          const detail = error instanceof Error ? error.message : String(error)
+          throw new Error(`${member.name} produced an invalid tarball after ${String(PACK_ATTEMPTS)} attempts: ${detail}`)
+        }
+        continue
+      }
+      family.validatePayload(member, files)
+      renameSync(tarball, join(destination, filename))
+      return filename
+    } finally {
+      rmSync(staging, { recursive: true, force: true })
+    }
+  }
+  throw new Error(`${member.name} did not produce a tarball`)
 }
 
 /**
@@ -65,26 +86,29 @@ async function main(): Promise<void> {
   family.verifyBuildArtifacts(root)
   family.verifyVersions(members)
 
-  rmSync(destination, { recursive: true, force: true })
-  mkdirSync(destination, { recursive: true })
+  mkdirSync(dirname(destination), { recursive: true })
+  await withFileLock(destination, async () => {
+    rmSync(destination, { recursive: true, force: true })
+    mkdirSync(destination, { recursive: true })
 
-  // Members pack in a bounded pool; the recorded publish order stays the
-  // members' order regardless of completion order, because each worker writes
-  // its result at the member's own position.
-  const order = new Array<string>(members.length)
-  let cursor = 0
-  await Promise.all(Array.from({ length: Math.min(concurrency, members.length) }, async () => {
-    while (cursor < members.length) {
-      const index = cursor
-      cursor += 1
-      const member = members[index]
-      if (member === undefined) break
-      order[index] = await packMember(family, member, destination)
-    }
-  }))
-  writeFileSync(join(destination, PUBLISH_ORDER_FILE), `${order.join('\n')}\n`)
+    // Members pack in a bounded pool; the recorded publish order stays the
+    // members' order regardless of completion order, because each worker writes
+    // its result at the member's own position.
+    const order = new Array<string>(members.length)
+    let cursor = 0
+    await Promise.all(Array.from({ length: Math.min(concurrency, members.length) }, async () => {
+      while (cursor < members.length) {
+        const index = cursor
+        cursor += 1
+        const member = members[index]
+        if (member === undefined) break
+        order[index] = await packMember(family, member, destination)
+      }
+    }))
+    writeFileSync(join(destination, PUBLISH_ORDER_FILE), `${order.join('\n')}\n`)
 
-  console.log(`release pack: family ${family.id}, ${String(order.length)} tarball(s) in ${values.out ?? DEFAULT_OUTPUT}`)
+    console.log(`release pack: family ${family.id}, ${String(order.length)} tarball(s) in ${values.out ?? DEFAULT_OUTPUT}`)
+  }, { waitMs: 5_000 })
 }
 
 if (isEntry(import.meta.url)) await main()

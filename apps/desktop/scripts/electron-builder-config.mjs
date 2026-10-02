@@ -13,6 +13,7 @@ import {
 } from './desktop-release-environment.mjs'
 import { notarizeMacOSDiskImageArtifact } from './notarize-macos-disk-images.mjs'
 import { BUNDLED_PLUGIN_DIRECTORY, BUNDLED_PLUGINS, bundledPluginSource } from './bundled-plugins.mjs'
+import { verifyBundledSkills } from './bundled-skills.mjs'
 import { verifyMacOSSignatureAfterSign } from './verify-macos-signature.mjs'
 import {
   createWindowsTokenSigner,
@@ -24,8 +25,8 @@ import { resolveDesktopAutoUpdateConfig } from './desktop-auto-update-environmen
 import { resolveDesktopBuildCommit } from './desktop-build-commit.mjs'
 import { resolveDesktopBuildVersion } from './desktop-build-version.mjs'
 import { resolveDesktopPolicyEnvironment } from './desktop-policy-environment.mjs'
-import { desktopTargetBuildPaths, resolveDesktopBuildTarget } from './desktop-build-paths.mjs'
 import { prepareDeploymentEnvironment } from './deployment-env.mjs'
+import { desktopTargetBuildPaths, resolveDesktopBuildTarget } from './desktop-build-paths.mjs'
 import { installWindowsDirectoryInstaller } from './windows-directory-installer.mjs'
 import { preserveWindowsRuntimeSignature, signWindowsCode } from './windows-runtime-signature.mjs'
 import { prepareWindowsAsarUnpack, verifyWindowsAsarUnpack } from './windows-asar-unpack.mjs'
@@ -95,11 +96,11 @@ export function createElectronBuilderConfig(
   const macOSSigning = packagesMacOS ? resolveMacOSSigningEnvironment(env) : undefined
   if (packagesMacOS) resolveMacOSNotarizationEnvironment(env)
   const buildPaths = desktopTargetBuildPaths(resolveDesktopBuildTarget(env, hostPlatform, hostArch))
-  let primaryRuntimeDestination
   const deploymentEnvironment = prepareDeploymentEnvironment({
     source: fileURLToPath(new URL('../../../.secrets.env', import.meta.url)),
     target: join(buildPaths.root, 'deployment-env.json'),
   })
+  let primaryRuntimeDestination
   let dshDestination
   let windowsCode = []
   const unpack = ['**/*.{node,dylib,dll,so,exe}', '**/*.so.*', '**/spawn-helper', '**/@vscode/ripgrep-*/bin/rg',
@@ -176,8 +177,8 @@ export function createElectronBuilderConfig(
     asarUnpack: unpack,
     extraResources: [
       { from: buildPaths.runtime, to: 'runtime' },
-      { from: fileURLToPath(new URL('../resources/icon-windows.png', import.meta.url)), to: 'icon.png' },
       ...(deploymentEnvironment ? [{ from: join(buildPaths.root, 'deployment-env.json'), to: 'deployment-env.json' }] : []),
+      { from: fileURLToPath(new URL('../resources/icon-windows.png', import.meta.url)), to: 'icon.png' },
       // Windows tray bitmaps; macOS keeps the Dock and ships no menu bar icon.
       ...(packagesWindows ? [{ from: fileURLToPath(new URL('../resources/tray-windows.ico', import.meta.url)), to: 'tray.ico' }] : []),
       // Plugin payloads a freshly created profile starts with.
@@ -226,6 +227,7 @@ export function createElectronBuilderConfig(
       // release, and a rewritten one for installed-update qualification.
       await verifyDesktopRuntime(buildPaths.dsh,
         preparedRuntimeVersion ?? productVersion, { platform: resolvedPlatform, arch: resolvedArch })
+      verifyBundledSkills(join(resourcesDir, 'runtime'))
       // Unsigned Windows builds skip electron-builder's afterSign hook.
       if (packagesWindows && unsigned) await verifyWindowsAsarUnpack(buildPaths.dsh, resourcesDir, windowsCode)
     },

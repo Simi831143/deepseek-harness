@@ -1,13 +1,19 @@
+import { join } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 
-const { verifyDesktopRuntime } = vi.hoisted(() => ({
+const { verifyDesktopRuntime, verifyBundledSkills } = vi.hoisted(() => ({
   verifyDesktopRuntime: vi.fn<(root: string, expected: string) => Promise<void>>(async () => undefined),
+  verifyBundledSkills: vi.fn<(runtimeDir: string) => void>(() => undefined),
 }))
 // The hook imports the built tree, which a clean checkout has not produced; this is the path it resolves.
 vi.mock('/apps/desktop/lib/types/runtime-tree.js', () => ({ verifyDesktopRuntime }))
 vi.mock('../scripts/windows-asar-unpack.mjs', async importOriginal => ({
   ...await importOriginal<typeof import('../scripts/windows-asar-unpack.mjs')>(),
   verifyWindowsAsarUnpack: async () => undefined,
+}))
+vi.mock('../scripts/bundled-skills.mjs', async importOriginal => ({
+  ...await importOriginal<typeof import('../scripts/bundled-skills.mjs')>(),
+  verifyBundledSkills,
 }))
 
 const ENVIRONMENT = {
@@ -59,5 +65,11 @@ describe('packaged runtime verification', () => {
     expect(config.extraMetadata).toMatchObject({ version: `${productVersion}.20260921.1` })
     await config.afterPack(CONTEXT as never)
     expect(verifyDesktopRuntime.mock.calls[0]?.[1]).toBe(productVersion)
+  })
+
+  it('checks the packaged runtime resources for every skill preparation recorded', async () => {
+    verifyBundledSkills.mockClear()
+    await requiredRuntimeVersion()
+    expect(verifyBundledSkills.mock.calls).toEqual([[join('out/resources', 'runtime')]])
   })
 })

@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { preparePrimaryRuntime as preparePayload, smokePrimaryRuntime as smokePayload } from '../../../scripts/primary-runtime/prepare.ts'
 import { parsePrimaryRuntime, workspaceDependencyPaths } from '../../../packages/skill/tool-workspace-dependencies/src/index.ts'
+import { prepareBundledSkills } from './bundled-skills.mjs'
 import { resolveDesktopBuildTarget, resolveDesktopTargetBuildPaths } from './desktop-build-paths.mjs'
 import { scrubWindowsSigningEnvironment } from './windows-sign.mjs'
 
@@ -16,6 +17,8 @@ export async function preparePrimaryRuntime(options: { deferSmoke?: boolean } = 
   const paths = resolveDesktopTargetBuildPaths()
   const { version } = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as { version: string }
   await preparePayload({ target: resolveDesktopBuildTarget(), output: paths.runtime, cache: paths.downloads, version })
+  // Desktop-only skills; packaging's afterPack check fails a build that skipped this step.
+  prepareBundledSkills(paths.runtime)
   if (!options.deferSmoke) smokePrimaryRuntime(join(paths.runtime, 'primary-runtime'))
 }
 

@@ -4,6 +4,7 @@ import { spawn } from 'node:child_process'
 import { mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { parseArgs } from 'node:util'
 import { join, resolve } from 'node:path'
+import { withFileLock } from '@deepseek-ai/dsh-atomic-write'
 import {
   desktopBuildRecordFilename,
   resolveDesktopAutoUpdateConfig,
@@ -42,6 +43,7 @@ const DESKTOP_UPLOAD_CREDENTIAL_ENV_NAMES = new Set([
   'DOWNLOAD_PROD_COS_SECRET_ID',
   'DOWNLOAD_PROD_COS_SECRET_KEY',
 ])
+const DESKTOP_PACKAGING_LOCK = join(APP_ROOT, '.desktop-build', 'packaging')
 
 /** `--build-version` value that numbers a build after the ones already taken. */
 const AUTOMATIC_BUILD_VERSION = 'auto'
@@ -361,16 +363,19 @@ async function main(): Promise<void> {
   try {
     await packagingStep(run.directory, 'configuration', async () => { validateDesktopPackageEnvironment(environment, target, invocation) }, secrets)
     await packagingStep(run.directory, 'toolchain', () => requireDesktopToolchain(target.platform, environment), secrets)
-    if (target.platform === 'darwin') {
-      const settings = resolveMacOSPackageSettings(environment)
-      recordPackagingEvent(run.directory, { type: 'macos-settings', packConcurrency: settings.packConcurrency,
-        downloadProxyConfigured: settings.downloadProxy !== undefined,
-        notarizationProxyConfigured: settings.notarizationProxy !== undefined })
-      await packagingStep(run.directory, 'macos-package', () => withMacOSSigningKeychain(environment,
-        signingEnvironment => packageTarget(invocation, signingEnvironment, run)), secrets)
-    } else {
-      await packagingStep(run.directory, 'windows-package', () => packageTarget(invocation, environment, run), secrets)
-    }
+    mkdirSync(join(APP_ROOT, '.desktop-build'), { recursive: true })
+    await withFileLock(DESKTOP_PACKAGING_LOCK, async () => {
+      if (target.platform === 'darwin') {
+        const settings = resolveMacOSPackageSettings(environment)
+        recordPackagingEvent(run.directory, { type: 'macos-settings', packConcurrency: settings.packConcurrency,
+          downloadProxyConfigured: settings.downloadProxy !== undefined,
+          notarizationProxyConfigured: settings.notarizationProxy !== undefined })
+        await packagingStep(run.directory, 'macos-package', () => withMacOSSigningKeychain(environment,
+          signingEnvironment => packageTarget(invocation, signingEnvironment, run)), secrets)
+      } else {
+        await packagingStep(run.directory, 'windows-package', () => packageTarget(invocation, environment, run), secrets)
+      }
+    }, { waitMs: 5_000 })
     success = true
   } catch (error) {
     process.stderr.write(`${packagingErrorDetails(error, secrets)}\n`)
