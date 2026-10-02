@@ -268,7 +268,11 @@ describe('bundled sources', () => {
     const skills = BUNDLED_SOURCES.flatMap(source => source.skills?.names ?? [])
     const plugins = BUNDLED_SOURCES.flatMap(source => source.plugin ?? [])
     expect(skills).toContain('ppt-master')
-    expect(skills).toContain('using-superpowers')
+    // The two published mattpocock/skills categories share one checkout, branch, and license.
+    const mattpocock = BUNDLED_SOURCES.filter(source => source.checkout === 'skills')
+    expect(mattpocock.map(source => source.skills?.root)).toEqual(['skills/engineering', 'skills/productivity'])
+    for (const source of mattpocock) expect(source).toMatchObject({ branch: 'main', license: 'LICENSE' })
+    expect(mattpocock.flatMap(source => source.skills?.names ?? [])).toHaveLength(27)
     expect(plugins).toEqual(['dsh-bundle-exa-search'])
     expect(new Set(skills).size).toBe(skills.length)
     for (const name of skills) expect(name).toMatch(/^[a-z0-9]+(?:-[a-z0-9]+)*$/u)

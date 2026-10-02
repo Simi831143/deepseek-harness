@@ -37,29 +37,47 @@ const LICENSE_DIRECTORY = 'licenses'
 /** Sources this build carries, each a checkout beside this repository. */
 export const BUNDLED_SOURCES = [
   { checkout: 'ppt-master', skills: { root: 'skills', names: ['ppt-master'] } },
+  // mattpocock/skills groups its skills by category, and preparation copies from one root per
+  // source, so each published category is its own source over the same checkout. The names are
+  // the upstream plugin manifest's (`.claude-plugin/plugin.json`); `in-progress/` and `misc/` are
+  // unpublished upstream.
   {
-    // The `dsh` branch adapts an upstream release tag to DSH tool names; other
-    // branches of this checkout carry unadapted or host-specific skill text.
-    checkout: 'superpowers',
-    branch: 'dsh',
+    checkout: 'skills',
+    branch: 'main',
     license: 'LICENSE',
     skills: {
-      root: 'skills',
+      root: 'skills/engineering',
       names: [
-        'brainstorming',
-        'dispatching-parallel-agents',
-        'executing-plans',
-        'finishing-a-development-branch',
-        'receiving-code-review',
-        'requesting-code-review',
-        'subagent-driven-development',
-        'systematic-debugging',
-        'test-driven-development',
-        'using-git-worktrees',
-        'using-superpowers',
-        'verification-before-completion',
-        'writing-plans',
+        'ask-matt',
+        'code-review',
+        'codebase-design',
+        'diagnosing-bugs',
+        'domain-modeling',
+        'grill-with-docs',
+        'implement',
+        'implement-spec',
+        'improve-codebase-architecture',
+        'pr',
+        'prototype',
+        'research',
+        'retro',
+        'setup-matt-pocock-skills',
+        'tdd',
+        'to-spec',
+        'to-tickets',
+        'triage',
+        'wayfinder',
+        'wizard',
       ],
+    },
+  },
+  {
+    checkout: 'skills',
+    branch: 'main',
+    license: 'LICENSE',
+    skills: {
+      root: 'skills/productivity',
+      names: ['grill-me', 'grilling', 'handoff', 'teach', 'to-questionnaire', 'wait-what', 'writing-for-agents'],
     },
   },
   { checkout: 'dsh-bundle-exa-search', plugin: 'dsh-bundle-exa-search' },

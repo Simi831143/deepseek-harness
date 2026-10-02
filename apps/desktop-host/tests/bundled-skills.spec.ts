@@ -34,14 +34,14 @@ function bundledSource(root: string): string {
 }
 
 it('publishes every bundled skill from one provider and removes them on disposal', async () => {
-  const root = await scaffold(['ppt-master', 'writing-plans'])
+  const root = await scaffold(['ppt-master', 'report-check'])
   const ctx = new Context()
   try {
     expect('default' in desktopBundledSkills).toBe(false)
     await ctx.plugin(SkillRegistry)
     const fiber = await ctx.plugin(desktopBundledSkills, { source: bundledSource(root) })
     const catalog = await ctx.skills.list()
-    expect(catalog.map(skill => skill.name)).toEqual(['ppt-master', 'writing-plans'])
+    expect(catalog.map(skill => skill.name)).toEqual(['ppt-master', 'report-check'])
     for (const skill of catalog) {
       expect(skill).toMatchObject({ source: 'bundled', provider: 'desktop-bundled', invocation: { modelInvocable: true, userInvocable: true } })
     }
