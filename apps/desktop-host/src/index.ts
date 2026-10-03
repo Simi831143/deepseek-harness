@@ -16,6 +16,9 @@ import { installDesktopQuitInspection } from './quit-inspection.ts'
 import { installPlatformSessionPublisher } from './platform-session.ts'
 import { installOfficeEngineResolution } from './office-engine.ts'
 
+/** Loopback port of the private Desktop Host; the Feishu app registers `http://127.0.0.1:19387/feishu/callback`. */
+const DESKTOP_WEB_PORT = 19387
+
 async function main(): Promise<void> {
   const runtimeDir = process.argv[2] as string
   const projectDir = process.argv[3] as string
@@ -28,7 +31,8 @@ async function main(): Promise<void> {
     profile: 'desktop',
     resolvedProfile: { profile, installAnchor },
     patchFiles: [],
-    args: ['--no-open', '--port', '0'],
+    // Fixed port: the Feishu sign-in redirect_uri must exactly match the URL registered with the Feishu app.
+    args: ['--no-open', '--port', String(DESKTOP_WEB_PORT)],
     ...(process.argv[5] === undefined ? {} : {
       packageManager: {
         command: process.execPath,
