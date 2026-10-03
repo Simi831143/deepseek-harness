@@ -42,6 +42,7 @@ int wmain()
   P(LUA_TOKEN);
   P(WRITE_RESTRICTED);
   P((int)WinWorldSid);
+  P((int)TokenUser);
   P((int)TokenGroups);
   P((int)SE_FILE_OBJECT);
   P(DACL_SECURITY_INFORMATION);

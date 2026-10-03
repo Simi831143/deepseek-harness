@@ -36,6 +36,8 @@ export const LUA_TOKEN = 0x4
 export const WRITE_RESTRICTED = 0x8
 /** WELL_KNOWN_SID_TYPE value for Everyone. */
 export const WinWorldSid = 1
+/** TOKEN_INFORMATION_CLASS value for the token user. */
+export const TokenUser = 1
 /** TOKEN_INFORMATION_CLASS value for token groups. */
 export const TokenGroups = 2
 /** TOKEN_INFORMATION_CLASS value for the token default DACL. */

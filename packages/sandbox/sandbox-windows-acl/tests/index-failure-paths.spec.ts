@@ -110,13 +110,15 @@ function happyStubs(): HappyStubs {
   const addMandatoryAce = vi.fn(() => 1)
   const getTokenInformation = vi.fn((_token: unknown, cls: number, info: Buffer | null, _length: number, needed: NativePtr) => {
     if (info === null) {
-      koffi.encode(needed, 'uint32', cls === abi.TokenGroups ? 24 : 8)
+      koffi.encode(needed, 'uint32', cls === abi.TokenGroups ? 24 : cls === abi.TokenUser ? 16 : 8)
       return 0 // the size probe is expected to "fail"
     }
     if (cls === abi.TokenGroups) {
       info.writeUInt32LE(1, 0)
       info.writeBigUInt64LE(77n, abi.TOKEN_GROUPS_OFFSET)
       info.writeUInt32LE(abi.SE_GROUP_LOGON_ID, abi.TOKEN_GROUPS_OFFSET + 8)
+    } else if (cls === abi.TokenUser) {
+      info.writeBigUInt64LE(66n, 0) // TOKEN_USER.User.Sid
     } else {
       info.writeBigUInt64LE(88n, 0) // the token's current default DACL
     }
@@ -365,8 +367,9 @@ describe('AclSandbox init', () => {
       tempWriteSid: 'S-1-4-9000-10-1',
       mode: 'workspace-write',
     })
-    // Five SID frees/mutations fail plus the Low label SID the init allocated.
-    await expect(sandbox.init()).rejects.toThrow(/6 cleanup operation\(s\) also failed/u)
+    // Every cleanup step fails: the temp revocation, the two parsed write
+    // SIDs, and the four init SID allocations (Low label, world, logon, user).
+    await expect(sandbox.init()).rejects.toThrow(/7 cleanup operation\(s\) also failed/u)
     expect(sandbox.tempDir).toBeUndefined()
   })
 })

@@ -94,22 +94,56 @@ export function makeWellKnownSid(api: Win32Bindings, type: number): NativePtr {
 }
 
 /**
- * Merge one full-access allow ACE for `sidPtr` into the token's DEFAULT DACL
- * — the DACL every NEW object the token holder creates (without an explicit
- * security descriptor) takes. The restricted token inherits the user's
- * default DACL verbatim, which names no restricting SID: a new anonymous pipe
- * (child stdio) therefore fails the write pass-2 check at creation
- * (ERROR_ACCESS_DENIED; Node surfaces it as spawn EPERM), breaking every
- * piped-stdio grandchild spawn. The merged ACE names a RESTRICTING SID (the
- * write SID under workspace-write, Everyone under read-only), so each new
- * object's own DACL passes pass-2 while object creation itself stays gated by
- * the parent container's DACL (files outside the granted trees remain
- * uncreatable). Fails closed: any Win32 failure throws before the spawn.
+ * Copy the token's user SID (TokenUser).
+ * @param api - the binding table.
+ * @param token - the token whose user is read (requires TOKEN_QUERY).
+ * @returns a copied user SID.
+ */
+export function findUserSid(api: Win32Bindings, token: NativePtr): NativePtr {
+  const neededSlot = allocUint32()
+  api.getTokenInformation(token, abi.TokenUser, null, 0, neededSlot) // expected to fail with ERROR_INSUFFICIENT_BUFFER
+  const needed = decodeUint32(neededSlot)
+  if (needed === 0) throwLastError(api, 'GetTokenInformation', 'TokenUser size query')
+  const user = Buffer.alloc(needed)
+  if (api.getTokenInformation(token, abi.TokenUser, user, user.length, neededSlot) === 0) {
+    throwLastError(api, 'GetTokenInformation', 'TokenUser')
+  }
+  // TOKEN_USER { SID_AND_ATTRIBUTES User; }: the SID pointer is the first field.
+  const sidPtr = decodePtrAt(user, 0)
+  if (sidPtr === null) throw new Error('findUserSid: TokenUser carries no SID')
+  const sidLength = api.getLengthSid(sidPtr)
+  if (sidLength === 0) throwLastError(api, 'GetLengthSid', 'token user SID')
+  const copy = allocBytes(sidLength)
+  if (api.copySid(sidLength, copy, sidPtr) === 0) throwLastError(api, 'CopySid', 'token user SID')
+  return copy
+}
+
+/**
+ * Merge full-access allow ACEs for the token user and one restricting SID
+ * into the token's DEFAULT DACL — the DACL every NEW object the token holder
+ * creates (without an explicit security descriptor) takes. The restricted
+ * token inherits the caller's default DACL verbatim, which needs both ACEs:
+ *  - the restricting SID (the write SID under workspace-write, Everyone under
+ *    read-only) makes a new object pass the write pass-2 check; without it a
+ *    new anonymous pipe (child stdio) fails at creation (ERROR_ACCESS_DENIED;
+ *    Node surfaces it as spawn EPERM), breaking every piped-stdio grandchild
+ *    spawn;
+ *  - the user SID makes a new object pass pass-1. An elevated token without
+ *    UAC (`EnableLUA=0`) inherits `BA:GA SY:GA LOGON:GXGR`, which
+ *    `LUA_TOKEN` leaves with no write grant for an enabled SID: a confined
+ *    child that must create its own console (its parent has none, as under a
+ *    GUI-subsystem runner host) then dies during DLL initialization with
+ *    `STATUS_DLL_INIT_FAILED` (`0xC0000142`). The UAC default DACL already
+ *    carries this ACE.
+ * Object creation itself stays gated by the parent container's DACL, so
+ * files outside the granted trees remain uncreatable. Fails closed: any
+ * Win32 failure throws before the spawn.
  * @param api - the binding table.
  * @param token - the restricted token to adjust (requires TOKEN_ADJUST_DEFAULT).
+ * @param userSidPtr - the token user SID ({@link findUserSid}).
  * @param sidPtr - the restricting SID whose full-access ACE joins the default DACL.
  */
-export function setTokenDefaultDaclGrant(api: Win32Bindings, token: NativePtr, sidPtr: NativePtr): void {
+export function setTokenDefaultDaclGrant(api: Win32Bindings, token: NativePtr, userSidPtr: NativePtr, sidPtr: NativePtr): void {
   const neededSlot = allocUint32()
   api.getTokenInformation(token, abi.TokenDefaultDacl, null, 0, neededSlot) // expected to fail with ERROR_INSUFFICIENT_BUFFER
   const needed = decodeUint32(neededSlot)
@@ -124,8 +158,11 @@ export function setTokenDefaultDaclGrant(api: Win32Bindings, token: NativePtr, s
   }
   const newDaclSlot = allocPtrSlot()
   const result = api.setEntriesInAclW(
-    1,
-    buildExplicitAccess(sidPtr, abi.GRANT_ACCESS, abi.FILE_ALL_ACCESS),
+    2,
+    Buffer.concat([
+      buildExplicitAccess(userSidPtr, abi.GRANT_ACCESS, abi.FILE_ALL_ACCESS),
+      buildExplicitAccess(sidPtr, abi.GRANT_ACCESS, abi.FILE_ALL_ACCESS),
+    ]),
     currentDacl,
     newDaclSlot,
   )

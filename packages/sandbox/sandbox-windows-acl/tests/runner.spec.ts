@@ -661,4 +661,31 @@ TryOpen 'DIRECTORY' '${child}'
       expect(result.stderr).toContain('windows-acl-run: ')
     }
   }, 15_000)
+
+  it('a console-less runner starts PowerShell under the default DACL of a UAC-disabled elevated launch', () => {
+    // The launcher swaps its own default DACL for `BA:GA SY:GA LOGON:GXGR`
+    // and starts the runner detached, so the confined child creates its own
+    // console; without the restricted token's user ACE it exits 0xC0000142.
+    const launcher = fileURLToPath(new URL('./fixtures/admin-default-dacl-launch.ts', import.meta.url))
+    const launch = spawnSync(process.execPath, [
+      '--import', 'tsx/esm', launcher,
+      process.execPath, '--import', 'tsx/esm', runnerEntry,
+      '--workspace', writableDir, '--temp', isolatedTemp, '--mode', 'workspace-write',
+      '--', resolvePwshPath(), '-NoLogo', '-NoProfile', '-NonInteractive', '-Command', "Write-Output 'confined-ok'",
+    ], { timeout: 30_000, encoding: 'utf8' })
+    expect(launch.status, `launcher stderr: ${launch.stderr}`).toBe(0)
+    const result = JSON.parse(launch.stdout) as { status: number | null; stdout: string; stderr: string }
+    expect(result.status, `runner stderr: ${result.stderr}`).toBe(0)
+    expect(result.stdout.trim()).toBe('confined-ok')
+  }, 30_000)
+
+  it('runner-side failure: a confined child that exits STATUS_DLL_INIT_FAILED is reported as a runner failure', () => {
+    const result = runRunner([
+      '--workspace', writableDir, '--temp', isolatedTemp, '--mode', 'workspace-write',
+      '--', process.execPath, '-e', 'process.exit(0xC0000142)',
+    ])
+    expect(result.status, `stderr: ${result.stderr}`).toBe(127)
+    expect(result.stderr).toContain('windows-acl-run: confined child')
+    expect(result.stderr).toContain('STATUS_DLL_INIT_FAILED (0xC0000142)')
+  }, 15_000)
 })
