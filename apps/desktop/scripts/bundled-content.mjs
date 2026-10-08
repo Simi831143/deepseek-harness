@@ -81,7 +81,6 @@ export const BUNDLED_SOURCES = [
     },
   },
   { checkout: 'dsh-bundle-exa-search', plugin: 'dsh-bundle-exa-search' },
-  { checkout: 'dsh-bundle-jina-fetch', plugin: 'dsh-bundle-jina-fetch' },
 ]
 
 /** Environment override for the directory holding the source checkouts. */
