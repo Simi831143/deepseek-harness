@@ -1,31 +1,119 @@
-.indicator {
-  display: inline-grid;
-  grid-template-columns: 14px max-content;
-  align-items: center;
-  column-gap: 4px;
-  flex: none;
-  height: 28px;
-  padding: 0 8px;
+/* Update card above the settings trigger: one row of status and one action, with a progress rail while downloading. */
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0 0 6px;
+  padding: 8px 8px 8px 10px;
   box-sizing: border-box;
-  border: 1px solid color-mix(in srgb, var(--dsw-alias-brand-primary-new-colorprimary-new-color) 20%, transparent);
-  border-radius: var(--dsw-radius-sm);
+  border: 0.5px solid var(--dsw-alias-border-l2);
+  border-radius: var(--dsw-radius-md);
+  background: var(--dsw-alias-bg-layer-2);
+  box-shadow: var(--dsw-elevation-soft);
+  animation: card-enter 160ms ease-out;
+}
+
+@keyframes card-enter {
+  from { opacity: 0; transform: translateY(4px); }
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  corner-shape: round;
   color: var(--dsw-alias-brand-primary-new-colorprimary-new-color);
-  background: color-mix(in srgb, var(--dsw-alias-brand-primary-new-colorprimary-new-color) 8%, transparent);
+  background: color-mix(in srgb, var(--dsw-alias-brand-primary-new-colorprimary-new-color) 12%, transparent);
+}
+
+.text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.title {
+  overflow: hidden;
+  color: var(--dsw-alias-label-primary);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 20px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.subtitle {
+  overflow: hidden;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+  line-height: 18px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.action {
+  flex: none;
+  height: 26px;
+  padding: 0 10px;
+  box-sizing: border-box;
+  border: none;
+  border-radius: var(--dsw-radius-sm);
+  color: var(--dsw-alias-label-primary-foreground);
+  background: var(--dsw-alias-brand-primary-new-colorprimary-new-color);
   font-family: inherit;
   font-size: 12px;
   font-weight: 500;
   line-height: 18px;
-  text-align: left;
   white-space: nowrap;
   cursor: pointer;
+  transition: filter 120ms ease-out;
 }
 
-.icon {
-  display: grid;
-  place-items: center;
-  width: 14px;
-  height: 14px;
+.action:hover:not([aria-disabled="true"]) { filter: brightness(1.08); }
+.action:active:not([aria-disabled="true"]) { filter: brightness(0.94); }
+.action[aria-disabled="true"] { cursor: default; opacity: 0.6; }
+
+.action:focus-visible {
+  outline: var(--dsw-focus-ring-width) solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary));
+  outline-offset: 2px;
 }
+
+.track {
+  height: 3px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--dsw-alias-brand-primary-new-colorprimary-new-color) 14%, transparent);
+}
+
+.bar {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--dsw-alias-brand-primary-new-colorprimary-new-color);
+  transition: width 200ms ease-out;
+}
+
+.error {
+  border-color: color-mix(in srgb, var(--dsw-alias-state-error-primary) 28%, transparent);
+  background: color-mix(in srgb, var(--dsw-alias-state-error-primary) 6%, var(--dsw-alias-bg-layer-2));
+}
+
+.error .icon {
+  color: var(--dsw-alias-state-error-primary);
+  background: color-mix(in srgb, var(--dsw-alias-state-error-primary) 12%, transparent);
+}
+
+.error .action { background: var(--dsw-alias-state-error-primary); }
 
 .badge {
   position: absolute;
@@ -38,11 +126,10 @@
   background: var(--dsw-alias-brand-primary-new-colorprimary-new-color);
 }
 
-.errorDot { background: currentColor; width: 6px; height: 6px; border-radius: 50%; corner-shape: round; }
 .spinner { animation: spin 1s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
-@media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }
 
-.indicator[aria-disabled="true"] {
-  cursor: default;
+@media (prefers-reduced-motion: reduce) {
+  .card, .spinner { animation: none; }
+  .bar, .action { transition: none; }
 }

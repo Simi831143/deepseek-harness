@@ -173,11 +173,11 @@ describe('SettingsRoot trigger', () => {
     const presentation = { phase: 'installing' as const, version: '1.0.1' }
     const f = mount({ dictionary: zh, connectionState: 'connecting',
       desktopUpdate: { failed: false, opening: false, presentation } })
-    expect(screen.getByRole('button', { name: '正在准备重启…' })).toBeTruthy()
+    expect(screen.getByRole('region', { name: '应用更新' }).textContent).toContain('正在准备重启…')
     expect(screen.queryByText('重新连接中')).toBeNull()
     f.setDesktopUpdate({ failed: false, opening: false,
       presentation: { phase: 'error', version: presentation.version, failure: 'install' } })
-    expect(screen.queryByRole('button', { name: '重试更新' })).toBeNull()
+    expect(screen.queryByRole('region', { name: '应用更新' })).toBeNull()
     expect(screen.getByText('重新连接中')).toBeTruthy()
   })
   it.each([

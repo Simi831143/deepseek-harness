@@ -55,7 +55,8 @@ describe('Desktop collapsed update badge', () => {
     expect(screen.queryByRole('img')).toBeNull()
     state = { ...state, presentation: { phase: 'available', version: '1.0.1' } }
     view.rerender(<DesktopUpdateBadge {...props} />)
-    expect(screen.getByRole('img', { name: 'Update' })).toBeTruthy()
+    // This stub translates without interpolation, so the version placeholder stays literal.
+    expect(screen.getByRole('img', { name: `${en['desktop.update.available']} ${en['desktop.update.versionLine']}` })).toBeTruthy()
     expect(screen.queryByRole('button')).toBeNull()
     state = { ...state, failed: true }
     view.rerender(<DesktopUpdateBadge {...props} />)
@@ -65,7 +66,7 @@ describe('Desktop collapsed update badge', () => {
     expect(screen.getByRole('img', { name: en['desktop.update.retry'] })).toBeTruthy()
     state = { failed: false, opening: false, presentation: { phase: 'error', failure: 'install' } }
     view.rerender(<DesktopUpdateBadge {...props} />)
-    expect(screen.getByRole('img', { name: en['desktop.update.retry'] })).toBeTruthy()
+    expect(screen.getByRole('img', { name: en['desktop.update.installFailed'] })).toBeTruthy()
     for (const value of ['connecting', 'disconnected'] as const) {
       connection = value
       view.rerender(<DesktopUpdateBadge {...props} />)

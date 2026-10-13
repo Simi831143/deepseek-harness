@@ -213,6 +213,8 @@ export function SettingsRoot(props: SettingsRootComponentProps) {
 
   return (
     <>
+      <DesktopUpdateIndicator wide={wide} hidden={connectionIndicator !== undefined && desktopUpdate.presentation?.phase !== 'installing'}
+        t={t} view={desktopUpdate} onOpen={openDesktopUpdate} />
       <div className={clsx(css.triggerRow, !wide && css.railRow)}>
         {renderSlot('settings.launcher', {
           wide, settingsOpen: open, openSettings: actions.open,
@@ -240,8 +242,6 @@ export function SettingsRoot(props: SettingsRootComponentProps) {
           restartActionLabel={t('connection.restart')}
           onReconnect={reconnect}
         />
-        <DesktopUpdateIndicator wide={wide} hidden={connectionIndicator !== undefined && desktopUpdate.presentation?.phase !== 'installing'}
-          t={t} view={desktopUpdate} onOpen={openDesktopUpdate} />
       </div>
       {open && (
         <SettingsPanel
