@@ -71,17 +71,38 @@ Function InstallerProgressShow
     ${EndIf}
     System::Call 'user32::SetPropW(p $HWNDPARENT, w "HarnessInstaller.Ready", p 1)'
     ShowWindow $HWNDPARENT 5
+    ; An update starts from a quitting app that may no longer own the foreground; raise the progress page once and flash
+    ; the taskbar so the user sees the installation instead of relaunching the app into it.
+    ${If} ${isUpdated}
+        System::Call '$PLUGINSDIR\window-frame.dll::InstallerPresentWelcome(p $HWNDPARENT) i.r0 ?c'
+    ${EndIf}
+    ; Directory replacement must not be cut off by an ordinary shutdown; Windows still lets the user force it.
+    System::Call '$PLUGINSDIR\window-frame.dll::InstallerBlockShutdown(p $HWNDPARENT, w "$(INSTALLER_BLOCK_SHUTDOWN)") i.r0 ?c'
 FunctionEnd
 
 Function .onInstFailed
+    System::Call '$PLUGINSDIR\window-frame.dll::InstallerBlockShutdown(p $HWNDPARENT, p 0) i.r0 ?c'
     MessageBox MB_OK|MB_ICONEXCLAMATION "$(INSTALLER_FAILED)" /SD IDOK
     SetErrorLevel 2
     Quit
 FunctionEnd
 
 Function InstallerFinish
+    System::Call '$PLUGINSDIR\window-frame.dll::InstallerBlockShutdown(p $HWNDPARENT, p 0) i.r0 ?c'
     System::Call '$PLUGINSDIR\window-frame.dll::InstallerFinishProgress(p $InstallerProgressWindow) i.r0 ?c'
     ${If} $0 == 0
+        Quit
+    ${EndIf}
+    ; An in-app update already has the user's consent and skips the finish page. "Install and Restart"
+    ; passes --force-run and expects the app back; an update started by quitting leaves it closed.
+    ${If} ${isUpdated}
+        HideWindow
+        ${If} ${isForceRun}
+            Call InstallerLaunchApplication
+            ${If} ${Errors}
+                MessageBox MB_OK|MB_ICONEXCLAMATION "$(INSTALLER_UPDATE_LAUNCH_FAILED)"
+            ${EndIf}
+        ${EndIf}
         Quit
     ${EndIf}
     System::Call 'user32::DestroyWindow(p $InstallerProgressWindow)'

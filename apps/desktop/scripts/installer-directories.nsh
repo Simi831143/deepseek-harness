@@ -44,6 +44,14 @@ Var dshNewMoved
     SetErrorLevel 2
     Quit
   ${EndIf}
+  ; The application reads this PID before touching staged siblings, so a launch during installation leaves them alone.
+  System::Call 'kernel32::GetCurrentProcessId() i.r0'
+  ClearErrors
+  FileOpen $1 "$dshFinalDirectory.installing" w
+  ${IfNot} ${Errors}
+    FileWrite $1 "$0"
+    FileClose $1
+  ${EndIf}
   File /oname=$PLUGINSDIR\dsh-7za.exe "${DSH_SEVENZIP_PATH}"
   StrCpy $INSTDIR $dshNewDirectory
   SetOutPath $INSTDIR
@@ -66,6 +74,7 @@ FunctionEnd
 Function dshCleanupDirectories
   ${If} $dshFinalDirectory != ""
     Call dshRollbackDirectories
+    Delete "$dshFinalDirectory.installing"
   ${EndIf}
 FunctionEnd
 
@@ -92,16 +101,46 @@ Function dshRollbackDirectories
   StrCpy $INSTDIR $dshFinalDirectory
 FunctionEnd
 
+; Rename $R6 to $R7, retrying while another process holds a handle in either tree. Endpoint security scans every
+; file of a freshly extracted unsigned tree and an exiting application releases its files late, so a rename can
+; fail for tens of seconds without any process Restart Manager can name. Leaves "renamed" in $R5 on success.
+; ${Errors} clears the flag it tests, so the outcome is kept in $R5 rather than re-tested after the loop.
+Function dshRenameWithRetry
+  StrCpy $R5 0
+  ${Do}
+    ClearErrors
+    Rename $R6 $R7
+    ${IfNot} ${Errors}
+      StrCpy $R5 "renamed"
+      ${ExitDo}
+    ${EndIf}
+    IntOp $R5 $R5 + 1
+    ; 240 attempts 250 ms apart: one minute.
+    ${If} $R5 >= 240
+      ${ExitDo}
+    ${EndIf}
+    Sleep 250
+  ${Loop}
+FunctionEnd
+
 Function dshPromoteDirectories
   !ifmacrodef InstallerPublishStage
     !insertmacro InstallerPublishStage 2
   !endif
   ; SetOutPath opens a directory handle; release it before either rename.
   SetOutPath $PLUGINSDIR
+  Push $R5
+  Push $R6
+  Push $R7
   ClearErrors
   ${If} ${FileExists} "$dshFinalDirectory\*.*"
-    Rename $dshFinalDirectory $dshOldDirectory
-    ${If} ${Errors}
+    StrCpy $R6 $dshFinalDirectory
+    StrCpy $R7 $dshOldDirectory
+    Call dshRenameWithRetry
+    ${If} $R5 != "renamed"
+      Pop $R7
+      Pop $R6
+      Pop $R5
       Call dshRollbackDirectories
       SetErrors
       Return
@@ -111,13 +150,20 @@ Function dshPromoteDirectories
     ; NSIS can create the destination before the install section starts.
     RMDir $dshFinalDirectory
   ${EndIf}
-  ClearErrors
-  Rename $dshNewDirectory $dshFinalDirectory
-  ${If} ${Errors}
+  StrCpy $R6 $dshNewDirectory
+  StrCpy $R7 $dshFinalDirectory
+  Call dshRenameWithRetry
+  ${If} $R5 != "renamed"
+    Pop $R7
+    Pop $R6
+    Pop $R5
     Call dshRollbackDirectories
     SetErrors
     Return
   ${EndIf}
+  Pop $R7
+  Pop $R6
+  Pop $R5
   StrCpy $dshNewMoved "1"
   SetOutPath $dshFinalDirectory
   !ifmacrodef InstallerPublishStage
@@ -132,4 +178,5 @@ FunctionEnd
     RMDir /r "\\?\$dshOldDirectory"
     StrCpy $dshOldMoved ""
   ${EndIf}
+  Delete "$dshFinalDirectory.installing"
 !macroend

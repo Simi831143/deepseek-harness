@@ -216,26 +216,31 @@ Function InstallerWelcomeLeave
     ${EndIf}
 FunctionEnd
 
+; Launch the installed application, passing --updated for updates; sets the error flag on failure.
+Function InstallerLaunchApplication
+    StrCpy $0 ""
+    ${If} ${isUpdated}
+        StrCpy $0 "--updated"
+    ${EndIf}
+    ClearErrors
+    ${If} ${UAC_IsAdmin}
+        ; An explicitly elevated installer must still launch through the user's shell.
+        ${StdUtils.ExecShellAsUser} $1 "$INSTDIR\${APP_EXECUTABLE_FILENAME}" "open" "$0"
+        ${If} $1 != "ok"
+        ${AndIf} $1 != "fallback"
+            SetErrors
+        ${EndIf}
+    ${Else}
+        ; Per-user installation can create the process without Explorer/shortcut dispatch.
+        Exec '"$INSTDIR\${APP_EXECUTABLE_FILENAME}" $0'
+    ${EndIf}
+FunctionEnd
+
 Function InstallerFinishLeave
     ${NSD_GetState} $InstallerLaunch $0
     HideWindow
     ${If} $0 == ${BST_CHECKED}
-        StrCpy $0 ""
-        ${If} ${isUpdated}
-            StrCpy $0 "--updated"
-        ${EndIf}
-        ClearErrors
-        ${If} ${UAC_IsAdmin}
-            ; An explicitly elevated installer must still launch through the user's shell.
-            ${StdUtils.ExecShellAsUser} $1 "$INSTDIR\${APP_EXECUTABLE_FILENAME}" "open" "$0"
-            ${If} $1 != "ok"
-            ${AndIf} $1 != "fallback"
-                SetErrors
-            ${EndIf}
-        ${Else}
-            ; Per-user installation can create the process without Explorer/shortcut dispatch.
-            Exec '"$INSTDIR\${APP_EXECUTABLE_FILENAME}" $0'
-        ${EndIf}
+        Call InstallerLaunchApplication
         ${If} ${Errors}
             ShowWindow $HWNDPARENT 5
             MessageBox MB_OK|MB_ICONEXCLAMATION "$(INSTALLER_LAUNCH_FAILED)"

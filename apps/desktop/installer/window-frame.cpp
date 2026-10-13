@@ -243,6 +243,12 @@ extern "C" __declspec(dllexport) BOOL __cdecl InstallerFinishProgress(HWND windo
 
 static LRESULT CALLBACK FrameProc(HWND window, UINT message, WPARAM wparam,
                                  LPARAM lparam, UINT_PTR id, DWORD_PTR) {
+    // While installation runs, ask Windows to wait; the user can still choose to shut down anyway.
+    if (message == WM_QUERYENDSESSION && GetPropW(window, L"HarnessInstaller.BlockShutdown")) return FALSE;
+    if (message == WM_NCDESTROY) {
+        RemovePropW(window, L"HarnessInstaller.BlockShutdown");
+        ShutdownBlockReasonDestroy(window);
+    }
     if (message == WM_NCCALCSIZE && wparam) return 0;
     if (message == WM_NCHITTEST) {
         const LRESULT hit = DefSubclassProc(window, message, wparam, lparam);
@@ -251,6 +257,17 @@ static LRESULT CALLBACK FrameProc(HWND window, UINT message, WPARAM wparam,
     }
     if (message == WM_NCDESTROY) RemoveWindowSubclass(window, FrameProc, id);
     return DefSubclassProc(window, message, wparam, lparam);
+}
+
+// Show `reason` on the Windows shutdown screen and decline WM_QUERYENDSESSION until released. A null reason releases.
+// Returns FALSE when Windows rejects the reason; the installation continues either way.
+extern "C" __declspec(dllexport) BOOL __cdecl InstallerBlockShutdown(HWND window, LPCWSTR reason) {
+    if (!reason) {
+        RemovePropW(window, L"HarnessInstaller.BlockShutdown");
+        return ShutdownBlockReasonDestroy(window);
+    }
+    SetPropW(window, L"HarnessInstaller.BlockShutdown", reinterpret_cast<HANDLE>(1));
+    return ShutdownBlockReasonCreate(window, reason);
 }
 
 extern "C" __declspec(dllexport) HRESULT __cdecl InstallerApplyFrame(HWND window) {

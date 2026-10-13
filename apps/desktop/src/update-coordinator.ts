@@ -134,7 +134,9 @@ export class DesktopUpdateCoordinator {
       try {
         if (!await this.beforeRestart()) return this.setState({ phase: 'ready', version })
         this.assertLive()
-        this.updater.quitAndInstall(true, true)
+        // A non-silent NSIS update shows the installer's progress page, skips its welcome and finish pages,
+        // and relaunches the app itself. macOS Squirrel ignores both arguments.
+        this.updater.quitAndInstall(false, true)
         return this.current
       } catch (error) {
         if (this.current.phase === 'error' && this.current.failedOperation === 'install') return this.current
@@ -142,6 +144,23 @@ export class DesktopUpdateCoordinator {
       }
     }).finally(() => { this.installOperation = undefined })
     return this.installOperation
+  }
+
+  /**
+   * Hand a prepared target to the installer while the application quits, without relaunching it.
+   * The caller has already passed the quit confirmation and stopped owned processes.
+   * @returns Whether the installer was started; false leaves the quit to finish without installing.
+   */
+  installOnQuit(): boolean {
+    this.assertLive()
+    if (!this.downloaded || this.downloadOperation !== undefined || this.installOperation !== undefined) return false
+    if (this.candidate === undefined) return false
+    // BaseUpdater.install spawns the installer without quitting; the caller's quit continues. Without --force-run the
+    // installer shows its progress page and exits without starting the application.
+    const installer = this.updater as AppUpdater & { install?: (isSilent: boolean, isForceRunAfter: boolean) => boolean }
+    if (typeof installer.install !== 'function') return false
+    this.setState({ phase: 'installing', version: this.candidate })
+    return installer.install(false, false)
   }
 
   /** Remove owned listeners and prevent pending library operations from publishing into closed UI. */

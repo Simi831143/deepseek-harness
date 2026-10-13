@@ -45,6 +45,7 @@ import { connectDesktopWelcome, type DesktopWelcomeBackend } from './welcome-bac
 import { DesktopUpdateJournal } from './update-journal.ts'
 import { DesktopUpdatePreparationError } from './update-error.ts'
 import { DesktopUpdateSchedule, resolveDesktopUpdateScheduleConfig } from './update-schedule.ts'
+import { DesktopUpdateOnQuit, removeStagedInstallDirectories, runningInstaller } from './update-on-quit.ts'
 import { desktopUpdateErrorSummary, presentDesktopUpdate } from './update-presentation.ts'
 import { desktopErrorState } from './startup-error.ts'
 import { readDesktopLoginShellEnvironment, resolveDesktopLoginShellConfig } from './login-shell-environment.ts'
@@ -323,6 +324,21 @@ function createWindow(preload: string, show = false, primary = false): BrowserWi
 }
 
 async function main(): Promise<void> {
+  // The installer is replacing this directory; starting the Host would hold its files and fail the replacement.
+  if (app.isPackaged && process.platform === 'win32' && await runningInstaller(dirname(process.execPath)) !== undefined) {
+    const messages = currentDesktopLocale().messages
+    // The notice closes itself once the installer exits, so it never outlives the reason it was shown.
+    const installerDone = new AbortController()
+    const poll = setInterval(() => {
+      void runningInstaller(dirname(process.execPath)).then((pid) => { if (pid === undefined) installerDone.abort() })
+    }, 1000)
+    try {
+      await dialog.showMessageBox({ type: 'info', title: messages.updateTitle, message: messages.updateInstallerRunning,
+        buttons: [messages.updateAcknowledge], signal: installerDone.signal })
+    } finally { clearInterval(poll) }
+    quitWithoutConfirmation()
+    return
+  }
   void pruneCrashReports(app.getPath('logs'))
   const journalDirectory = process.env.DSH_DESKTOP_UPDATE_JOURNAL_DIR
   const updateJournal = journalDirectory === undefined ? undefined : new DesktopUpdateJournal(journalDirectory, app.getVersion())
@@ -362,6 +378,8 @@ async function main(): Promise<void> {
   let updateStoppedHost = false
   let updateStopFailure: DesktopHostUncleanExitError | undefined
   let updateState: DesktopUpdateState = { phase: 'idle' }
+  /** A download started without user action is in flight; its failure goes to the indicator, not a dialog. */
+  let backgroundDownloading = false
   const systemLanguages = app.getPreferredSystemLanguages()
   let locale = resolveDesktopStartupLocale(null, systemLanguages)
   windowsLanguage = locale.id
@@ -550,6 +568,8 @@ async function main(): Promise<void> {
   const publishUpdate = (state: DesktopUpdateState): DesktopUpdateState => {
     updateJournal?.state(state)
     updateState = state
+    // The coordinator publishes `available` from inside its check; start the download on the next turn.
+    if (state.phase === 'available') queueMicrotask(() => { backgroundDownload(state) })
     mandatoryUI?.sync()
     for (const window of BrowserWindow.getAllWindows()) {
       window.webContents.send(DESKTOP_IPC.updatesPresentation, presentDesktopUpdate(state))
@@ -575,7 +595,10 @@ async function main(): Promise<void> {
           if (workspaceRecovery === recovery) workspaceRecovery = undefined
         })
       }
-      void showUpdateFailure(state).catch((error: unknown) => { console.error(error) })
+      // A background download fails quietly into the indicator's retry; a user-started download reports through its caller.
+      if (!(state.failedOperation === 'download' && backgroundDownloading)) {
+        void showUpdateFailure(state).catch((error: unknown) => { console.error(error) })
+      }
     }
     return state
   }
@@ -660,6 +683,14 @@ async function main(): Promise<void> {
   )
 
   const updateSchedule = new DesktopUpdateSchedule(updates, resolveDesktopUpdateScheduleConfig(process.env))
+  const updateOnQuit = new DesktopUpdateOnQuit(join(app.getPath('userData'), 'update-on-quit.json'), app.getVersion())
+  if (app.isPackaged && process.platform === 'win32') {
+    // A launch while the installer runs has already quit in main(). Otherwise an interrupted quit install shows here as a
+    // launch still on its starting version, and staged siblings are its leftovers. The next quit simply installs again.
+    void updateOnQuit.load().then((interrupted) => { if (interrupted) updateJournal?.action('install-on-quit-failed') })
+      .catch((error: unknown) => { console.error(error) })
+    void removeStagedInstallDirectories(dirname(process.execPath)).catch((error: unknown) => { console.error(error) })
+  }
 
   const downloadUpdate = async (version: string): Promise<DesktopUpdateState> => {
     void track('desktop_upgrade_click', {})
@@ -936,6 +967,14 @@ async function main(): Promise<void> {
   const automaticCheck = (): void => {
     if (!quitting) void mandatoryPolicy?.check('foreground-or-resume').catch((error: unknown) => { console.error(error) })
     if (!quitting) void updateSchedule.check().catch((error: unknown) => { console.error(error) })
+  }
+  // A Windows update found in the background downloads without asking and waits, without a prompt, for
+  // "Install and Restart" or the next quit. The mandatory flow keeps its own explicit download.
+  const backgroundDownload = (state: DesktopUpdateState): void => {
+    if (process.platform !== 'win32' || quitting || isMandatory() || state.phase !== 'available' || state.version === undefined) return
+    backgroundDownloading = true
+    void updates.download(state.version).catch((error: unknown) => { console.error(error) })
+      .finally(() => { backgroundDownloading = false })
   }
   powerMonitor.on('resume', automaticCheck)
   app.on('will-quit', () => {
@@ -1273,11 +1312,23 @@ async function main(): Promise<void> {
     updateSchedule.dispose()
     updateDialog.dispose()
     mandatoryUI?.dispose()
+    // Decided before teardown: the facts below change once the Host and windows close.
+    const installOnQuit = updateOnQuit.decide({ platform: process.platform, ready: updates.state.phase === 'ready',
+      sessionEnding, recovery: recovery.active || skipQuitConfirmation, mandatory: isMandatory() }) === 'install'
     void Promise.all([Promise.resolve(mandatoryPolicy?.dispose()).then(() => policyAuth?.dispose()), backend.close(),
       signInWindow.dispose(),
       // A Platform cleanup failure is logged without cutting the remaining Host shutdown short.
       platformView.dispose().catch((error: unknown) => { console.error(error) })])
-      .catch((error: unknown) => { console.error(error) }).finally(() => { app.quit() })
+      .catch((error: unknown) => { console.error(error) })
+      .then(async () => {
+        // The Host has released the installation directory; the installer waits for this process to exit.
+        if (!installOnQuit || updates.state.version === undefined) return
+        await updateOnQuit.begin(updates.state.version)
+        if (!updates.installOnQuit()) await updateOnQuit.clear()
+        else updateJournal?.action('install-on-quit')
+      })
+      .catch((error: unknown) => { console.error(error) })
+      .finally(() => { app.quit() })
   }
   app.on('before-quit', (event) => {
     if (shellInstallerOwnsQuit) {

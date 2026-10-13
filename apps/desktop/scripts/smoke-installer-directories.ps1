@@ -29,7 +29,9 @@ try {
   $brokenArchive = Join-Path $scratch 'broken.7z'
   [System.IO.File]::WriteAllText($brokenArchive, 'invalid archive')
 
-  foreach ($mode in @('first', 'upgrade', 'locked', 'missing-stage', 'broken', 'cancelled')) {
+  # locked holds a file for the whole retry window and expects rollback; released holds it for three seconds and expects
+  # the retry to succeed, as when security software finishes scanning a freshly extracted tree.
+  foreach ($mode in @('first', 'upgrade', 'released', 'locked', 'missing-stage', 'broken', 'cancelled')) {
     $caseRoot = Join-Path $scratch $mode
     $target = Join-Path $caseRoot 'Application'
     New-Item -ItemType Directory -Path $caseRoot | Out-Null
@@ -53,16 +55,22 @@ try {
     $handle = $null
     $process = $null
     try {
-      if ($mode -eq 'locked') {
+      if ($mode -in @('locked', 'released')) {
         $handle = [System.IO.File]::Open((Join-Path $target 'asset.txt'), 'Open', 'Read', 'Read')
       }
       $process = Start-Process -FilePath $probe -ArgumentList '/S' -WindowStyle Hidden -PassThru
-      if (-not $process.WaitForExit(60000)) {
+      if ($mode -eq 'released') {
+        Start-Sleep -Seconds 3
+        $handle.Dispose()
+        $handle = $null
+      }
+      # Each promotion rename retries for up to one minute before rolling back.
+      if (-not $process.WaitForExit(180000)) {
         $process.Kill($true)
         $process.WaitForExit()
-        throw "Directory smoke $mode did not exit within 60 seconds"
+        throw "Directory smoke $mode did not exit within 180 seconds"
       }
-      $expectedExit = if ($mode -in @('first', 'upgrade')) { 0 } else { 2 }
+      $expectedExit = if ($mode -in @('first', 'upgrade', 'released')) { 0 } else { 2 }
       if ($process.ExitCode -ne $expectedExit) {
         throw "Directory smoke $mode exited with $($process.ExitCode), expected $expectedExit"
       }
@@ -70,11 +78,11 @@ try {
       if ($null -ne $handle) { $handle.Dispose() }
       if ($null -ne $process) { $process.Dispose() }
     }
-    $expectedAsset = if ($mode -in @('first', 'upgrade')) { 'new asset' } else { 'old asset' }
+    $expectedAsset = if ($mode -in @('first', 'upgrade', 'released')) { 'new asset' } else { 'old asset' }
     if ([System.IO.File]::ReadAllText((Join-Path $target 'asset.txt')) -ne $expectedAsset) {
       throw "Directory smoke $mode changed the wrong version"
     }
-    $expectObsolete = $mode -notin @('first', 'upgrade')
+    $expectObsolete = $mode -notin @('first', 'upgrade', 'released')
     if ((Test-Path -LiteralPath (Join-Path $target 'obsolete.txt')) -ne $expectObsolete) {
       throw "Directory smoke $mode did not preserve the expected old-only file state"
     }

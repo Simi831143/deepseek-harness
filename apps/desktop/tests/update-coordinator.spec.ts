@@ -140,7 +140,7 @@ describe('desktop update coordinator', () => {
     expect(f.coordinator.state).toEqual({ phase: 'ready', version: '1.1.0-rc.2' })
     await f.coordinator.install('1.1.0-rc.2')
     expect(f.beforeRestart).toHaveBeenCalledOnce()
-    expect(f.quitAndInstall).toHaveBeenCalledWith(true, true)
+    expect(f.quitAndInstall).toHaveBeenCalledWith(false, true)
     expect(f.states.map(state => state.phase)).toEqual([
       'available', 'downloading', 'downloading', 'verifying', 'ready', 'installing',
     ])
@@ -148,6 +148,29 @@ describe('desktop update coordinator', () => {
       autoDownload: false, autoInstallOnAppQuit: false, channel: 'nightly',
       allowPrerelease: true, allowDowngrade: false,
     })
+  })
+
+  it('hands a prepared target to the installer on quit without relaunching or quitting itself', async () => {
+    const f = fixture()
+    const install = vi.fn(() => true)
+    Object.assign(f.updater, { install })
+    expect(f.coordinator.installOnQuit()).toBe(false)
+    await f.coordinator.check()
+    expect(f.coordinator.installOnQuit()).toBe(false)
+    await f.coordinator.download('1.1.0-rc.2')
+    expect(f.coordinator.installOnQuit()).toBe(true)
+    expect(install).toHaveBeenCalledExactlyOnceWith(false, false)
+    expect(f.quitAndInstall).not.toHaveBeenCalled()
+    expect(f.beforeRestart).not.toHaveBeenCalled()
+    expect(f.coordinator.state).toEqual({ phase: 'installing', version: '1.1.0-rc.2' })
+  })
+
+  it('leaves the quit ordinary when the updater cannot install directly', async () => {
+    const f = fixture()
+    await f.coordinator.check()
+    await f.coordinator.download('1.1.0-rc.2')
+    expect(f.coordinator.installOnQuit()).toBe(false)
+    expect(f.coordinator.state).toEqual({ phase: 'ready', version: '1.1.0-rc.2' })
   })
 
   it('joins checks and downloads without retargeting a prepared release', async () => {
