@@ -80,7 +80,7 @@ export const BUNDLED_SOURCES = [
       names: ['grill-me', 'grilling', 'handoff', 'teach', 'to-questionnaire', 'wait-what', 'writing-for-agents'],
     },
   },
-  { checkout: 'dsh-bundle-exa-search', plugin: 'dsh-bundle-exa-search' },
+  { checkout: 'dsh-bundle-anysearch-search', plugin: 'dsh-bundle-anysearch-search' },
 ]
 
 /** Environment override for the directory holding the source checkouts. */
