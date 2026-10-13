@@ -156,6 +156,36 @@ export function resolveDesktopAutoUpdateConfig(env, platform, arch) {
   }
 }
 
+/** Environment variable that gives unsigned Windows builds a self-hosted update feed. */
+export const DESKTOP_INTRANET_UPDATE_URL_ENV = 'DSH_DESKTOP_INTRANET_UPDATE_URL'
+
+/**
+ * Resolve the optional self-hosted feed for unsigned Windows builds.
+ * @param {NodeJS.ProcessEnv} env - Packaging environment.
+ * @returns {string | undefined} Normalized feed directory URL, or undefined when no intranet feed is configured.
+ * @throws {Error} When the value is not an HTTP(S) directory URL without credentials, query, or fragment.
+ */
+export function resolveDesktopIntranetUpdateUrl(env) {
+  const value = env[DESKTOP_INTRANET_UPDATE_URL_ENV]?.trim()
+  if (value === undefined || value === '') return undefined
+  let parsed
+  try {
+    parsed = new URL(value)
+  }
+  catch {
+    throw new Error(`desktop auto-update: ${DESKTOP_INTRANET_UPDATE_URL_ENV} must be an absolute HTTP or HTTPS URL`)
+  }
+  if ((parsed.protocol !== 'http:' && parsed.protocol !== 'https:')
+    || parsed.username !== ''
+    || parsed.password !== ''
+    || parsed.search !== ''
+    || parsed.hash !== ''
+    || !parsed.pathname.endsWith('/')) {
+    throw new Error(`desktop auto-update: ${DESKTOP_INTRANET_UPDATE_URL_ENV} must be an HTTP or HTTPS directory URL ending in / without credentials, query, or fragment`)
+  }
+  return parsed.href
+}
+
 /**
  * Resolve the public updater URL and private COS destination for one upload target.
  * @param {NodeJS.ProcessEnv} env - Upload environment.

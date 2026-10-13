@@ -139,6 +139,28 @@ describe('Desktop local packaging configuration', () => {
     }).not.toThrow()
   })
 
+  it('loads the intranet feed from the Windows file only and replaces the mandatory policy in unsigned builds', async () => {
+    await withDirectory(async (directory) => {
+      const url = 'http://192.0.2.10/desktop/win-x64/'
+      await writeFile(join(directory, '.env.windows'), `DSH_DESKTOP_APP_ID=com.example.windows\nDSH_DESKTOP_INTRANET_UPDATE_URL=${url}\n`)
+      await writeFile(join(directory, '.env.macos'), `DSH_DESKTOP_INTRANET_UPDATE_URL=${url}\n`)
+      const parent = { DSH_DESKTOP_INTRANET_UPDATE_URL: 'http://stale.example.com/' }
+      const environment = loadDesktopPackageEnvironment('win32', parent, directory)
+      expect(environment).toEqual({ DSH_DESKTOP_APP_ID: 'com.example.windows', DSH_DESKTOP_INTRANET_UPDATE_URL: url })
+      expect(() => loadDesktopPackageEnvironment('darwin', {}, directory)).toThrow(/unsupported setting DSH_DESKTOP_INTRANET_UPDATE_URL/u)
+      expect(() => { validateDesktopPackageEnvironment(environment, WINDOWS, { unsigned: true }) }).not.toThrow()
+      expect(() => { validateDesktopPackageEnvironment(environment, WINDOWS) }).toThrow(/requires --unsigned/u)
+      expect(() => { validateDesktopPackageEnvironment(environment, WINDOWS, { prepareOnly: true }) }).toThrow(/requires --unsigned/u)
+      expect(() => {
+        validateDesktopPackageEnvironment({ ...environment, DSH_DESKTOP_INTRANET_UPDATE_URL: 'http://192.0.2.10/desktop' }, WINDOWS, { unsigned: true })
+      }).toThrow(/ending in \//u)
+      expect(() => {
+        validateDesktopPackageEnvironment({ DSH_DESKTOP_APP_ID: 'com.example.windows' }, WINDOWS, { unsigned: true })
+      }).toThrow(/DSH_DESKTOP_MANDATORY_UPDATE_TEST_ORIGIN/u)
+      expect(parent.DSH_DESKTOP_INTRANET_UPDATE_URL).toBe('http://stale.example.com/')
+    })
+  })
+
   it('accepts one local npm registry mirror and rejects other registry forms', () => {
     const release = { ...POLICY, DSH_DESKTOP_APP_ID: RELEASE.DSH_DESKTOP_APP_ID }
     expect(() => {

@@ -20,7 +20,11 @@ import {
   resolveWindowsUpdatePublisher,
   scrubWindowsSigningEnvironment,
 } from './windows-sign.mjs'
-import { resolveDesktopAutoUpdateConfig } from './desktop-auto-update-environment.mjs'
+import {
+  DESKTOP_INTRANET_UPDATE_URL_ENV,
+  resolveDesktopAutoUpdateConfig,
+  resolveDesktopIntranetUpdateUrl,
+} from './desktop-auto-update-environment.mjs'
 import { resolveDesktopBuildCommit } from './desktop-build-commit.mjs'
 import { resolveDesktopBuildVersion } from './desktop-build-version.mjs'
 import { resolveDesktopPolicyEnvironment } from './desktop-policy-environment.mjs'
@@ -53,7 +57,6 @@ export function createElectronBuilderConfig(
   preparedRuntimeVersion = undefined,
 ) {
   const appId = resolveDesktopAppId(env)
-  const policy = resolveDesktopPolicyEnvironment(env)
   const targetPlatform = env.DSH_DESKTOP_TARGET_PLATFORM
   const resolvedPlatform = targetPlatform ?? hostPlatform
   const resolvedArch = env.DSH_DESKTOP_TARGET_ARCH ?? hostArch
@@ -62,6 +65,12 @@ export function createElectronBuilderConfig(
   }
   const unsigned = env.DSH_DESKTOP_UNSIGNED === '1'
   if (unsigned && resolvedPlatform !== 'win32') throw new Error('desktop package: unsigned builds require Windows')
+  const intranetUpdateUrl = resolveDesktopIntranetUpdateUrl(env)
+  if (intranetUpdateUrl !== undefined && !unsigned) {
+    throw new Error(`desktop package: ${DESKTOP_INTRANET_UPDATE_URL_ENV} requires an unsigned Windows build`)
+  }
+  // An intranet feed has no mandatory-update service, so its builds carry no policy to poll.
+  const policy = intranetUpdateUrl === undefined ? resolveDesktopPolicyEnvironment(env) : undefined
   const packagesMacOS = targetPlatform === 'darwin' || (targetPlatform === undefined && hostPlatform === 'darwin')
   const packagesWindows = resolvedPlatform === 'win32'
   if (resolvedPlatform === 'win32') installWindowsDirectoryInstaller()
@@ -97,6 +106,7 @@ export function createElectronBuilderConfig(
     installWindowsNsisBootstrapSigner({ sign: windowsSigner })
   }
   const update = unsigned ? undefined : resolveDesktopAutoUpdateConfig(env, resolvedPlatform, resolvedArch)
+  const feedUrl = update?.publicUrl ?? intranetUpdateUrl
   if (preparedRuntime !== undefined) buildPaths.dsh = preparedRuntime
   // electron-builder merges extraMetadata into the packaged manifest, so a build version here reaches
   // the artifact names, the update feed, and the installed app.getVersion() the updater compares against.
@@ -108,7 +118,7 @@ export function createElectronBuilderConfig(
     protocols: [{ name: 'LC Camera Agent', schemes: ['dsh'] }],
     extraMetadata: {
       dshDesktopAppId: appId,
-      dshMandatoryUpdatePolicy: policy,
+      ...policy === undefined ? {} : { dshMandatoryUpdatePolicy: policy },
       ...buildVersion === productVersion ? {} : { version: buildVersion },
       ...packaged === undefined ? {} : { dshBuildCommit: packaged.commit, dshBuildDirty: packaged.dirty },
     },
@@ -254,6 +264,6 @@ export function createElectronBuilderConfig(
       differentialPackage: true,
     },
     detectUpdateChannel: false,
-    publish: update === undefined ? null : [{ provider: 'generic', url: update.publicUrl, channel: 'nightly' }],
+    publish: feedUrl === undefined ? null : [{ provider: 'generic', url: feedUrl, channel: 'nightly' }],
   }
 }

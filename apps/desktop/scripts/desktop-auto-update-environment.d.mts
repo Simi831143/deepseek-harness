@@ -76,6 +76,17 @@ export function resolveDesktopAutoUpdateConfig(
   arch: string,
 ): DesktopAutoUpdateConfig
 
+/** Environment variable that gives unsigned Windows builds a self-hosted update feed. */
+export const DESKTOP_INTRANET_UPDATE_URL_ENV: 'DSH_DESKTOP_INTRANET_UPDATE_URL'
+
+/**
+ * Resolve the optional self-hosted feed for unsigned Windows builds.
+ * @param env - Packaging environment.
+ * @returns Normalized feed directory URL, or undefined when no intranet feed is configured.
+ * @throws When the value is not an HTTP(S) directory URL without credentials, query, or fragment.
+ */
+export function resolveDesktopIntranetUpdateUrl(env: NodeJS.ProcessEnv): string | undefined
+
 /**
  * Resolve the public updater URL and private COS destination for one upload target.
  * @param env - Upload environment.
