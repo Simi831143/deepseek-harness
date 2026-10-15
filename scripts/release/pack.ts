@@ -11,7 +11,7 @@
 import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { parseArgs } from 'node:util'
-import { withFileLock } from '@deepseek-ai/dsh-atomic-write'
+import { withFileLock } from '../../packages/util/atomic-write/src/index.ts'
 import { pnpmInvocation } from '../pnpm-invocation.ts'
 import { releaseFamily, tarballName, type ReleaseFamily, type ReleaseMember } from './families.ts'
 import { isEntry, runConcurrent } from './process.ts'
