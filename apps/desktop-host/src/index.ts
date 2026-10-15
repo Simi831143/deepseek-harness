@@ -32,7 +32,7 @@ async function main(): Promise<void> {
     resolvedProfile: { profile, installAnchor },
     patchFiles: [],
     // Fixed port: the Feishu sign-in redirect_uri must exactly match the URL registered with the Feishu app.
-    args: ['--no-open', '--port', String(DESKTOP_WEB_PORT)],
+    args: ['--no-open', '--host', '127.0.0.1', '--port', String(DESKTOP_WEB_PORT)],
     ...(process.argv[5] === undefined ? {} : {
       packageManager: {
         command: process.execPath,
@@ -107,7 +107,7 @@ async function main(): Promise<void> {
   installPlatformSessionPublisher(ctx, (session) => {
     if (process.connected) process.send?.({ type: 'platform-session', session })
   })
-  const url = ctx.connection.authenticatedUrl(`http://127.0.0.1:${String(ctx.webServer.port)}`)
+  const url = ctx.connection.authenticatedUrl(`${ctx.webServer.protocol}//127.0.0.1:${String(ctx.webServer.port)}`)
   if (process.connected) process.send?.({ type: 'ready', url, injections: ctx.webServer.collectIndexInjections() }, (error) => { if (error !== null) console.error(error) })
 }
 

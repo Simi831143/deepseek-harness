@@ -5,6 +5,7 @@ export interface DesktopTargetBuildPaths {
   readonly root: string
   readonly artifacts: string
   readonly unsignedArtifacts: string
+  readonly unnotarizedArtifacts: string
   readonly runtime: string
   readonly packageSet: string
   readonly dsh: string
@@ -84,3 +85,14 @@ export function developmentRuntimeDirectory(
  * @returns The packaged application's entry name.
  */
 export function packagedApplicationEntry(directory: string, suffix: string): string
+
+/**
+ * Select the output directory and filename suffix for one packaging mode.
+ * @param paths Target artifact directories.
+ * @param mode Validated packaging mode.
+ * @returns Matching artifact destination and filename marker.
+ */
+export function desktopArtifactOutput(
+  paths: Pick<DesktopTargetBuildPaths, 'artifacts' | 'unsignedArtifacts' | 'unnotarizedArtifacts'>,
+  mode: { unsigned: boolean, skipNotarization: boolean },
+): { directory: string, suffix: string }
