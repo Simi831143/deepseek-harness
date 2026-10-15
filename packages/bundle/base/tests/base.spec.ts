@@ -44,6 +44,21 @@ describe('dsh-base bundle', () => {
     expect(rows.find(row => row.id === 'web')?.config).toMatchObject({ fetchProvider: 'http' })
     expect(rows.find(row => row.id === 'web-fetch-http')).toBeDefined()
     expect(rows.find(row => row.id === 'tool-web')?.config).toMatchObject({ fetch: true })
+    expect(rows.find(row => row.id === 'llm-pi-ai')?.config).toMatchObject({
+      providers: {
+        longcheer: {
+          api: 'anthropic-messages',
+          baseURL: 'http://172.16.92.211:23323',
+          models: [{
+            id: 'qwen3.8-plus',
+            name: 'qwen3.8-plus',
+            contextWindow: 1_000_000,
+            maxTokens: 256_000,
+            input: ['text', 'image'],
+          }],
+        },
+      },
+    })
     expect(manifest.dependencies).not.toHaveProperty('@deepseek-ai/dsh-subagent-codex')
     expect(manifest.dependencies).not.toHaveProperty('@deepseek-ai/dsh-subagent-claude-code')
     expect(manifest.dependencies).toHaveProperty('@deepseek-ai/dsh-web-fetch-http')

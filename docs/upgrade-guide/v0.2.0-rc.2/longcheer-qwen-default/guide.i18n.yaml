@@ -1,0 +1,16 @@
+# Bilingual-pair consistency record for guide.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write docs/upgrade-guide/v0.2.0-rc.2/longcheer-qwen-default/guide.md
+/:
+  en: d3cfae0fb5bba199
+  zh: c9f45f222ba4ab6f
+/the-bundled-longcheer-catalog-now-uses-qwen3-8-plus:
+  en: 3a828fd7882e8cd4
+  zh: 3fd9262093b7d83e
+/the-bundled-longcheer-catalog-now-uses-qwen3-8-plus/change:
+  en: b3cea94ebe46e053
+  zh: 1d57f249adc0f192
+/the-bundled-longcheer-catalog-now-uses-qwen3-8-plus/migration:
+  en: be43244938e94635
+  zh: 3701d42833cc2adf
