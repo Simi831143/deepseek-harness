@@ -10,6 +10,8 @@ import type {} from '@deepseek-ai/dsh-deepseek-account'
 import { resolveDshHome } from '@deepseek-ai/dsh-home-paths'
 import * as desktopOffice from './office.ts'
 import * as desktopBundledSkills from './bundled-skills.ts'
+import * as mcpClient from '@deepseek-ai/dsh-mcp-client'
+import { desktopScraplingConfig } from './scrapling.ts'
 
 import { installDesktopUpdateTaskControl } from './update-tasks.ts'
 import { installDesktopQuitInspection } from './quit-inspection.ts'
@@ -104,6 +106,8 @@ async function main(): Promise<void> {
     root: join(resolveDshHome(), 'dsh-runtimes', 'dsh-primary-runtime'),
   })
   await ctx.plugin(desktopBundledSkills, { source: bundledPayload })
+  const scrapling = desktopScraplingConfig(bundledPayload)
+  if (scrapling !== undefined) await ctx.plugin(mcpClient, scrapling)
   installPlatformSessionPublisher(ctx, (session) => {
     if (process.connected) process.send?.({ type: 'platform-session', session })
   })

@@ -80,6 +80,7 @@ async function main(): Promise<void> {
           })
         } else {
           await signWindowsPrimaryRuntime(join(paths.runtime, 'primary-runtime'), { ...options, smoke: smokePrimaryRuntime })
+          await signWindowsCode(join(paths.runtime, 'scrapling'), options)
         }
       } finally {
         const summary = cachedSign.summary()

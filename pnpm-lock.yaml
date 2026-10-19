@@ -724,6 +724,9 @@ importers:
       '@electron/notarize':
         specifier: 2.5.0
         version: 2.5.0(supports-color@9.4.0)
+      '@modelcontextprotocol/client':
+        specifier: 2.2.0
+        version: 2.2.0
       '@types/js-yaml':
         specifier: ^4.0.9
         version: 4.0.9
@@ -805,6 +808,9 @@ importers:
       '@deepseek-ai/dsh-jobs':
         specifier: workspace:*
         version: link:../../packages/jobs/jobs
+      '@deepseek-ai/dsh-mcp-client':
+        specifier: workspace:*
+        version: link:../../packages/mcp/mcp-client
       '@deepseek-ai/dsh-schedule':
         specifier: workspace:*
         version: link:../../packages/schedule/schedule

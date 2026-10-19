@@ -23,6 +23,7 @@ Build Desktop installers locally or through Windows or macOS Actions, choose dep
 - [Directory builds and preparation](#directory-and-preparation)
 - [Local Official bundles from a loopback registry](#local-official-bundles-from-a-loopback-registry)
 - [Runtime file selection and installation checks](#runtime-file-selection)
+- [Bundled Scrapling MCP](#bundled-scrapling-mcp)
 - [Desktop runtime preparation](#desktop-runtime-preparation)
 - [Installation and release verification](#verification)
 
@@ -251,6 +252,20 @@ When extraction fails, the installer writes a report with the 7-Zip result and i
 Windows packaging fixes the 7-Zip filter to `BCJ` for compatibility with the bundled NSIS decoder. This preserves ARM64 binaries carried by dependencies in x64 installers; automatic ARM64 filtering produces entries that this decoder cannot extract.
 
 NSIS removes its temporary extraction tree during installation, before the completion page or an automatic launch. The installed production packages remain ordinary files; startup does not extract them again. Installation still writes the complete application tree.
+
+<a id="bundled-scrapling-mcp"></a>
+
+## Bundled Scrapling MCP
+
+Windows builds include a self-contained Scrapling 0.4.15 MCP under `resources/runtime/scrapling`. It contains Python 3.12.14, the locked `scrapling[ai]` dependency wheels, Chromium 156.0.8078.4, the redistributed Scrapling BSD-3-Clause license, and dependency metadata and licenses. The payload increases the installer and installed filesystem size; the exact amount depends on compression and the rest of the release, so measure both sizes during release qualification.
+
+Desktop Host registers this payload as the `scrapling` stdio MCP server and starts its adjacent Python interpreter with `mcp-server.py`. The resource uses its own package directory, browser executable and cache settings, so users do not need system Python, pip, a browser download or a manual MCP configuration. Other Desktop targets do not include this Windows-only resource.
+
+The Windows pipeline runs [`prepare-scrapling-runtime.ts`](../scripts/prepare-scrapling-runtime.ts) after `prepare:runtime`. It downloads the locked interpreter, wheels and Chromium archives, verifies each SHA-256 digest, retains package metadata and licenses, and swaps a complete staged directory into `runtime/scrapling`. Signed builds sign the native payload before the assembled application smoke runs. The lock data is in [`scrapling-lock.json`](../scripts/scrapling-lock.json).
+
+[`smoke-scrapling-runtime.ts`](../scripts/smoke-scrapling-runtime.ts) starts the real stdio server from a relocated resource with an empty PATH and browser cache, then checks MCP discovery, HTTP requests, JavaScript rendering, stealthy fetch, screenshot output, persistent session use and session closure against a private local fixture. [`smoke-packaged-runtime.ts`](../scripts/smoke-packaged-runtime.ts) repeats that check against the final Windows application resources. These checks do not require an LLM key.
+
+Scrapling still follows the target website's access rules, robots policy, authentication and network availability. Dynamic and stealthy fetches require the bundled Chromium process and may be slower or fail when a site blocks automation; the bundle does not promise access to restricted content or bypass a site's controls. The complete installer is a separate packaging operation: confirm its full version string before running the packaging command, as required by [Release versions](#release-versions).
 
 <a id="desktop-runtime-preparation"></a>
 

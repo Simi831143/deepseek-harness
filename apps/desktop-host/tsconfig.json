@@ -17,6 +17,7 @@
     { "path": "../../packages/skill/skill-filesystem" },
     { "path": "../../packages/util/home-paths" },
     { "path": "../../packages/skill/tool-workspace-dependencies" },
+    { "path": "../../packages/mcp/mcp-client" },
     {
       "path": "../cli"
     },

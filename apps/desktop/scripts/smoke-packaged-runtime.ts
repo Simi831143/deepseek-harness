@@ -5,6 +5,7 @@ import { desktopArtifactOutput, packagedApplicationEntry, resolveDesktopBuildTar
 import { readDesktopRuntime, verifyDesktopRuntime } from '../src/runtime-tree.ts'
 import { verifyWindowsCode } from './windows-runtime-signature.mjs'
 import { smokePreparedRuntime } from './smoke-prepared-runtime.ts'
+import { smokeScraplingRuntime } from './smoke-scrapling-runtime.ts'
 import { resolveDesktopPackageTarget } from './package-target.ts'
 
 /**
@@ -45,3 +46,4 @@ const descriptor = await verifyDesktopRuntime(paths.dsh, readDesktopRuntime(path
   resolveDesktopPackageTarget(target))
 if (windows && !values.unsigned) await verifyWindowsCode(application)
 await smokePreparedRuntime(join(resources, 'app.asar', 'dsh'), executable, join(resources, 'runtime'), descriptor)
+if (windows) await smokeScraplingRuntime(join(resources, 'runtime', 'scrapling'))
