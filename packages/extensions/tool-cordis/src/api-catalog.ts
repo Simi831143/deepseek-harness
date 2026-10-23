@@ -1547,6 +1547,96 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'market',
+    summary: 'Host owner of the `market` Remote namespace and the `ctx.market` service.',
+    description: 'Host owner of the `market` Remote namespace and the `ctx.market` service.',
+    methods: [
+      {
+        signature: 'registerKind(kind: MarketKind): () => void',
+        description: 'Register the domain behavior of one kind. Its installed items are synced at once.',
+        parameters: [{ name: 'kind', description: 'domain behavior.' }],
+        returns: 'disposer; register it with the domain plugin\'s effects.',
+        throws: ['when another package already handles the kind.'],
+      },
+      {
+        signature: 'kindDirectory(kind: MarketKindName): string',
+        description: 'Directory holding every installed item of one kind, one subdirectory per id.',
+        parameters: [{ name: 'kind', description: 'item kind.' }],
+        returns: 'the absolute directory; it may not exist before the first install.',
+      },
+      {
+        signature: 'installedItems(kind: MarketKindName): InstalledItem[]',
+        description: 'Installed items of one kind, with their directories and catalog entries.',
+        parameters: [{ name: 'kind', description: 'item kind.' }],
+        returns: 'every installed item of the kind.',
+      },
+      {
+        signature: 'async installItem(ref: MarketItemRef, signal: AbortSignal = this.lifetime.signal): Promise<void>',
+        description: 'Install an item for an in-process caller such as an expert installing its skills.',
+        parameters: [{ name: 'ref', description: 'kind and id.' }, { name: 'signal', description: 'cancellation.' }],
+        returns: 'after the item is installed and its kind synced; an installed item at the catalog version returns at once.',
+      },
+      {
+        signature: '@Remote catalogSnapshot(): MarketSnapshot',
+        description: 'Read the complete market state.',
+        parameters: [],
+        returns: 'catalog, install state, and available kinds.',
+      },
+      {
+        signature: '@Remote async refreshCatalog(): Promise<MarketSnapshot>',
+        description: 'Fetch the published catalog again, ignoring the cached copy\'s freshness.',
+        parameters: [],
+        returns: 'the state after the read; a failed read keeps the last good catalog and reports the error.',
+      },
+      {
+        signature: '@Remote async installPackage(ref: MarketItemRef, signal: AbortSignal): Promise<MarketSnapshot>',
+        description: 'Install or update one item from the catalog.',
+        parameters: [{ name: 'ref', description: 'kind and id.' }, { name: 'signal', description: 'caller cancellation.' }],
+        returns: 'the state after the install.',
+        throws: ['RemoteError `market/not-found`, `market/kind-unavailable`, or `market/install-failed`.'],
+      },
+      {
+        signature: '@Remote async uninstallPackage(ref: MarketItemRef): Promise<MarketSnapshot>',
+        description: 'Remove one installed item and its files.',
+        parameters: [{ name: 'ref', description: 'kind and id.' }],
+        returns: 'the state after removal; removing an absent item changes nothing.',
+      },
+      {
+        signature: '@Remote({ mode: \'stream\' }) async *watch(signal: AbortSignal): AsyncIterable<MarketSnapshot>',
+        description: 'Follow market state for one browser.',
+        parameters: [{ name: 'signal', description: 'observation lifetime.' }],
+        returns: 'the current state, then the state after every change.',
+      },
+    ],
+  },
+  {
+    key: 'marketSkills',
+    summary: 'Host owner of the skill kind and the `marketSkills` Remote namespace.',
+    description: 'Host owner of the skill kind and the `marketSkills` Remote namespace.',
+    methods: [
+      {
+        signature: '@Remote async installed(signal: AbortSignal): Promise<InstalledSkillsValue>',
+        description: 'List the skills the user installed that a new conversation in the default workspace sees, with their switches.',
+        parameters: [{ name: 'signal', description: 'caller cancellation.' }],
+        returns: 'market downloads and personal skills, including disabled ones, sorted by name.',
+      },
+      {
+        signature: '@Remote async setEnabled(request: SkillSwitchRequest, signal: AbortSignal): Promise<InstalledSkillsValue>',
+        description: 'Switch skills on or off for every new model request, whatever their source.',
+        parameters: [{ name: 'request', description: 'skill names and the target state.' }, { name: 'signal', description: 'caller cancellation for the list read that follows the write.' }],
+        returns: 'the list after the change.',
+        throws: ['RemoteError `market-skills/settings-unavailable` when the setting cannot be written.'],
+      },
+      {
+        signature: '@Remote async document(request: SkillNameRequest, signal: AbortSignal): Promise<SkillDocumentValue>',
+        description: 'Read the instructions of one skill, enabled or not, for the detail dialog.',
+        parameters: [{ name: 'request', description: 'the skill name.' }, { name: 'signal', description: 'caller cancellation.' }],
+        returns: 'the Markdown body without frontmatter, and the declared version.',
+        throws: ['RemoteError `market-skills/not-found` when no skill of that name is visible.'],
+      },
+    ],
+  },
+  {
     key: 'mcpResources',
     summary: 'Scoped resource access plus three tools shared by configured MCP servers.',
     description: 'Scoped resource access plus three tools shared by configured MCP servers.',
@@ -2741,6 +2831,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     summary: 'Layered registry of skill providers, the host+per-scope shape the tools registry established.',
     description: 'Layered registry of skill providers, the host+per-scope shape the tools registry established. A registration files into the layer of its calling context\'s scope (scopeOf): host rows and repository plugins land in the global layer, while a plugin mounted by an agent preset\'s standing composition lands in that preset\'s layer. A read merges the global layer with the viewing scope\'s chain — the nearest layer\'s entry wins a duplicate name outright, and the rank order decides duplicates only within one layer. It exposes sorted invocation-neutral summaries and loads full skill bodies on demand.',
     methods: [
+      {
+        signature: 'disabledNames(): readonly string[]',
+        description: 'Read the current `disabled` setting.',
+        parameters: [],
+        returns: 'the names ordinary reads omit; empty when the setting is absent.',
+      },
       {
         signature: 'registerProvider(create: (control: SkillProviderControl) => SkillProvider): () => void',
         description: 'Register a borrowed same-process provider synchronously during plugin apply, into the calling context\'s layer: a scoped context (an agent preset\'s standing mount) registers for that scope alone, an unscoped context registers globally. Duplicate names within one layer and reserved names throw; remote initialization belongs in `list()`. Fiber disposal unregisters the provider and invalidates catalog caches.',
@@ -5673,6 +5769,22 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface InstallBundleOptions {\n    enabled?: boolean;\n    saveExact?: boolean;\n    requestId?: PluginInstallRequestId;\n    approvedBuilds?: string[];\n    registry?: Registry;\n}',
   },
   {
+    name: 'InstalledItem',
+    declaration: 'export interface InstalledItem {\n    readonly record: MarketInstalledRecord;\n    readonly directory: string;\n    readonly catalog?: MarketCatalogItem;\n}',
+  },
+  {
+    name: 'InstalledSkillOrigin',
+    declaration: 'export type InstalledSkillOrigin = \'market\' | \'user\';',
+  },
+  {
+    name: 'InstalledSkillsValue',
+    declaration: 'export interface InstalledSkillsValue {\n    readonly skills: readonly InstalledSkillView[];\n    readonly complete: boolean;\n}',
+  },
+  {
+    name: 'InstalledSkillView',
+    declaration: 'export interface InstalledSkillView {\n    readonly name: string;\n    readonly description: string;\n    readonly origin: InstalledSkillOrigin;\n    readonly path?: string;\n    readonly enabled: boolean;\n    readonly removable: boolean;\n}',
+  },
+  {
     name: 'InstallSpecKind',
     declaration: 'export type InstallSpecKind = \'registry\' | \'path\' | \'git\' | \'tarball\';',
   },
@@ -5991,6 +6103,54 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'ManualCompactAgentContext',
     declaration: 'export interface ManualCompactAgentContext extends CompactionAgentContext {\n    runMaintenance<T>(task: (signal: AbortSignal) => Promise<T>): Promise<T>;\n}',
+  },
+  {
+    name: 'MarketCatalogItem',
+    declaration: 'export interface MarketCatalogItem {\n    readonly kind: MarketKindName;\n    readonly id: string;\n    readonly version: string;\n    readonly name: MarketText;\n    readonly description: MarketText;\n    readonly category?: string;\n    readonly tags?: readonly string[];\n    readonly icon?: string;\n    readonly examples?: readonly MarketText[];\n    readonly package?: MarketPackageRef;\n}',
+  },
+  {
+    name: 'MarketCatalogSource',
+    declaration: 'export type MarketCatalogSource = \'remote\' | \'cache\' | \'none\';',
+  },
+  {
+    name: 'MarketCategory',
+    declaration: 'export interface MarketCategory {\n    readonly kind: MarketKindName;\n    readonly id: string;\n    readonly name: MarketText;\n}',
+  },
+  {
+    name: 'MarketFeaturedRef',
+    declaration: 'export interface MarketFeaturedRef {\n    readonly kind: MarketKindName;\n    readonly id: string;\n}',
+  },
+  {
+    name: 'MarketInstalledRecord',
+    declaration: 'export interface MarketInstalledRecord {\n    readonly kind: MarketKindName;\n    readonly id: string;\n    readonly version: string;\n    readonly sha256: string;\n    readonly installedAt: string;\n}',
+  },
+  {
+    name: 'MarketItemRef',
+    declaration: 'export interface MarketItemRef {\n    readonly kind: MarketKindName;\n    readonly id: string;\n}',
+  },
+  {
+    name: 'MarketItemView',
+    declaration: 'export interface MarketItemView extends MarketCatalogItem {\n    readonly iconUrl?: string;\n    readonly installedVersion?: string;\n}',
+  },
+  {
+    name: 'MarketKind',
+    declaration: 'export interface MarketKind {\n    readonly kind: MarketKindName;\n    validate(directory: string, item: MarketCatalogItem): Promise<void>;\n    sync(items: readonly InstalledItem[]): Promise<void>;\n}',
+  },
+  {
+    name: 'MarketKindName',
+    declaration: 'export type MarketKindName = \'skill\' | \'expert\' | \'connector\';',
+  },
+  {
+    name: 'MarketPackageRef',
+    declaration: 'export interface MarketPackageRef {\n    readonly path: string;\n    readonly sha256: string;\n    readonly size: number;\n}',
+  },
+  {
+    name: 'MarketSnapshot',
+    declaration: 'export interface MarketSnapshot {\n    readonly revision: number;\n    readonly source: MarketCatalogSource;\n    readonly fetchedAt?: string;\n    readonly fetchError?: string;\n    readonly categories: readonly MarketCategory[];\n    readonly featured: readonly MarketFeaturedRef[];\n    readonly items: readonly MarketItemView[];\n    readonly kinds: readonly MarketKindName[];\n    readonly installing: readonly string[];\n}',
+  },
+  {
+    name: 'MarketText',
+    declaration: 'export interface MarketText {\n    readonly zh: string;\n    readonly en?: string;\n}',
   },
   {
     name: 'MatcherValue',
@@ -7533,6 +7693,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface SkillDefinition extends SkillSummary {\n    readonly content: string;\n    readonly metadata?: Readonly<Record<string, unknown>>;\n}',
   },
   {
+    name: 'SkillDocumentValue',
+    declaration: 'export interface SkillDocumentValue {\n    readonly name: string;\n    readonly content: string;\n    readonly version?: string;\n}',
+  },
+  {
     name: 'SkillEntry',
     declaration: 'export interface SkillEntry {\n    readonly path?: string;\n    readonly name: string;\n    readonly description: string;\n    readonly whenToUse?: string;\n    readonly modelInvocable: boolean;\n}',
   },
@@ -7551,6 +7715,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'SkillLookupOptions',
     declaration: 'export interface SkillLookupOptions {\n    readonly cwd?: string | undefined;\n    readonly signal?: AbortSignal | undefined;\n}',
+  },
+  {
+    name: 'SkillNameRequest',
+    declaration: 'export interface SkillNameRequest {\n    readonly name: string;\n}',
   },
   {
     name: 'SkillProvider',
@@ -7581,8 +7749,12 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface SkillSummary {\n    readonly path?: string;\n    readonly name: string;\n    readonly description: string;\n    readonly whenToUse?: string;\n    readonly invocation: SkillInvocationPolicy;\n    readonly source: SkillSource;\n    readonly provider: string;\n    readonly resourceBase?: SkillResourceBase;\n}',
   },
   {
+    name: 'SkillSwitchRequest',
+    declaration: 'export interface SkillSwitchRequest {\n    readonly names: readonly string[];\n    readonly enabled: boolean;\n}',
+  },
+  {
     name: 'SkillViewOptions',
-    declaration: 'export interface SkillViewOptions extends SkillLookupOptions {\n    readonly scope?: ScopeKey | undefined;\n}',
+    declaration: 'export interface SkillViewOptions extends SkillLookupOptions {\n    readonly scope?: ScopeKey | undefined;\n    readonly includeDisabled?: boolean | undefined;\n}',
   },
   {
     name: 'SpawnTeammateRequest',

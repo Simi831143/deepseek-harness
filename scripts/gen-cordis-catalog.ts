@@ -120,6 +120,8 @@ export const SERVICE_PAGE: Record<string, string> = {
   settings: 'settings.md',
   sessionTitle: 'session-title.md',
   skills: 'skills.md',
+  market: 'skills.md',
+  marketSkills: 'skills.md',
   spillStore: 'spill.md',
   storage: 'storage.md',
   storageDomain: 'storage.md',
@@ -191,6 +193,7 @@ export const SERVICE_WALK_EXEMPTIONS: Record<string, string> = {
   userQuestionPanels: 'client-side slot-contract accessor (UserQuestionPanels) — packages/client/ui-tool/README.md owns the API',
   commandUi: 'client-side interface-typed browser service — packages/client/ui-commands/README.md owns the API',
   feedbackUi: 'client-side feedback dialog service — packages/client/ui-message-feedback/README.md owns the API',
+  uiSkill: 'client-side skill titles, chip drafts and catalog refresh — packages/client/ui-skill/README.md owns the API',
   conversation: 'client-side interface-typed browser service — packages/client/ui-conversation/README.md owns the API',
   layout: 'client-side interface-typed browser service — packages/client/ui-layout/README.md owns the API',
   pluginNavigation: 'client-side bundle navigation — packages/client/ui-plugin-manager/README.md owns the API',
@@ -863,6 +866,15 @@ export const FOUNDATION_TYPE_NAMES: ReadonlySet<string> = new Set([
 
 /** Project types deliberately documented outside the subsystems catalog. */
 export const TYPE_LINK_EXEMPTIONS: Readonly<Record<string, string>> = {
+  InstalledItem: 'market catalog and install records are owned by packages/market/market/src/types.ts',
+  MarketItemRef: 'market catalog and install records are owned by packages/market/market/src/types.ts',
+  MarketKind: 'market catalog and install records are owned by packages/market/market/src/types.ts',
+  MarketKindName: 'market catalog and install records are owned by packages/market/market/src/types.ts',
+  MarketSnapshot: 'market catalog and install records are owned by packages/market/market/src/types.ts',
+  InstalledSkillsValue: 'installed-skill management payloads are owned by packages/market/market-skills/src/types.ts',
+  SkillDocumentValue: 'installed-skill management payloads are owned by packages/market/market-skills/src/types.ts',
+  SkillNameRequest: 'installed-skill management payloads are owned by packages/market/market-skills/src/types.ts',
+  SkillSwitchRequest: 'installed-skill management payloads are owned by packages/market/market-skills/src/types.ts',
   ProductEvent: 'Desktop event fields are owned by packages/client/product-analytics/README.md and src/events.ts',
   ConnectionFetchHandler: 'shared Fetch dispatch is owned by packages/client/connection/src/rpc.ts',
   ConnectionRequestRejection: 'transport rejection status is owned by packages/client/connection/src/rpc.ts',

@@ -1,0 +1,43 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/market/market/README.md
+/:
+  en: 6d2257b977981427
+  zh: e851aaa4b821a182
+/deepseek-ai-dsh-market:
+  en: 48a3bf073b92dc74
+  zh: 83fc3437b2ce8b46
+/deepseek-ai-dsh-market/summary:
+  en: 30f6340c78cf690c
+  zh: 0e69ed2cefcc34c4
+/deepseek-ai-dsh-market/table-of-contents:
+  en: 122f0d41696980b1
+  zh: a626a37cb5e869f8
+/deepseek-ai-dsh-market/use-this-package:
+  en: 920d1a67558eae5d
+  zh: 744d508bc1aafee6
+/deepseek-ai-dsh-market/understand-the-implementation:
+  en: fb544752f1ea67bf
+  zh: 4cb6262a6edf3fab
+/deepseek-ai-dsh-market/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/deepseek-ai-dsh-market/model-experience/catalog-and-installation-service:
+  en: a4139a19af1ca02a
+  zh: 3aa974677bd19659
+/deepseek-ai-dsh-market/model-experience/catalog-and-installation-service/what-the-model-sees:
+  en: 0b7b2a3801271440
+  zh: e9253404780c68f0
+/deepseek-ai-dsh-market/model-experience/catalog-and-installation-service/token-effect:
+  en: dd557d3fde8dc418
+  zh: c4e90e5a071d97e9
+/deepseek-ai-dsh-market/model-experience/catalog-and-installation-service/kv-cache-effect:
+  en: de4322f1a874fe92
+  zh: 31bf067488edb4d6
+/deepseek-ai-dsh-market/known-limitations-and-deferred-work:
+  en: b3ba50fe6aadab24
+  zh: 5a2e04a1ae4b4d3d
+/deepseek-ai-dsh-market/known-limitations-and-deferred-work/dev-note:
+  en: 7972e4b2005ec9a4
+  zh: 754c49ec538c164c

@@ -26,6 +26,10 @@ const session: ReferenceContent = {
   clipboardText: '@[研究记录](dsh-session:c291cmNl)',
 }
 
+const skill: ReferenceContent = {
+  source: 'skill', ref: '/lark-unified', label: '飞书套件', appearance: 'skill', clipboardText: '/lark-unified',
+}
+
 function documentOf(...parts: readonly (string | ReferenceContent)[]): DraftSnapshot {
   let text = ''
   const references: DraftReference[] = []
@@ -143,6 +147,16 @@ describe('draft document values', () => {
     shell.setDraft(draft)
     expect(shell.draftSnapshot).toEqual(draft)
     expect(chips(shell)).toHaveLength(3)
+  })
+
+  it('stores and restores a leading skill chip as its literal /name', () => {
+    const draft = documentOf(skill, ' 帮我建个日程')
+    expect(draft.text).toBe('/lark-unified 帮我建个日程')
+    expect(parseStoredDraft(JSON.parse(JSON.stringify(draft)))).toEqual(draft)
+    const shell = makeShell()
+    shell.setDraft(draft)
+    expect(shell.draftSnapshot).toEqual(draft)
+    expect(chips(shell)).toMatchObject([{ source: 'skill', ref: '/lark-unified', label: '飞书套件', appearance: 'skill' }])
   })
 
   it('decodes explicit false metadata and discards persisted editor-local fields', () => {

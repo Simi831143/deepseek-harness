@@ -613,6 +613,22 @@ const SERVICE_ROLES: ServiceRole[] = [
     note: 'Merges provider skill catalogs; tool-skill renders the session-prefix catalog and loads complete skill bodies.',
   },
   {
+    key: 'market',
+    pkg: 'market',
+    title: 'Market catalog and package installation',
+    mode: 'service',
+    consumers: ['market-skills', 'client-ui-market'],
+    note: 'Loads the published catalog, owns verified package installation and removal, and exposes the current catalog and install state to Host and browser consumers.',
+  },
+  {
+    key: 'marketSkills',
+    pkg: 'market-skills',
+    title: 'Installed market skill management',
+    mode: 'service',
+    consumers: ['client-ui-market'],
+    note: 'Registers the market skill kind, projects installed skills into the shared registry, and exposes document and enablement operations to the browser.',
+  },
+  {
     key: 'agents',
     pkg: 'agent',
     title: 'Agent service',

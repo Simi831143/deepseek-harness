@@ -164,7 +164,7 @@ describe('MessageItem arms', () => {
     expect(plain.container.querySelectorAll('[data-ref-chip]').length).toBe(0)
     const resolved = render(<MessageItem t={t} node={message} skillNames={['demo-skill']} />)
     const chips = [...resolved.container.querySelectorAll('[data-ref-chip="skill"]')]
-    expect(chips.map(chip => chip.textContent)).toEqual(['/demo-skill'])
+    expect(chips.map(chip => chip.textContent)).toEqual(['demo-skill'])
     expect(resolved.container.textContent).toContain('/123 then ')
   })
 

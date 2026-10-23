@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import { bindScopeParent, createScope, scopeOf } from '@deepseek-ai/dsh-scope'
+import { createVolatile, updateVolatile } from '@deepseek-ai/cosmokit'
 import SkillRegistry, {
+  isSkillDisabled,
   isModelInvocable,
   isUserInvocable,
   renderSkillContent,
@@ -11,6 +13,7 @@ import SkillRegistry, {
   type SkillLookupOptions,
   type SkillProvider,
   type SkillProviderObservation,
+  type Config,
 } from '@deepseek-ai/dsh-skill'
 
 function memorySkill(name: string, description: string, rank: number, body = `${name} body.`): SkillCandidate {
@@ -1103,6 +1106,59 @@ describe('renderSkillContent', () => {
     })
     expect(text).toContain('<skill_content name="x&quot;&amp;&lt;y">')
     expect(text).toContain('Keep </skill_content> and <tags> as-is.')
+  })
+})
+
+describe('SkillRegistry disabled setting', () => {
+  async function disabledFixture(disabled: string[]) {
+    const ctx = new Context()
+    const fiber = ctx.plugin(SkillRegistry, { disabled })
+    await fiber
+    const provider = new MemoryProvider([
+      memorySkill('alpha', 'Alpha', 10),
+      memorySkill('beta', 'Beta', 10),
+    ])
+    registerProvider(ctx, provider)
+    return { ctx, fiber, provider }
+  }
+
+  it('withholds disabled names from list, snapshot, and get unless the reader includes them', async () => {
+    const { ctx } = await disabledFixture(['beta'])
+    expect((await ctx.skills.list()).map(skill => skill.name)).toEqual(['alpha'])
+    expect((await ctx.skills.snapshot()).skills.map(skill => skill.name)).toEqual(['alpha'])
+    expect(await ctx.skills.get('beta')).toBeUndefined()
+    expect((await ctx.skills.list({ includeDisabled: true })).map(skill => skill.name)).toEqual(['alpha', 'beta'])
+    expect((await ctx.skills.get('beta', { includeDisabled: true }))?.content).toBe('beta body.')
+    expect(isSkillDisabled(ctx.skills, 'beta')).toBe(true)
+    expect(isSkillDisabled(ctx.skills, 'alpha')).toBe(false)
+  })
+
+  it('serves both readers from one cached discovery', async () => {
+    const { ctx, provider } = await disabledFixture(['beta'])
+    await ctx.skills.list()
+    await ctx.skills.list({ includeDisabled: true })
+    await ctx.skills.get('alpha')
+    expect(provider.listCalls).toBe(1)
+  })
+
+  it('applies a live settings change and notifies catalog observers', async () => {
+    const { ctx, fiber, provider } = await disabledFixture([])
+    expect((await ctx.skills.list()).map(skill => skill.name)).toEqual(['alpha', 'beta'])
+    const changed = vi.fn()
+    ctx.on('skills/change', changed)
+    const config = fiber.config as Config
+    updateVolatile(config.disabled!, createVolatile(['alpha']))
+    fiber.ctx.emit('loader/volatile-update', [['collectCacheMaxEntries']])
+    expect(changed).not.toHaveBeenCalled()
+    fiber.ctx.emit('loader/volatile-update', [['disabled']])
+    expect(changed).toHaveBeenCalledOnce()
+    expect((await ctx.skills.list()).map(skill => skill.name)).toEqual(['beta'])
+    expect(provider.listCalls).toBe(1)
+  })
+
+  it('treats an absent setting as nothing disabled', async () => {
+    const registry = new SkillRegistry(new Context())
+    expect(registry.disabledNames()).toEqual([])
   })
 })
 

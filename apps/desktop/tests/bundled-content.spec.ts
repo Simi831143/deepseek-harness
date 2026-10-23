@@ -267,12 +267,14 @@ describe('bundled sources', () => {
   it('lists distinct, valid skills and plugins', () => {
     const skills = BUNDLED_SOURCES.flatMap(source => source.skills?.names ?? [])
     const plugins = BUNDLED_SOURCES.flatMap(source => source.plugin ?? [])
-    expect(skills).toContain('ppt-master')
-    // The two published mattpocock/skills categories share one checkout, branch, and license.
+    // The market's 创建技能 entry needs skill-creator; ppt-master is a market download, not bundled.
+    expect(skills).toContain('skill-creator')
+    expect(skills).not.toContain('ppt-master')
+    // The two mattpocock/skills categories share one checkout, branch, and license.
     const mattpocock = BUNDLED_SOURCES.filter(source => source.checkout === 'skills')
     expect(mattpocock.map(source => source.skills?.root)).toEqual(['skills/engineering', 'skills/productivity'])
     for (const source of mattpocock) expect(source).toMatchObject({ branch: 'main', license: 'LICENSE' })
-    expect(mattpocock.flatMap(source => source.skills?.names ?? [])).toHaveLength(27)
+    expect(mattpocock.flatMap(source => source.skills?.names ?? [])).toEqual(['diagnosing-bugs', 'grilling', 'writing-for-agents'])
     expect(plugins).toEqual(['dsh-bundle-anysearch-search'])
     expect(new Set(skills).size).toBe(skills.length)
     for (const name of skills) expect(name).toMatch(/^[a-z0-9]+(?:-[a-z0-9]+)*$/u)

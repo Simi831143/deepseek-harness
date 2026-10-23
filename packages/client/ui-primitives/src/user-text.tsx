@@ -26,6 +26,11 @@ export interface ReferenceChipProps {
   readonly title: string
   /** Absent for display-only references and previews. */
   readonly onActivate?: () => void
+  /**
+   * `text` (default) keeps the inline token look: skill and command labels in the code face.
+   * `pill` draws a neutral capsule with the domain glyph, for a skill shown by its display name.
+   */
+  readonly display?: 'text' | 'pill'
 }
 
 /**
@@ -34,13 +39,14 @@ export interface ReferenceChipProps {
  * @param props - resolved visual fields and optional action from the owning renderer.
  * @returns an inline label, or a keyboard-accessible button when activation is supplied.
  */
-export function ReferenceChip({ appearance, label, title, onActivate }: ReferenceChipProps): ReactNode {
-  const slash = appearance === 'skill' || appearance === 'command'
+export function ReferenceChip({ appearance, label, title, onActivate, display = 'text' }: ReferenceChipProps): ReactNode {
+  const pill = display === 'pill'
+  const slash = !pill && (appearance === 'skill' || appearance === 'command')
   const contents = <>
-    {!slash && <ReferenceIconRegular kind={appearance} size={16} className={css.refIcon} />}
+    {!slash && appearance !== 'command' && <ReferenceIconRegular kind={appearance} size={16} className={css.refIcon} />}
     {label}
   </>
-  const className = clsx(css.refChip, slash && css.slashChip)
+  const className = clsx(css.refChip, slash && css.slashChip, pill && css.pillChip)
   return onActivate === undefined
     ? <span className={className} data-ref-chip={appearance} title={title}>{contents}</span>
     : <button

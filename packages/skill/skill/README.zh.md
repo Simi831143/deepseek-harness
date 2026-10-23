@@ -33,7 +33,7 @@ kind: "package-reference"
 
 ### 挂载与配置
 
-像任何 Cordis 插件一样加载即可。唯一配置项限制内存中保留的已完成提供方目录数量；其余都是提供方行为。
+像任何 Cordis 插件一样加载即可。配置项限制内存中保留的已完成提供方目录数量，并列出用户停用的 skill；其余都是提供方行为。
 
 ```yaml
 - name: '@deepseek-ai/dsh-skill'
@@ -42,6 +42,7 @@ kind: "package-reference"
 | 字段 | 默认值 | 含义 |
 |---|---|---|
 | `collectCacheMaxEntries` | `128` | 内存中保留的已完成 cwd/提供方目录数 |
+| `disabled` | `[]` | 所有读取都不返回的 skill 名称；实时生效，设置写入后下一次读取即应用 |
 
 生成的[配置目录](../../../docs/config-catalog.zh.md#deepseek-aidsh-skill)是每个受支持字段的穷尽式真源。
 
@@ -51,6 +52,7 @@ kind: "package-reference"
 - **按需加载。** 按名称查询某个 skill，会从拥有胜出候选项的提供方返回完整指令正文；注册表会重新验证加载的定义，并拒绝在发现与加载之间名称发生变化的陈旧选择。
 - **嵌入式 skill。** 插件可用 `ctx.skills.register(...)` 注册内存中的 skill；注册表会补入默认调用策略与 `runtime` 提供方标签。同层同名运行时注册采用先到先得，并记录警告。
 - **提供方注册。** 提供方用 `ctx.skills.registerProvider(...)` 贡献目录；注册是同步的，返回的 disposer（资源释放）会移除该提供方。`runtime` 是保留的提供方名称。
+- **覆盖所有来源的统一开关。** `disabled` 设置中的名称会从 `list`、`snapshot` 和 `get` 中消失，无论由哪个提供方或哪一层提供，因此模型目录、`skill` 工具和用户 `/name` 调用会同时失去它。仍需显示已停用 skill 的管理页面以 `includeDisabled: true` 读取，并用 `isSkillDisabled()` 判断哪些已停用。
 
 每个 skill 上的调用策略决定哪些接口可以展示并加载它：`modelInvocable` 用于面向模型的工具与目录，`userInvocable` 用于面向用户的命令。注册表保留全部四种组合，因此一次发现结果可以同时服务两个接口，而不会混淆各自的目录。
 
@@ -99,7 +101,7 @@ Skill 摘要保留胜出提供方可选的指令文件 `path`，供提供文件�
 
 ### 失效
 
-注册表没有 TTL：只有提供方调用其注册作用域内的 `invalidate()`，或发生运行时注册或释放时，才会清除已完成的目录。每次失效都会递增 revision、清空缓存，并发出不带过滤条件的 `skills/change` 事件；消费方用各自的查找选项重新获取。`invalidate()` 仅当接收它的那条精确注册仍处于活动状态时才生效，因此延迟回调无法干扰同名替代提供方。
+`disabled` 设置在缓存之后应用，因此同一份缓存的收集结果同时服务普通读取与 `includeDisabled` 读取；修改该设置无需重新发现，注册表只在 Loader 报告该字段的实时更新时发出 `skills/change`。注册表没有 TTL：只有提供方调用其注册作用域内的 `invalidate()`，或发生运行时注册或释放时，才会清除已完成的目录。每次失效都会递增 revision、清空缓存，并发出不带过滤条件的 `skills/change` 事件；消费方用各自的查找选项重新获取。`invalidate()` 仅当接收它的那条精确注册仍处于活动状态时才生效，因此延迟回调无法干扰同名替代提供方。
 
 </details>
 

@@ -128,6 +128,20 @@ describe('desktop external plugin profile', () => {
     expect(readFileSync(patch, 'utf8')).toContain('[]')
   })
 
+  it('reinserts every bundle this build owns into an older profile, in order and before external bundles', async () => {
+    const { manager } = setup()
+    await manager.applyRelease()
+    const path = join(manager.paths.profile, 'package.json')
+    const read = () => JSON.parse(readFileSync(path, 'utf8')) as { dsh: { profile: { bundles: string[] } } }
+    const manifest = read()
+    const base = manifest.dsh.profile.bundles.filter(bundle => !bundle.startsWith('@deepseek-ai/dsh-account-feishu')
+      && bundle !== '@deepseek-ai/dsh-market-bundle')
+    manifest.dsh.profile.bundles = [...base, 'external', '@deepseek-ai/dsh-account-feishu']
+    writeFileSync(path, JSON.stringify(manifest))
+    await manager.applyRelease()
+    expect(read().dsh.profile.bundles).toEqual([...base, '@deepseek-ai/dsh-account-feishu', '@deepseek-ai/dsh-market-bundle', 'external'])
+  })
+
   it('needs no runtime or package manifest when no plugins have been installed', async () => {
     const { manager } = setup()
     await expect(manager.disableAllPlugins()).resolves.toBeUndefined()

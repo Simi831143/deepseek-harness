@@ -37,8 +37,9 @@ const PROJECT_NAME = '@deepseek-ai/dsh-desktop-runtime'
 const DSH_PACKAGE = '@deepseek-ai/dsh'
 const CORE_BUILD_PACKAGE = '@deepseek-ai/dsh-subprocess-local'
 const WEB_PROFILE = PROFILE_TEMPLATES.web as ProfileTemplate
-const OWN_BUNDLE = '@deepseek-ai/dsh-account-feishu'
-const DESKTOP_PROFILE_BUNDLES: readonly string[] = [...WEB_PROFILE.bundles, OWN_BUNDLE]
+/** Bundles this Desktop build owns, in profile order; each launch reinserts any a profile lacks. */
+const OWN_BUNDLES: readonly string[] = ['@deepseek-ai/dsh-account-feishu', '@deepseek-ai/dsh-market-bundle']
+const DESKTOP_PROFILE_BUNDLES: readonly string[] = [...WEB_PROFILE.bundles, ...OWN_BUNDLES]
 const DEPLOYMENT_PROFILE_ENVIRONMENT_NAMES = new Set<string>(DEPLOYMENT_ENVIRONMENT_NAMES)
 const WORKSPACE_SETTINGS = 'nodeLinker: hoisted\nautoInstallPeers: false\n'
 function writeJson(path: string, value: unknown): void {
@@ -72,9 +73,9 @@ function reconcileProfileBundles(projectDir: string): void {
   const bundles = manifest.dsh?.profile?.bundles
   if (bundles === undefined) return
   const migrated = bundles.filter(bundle => bundle !== '@deepseek-ai/dsh-account-email'
-    && bundle !== '@deepseek-ai/dsh-account' && bundle !== OWN_BUNDLE)
+    && bundle !== '@deepseek-ai/dsh-account' && !OWN_BUNDLES.includes(bundle))
   const firstExternalBundle = migrated.findIndex(bundle => !WEB_PROFILE.bundles.includes(bundle))
-  migrated.splice(firstExternalBundle === -1 ? migrated.length : firstExternalBundle, 0, OWN_BUNDLE)
+  migrated.splice(firstExternalBundle === -1 ? migrated.length : firstExternalBundle, 0, ...OWN_BUNDLES)
   if (migrated.length === bundles.length && migrated.every((bundle, index) => bundle === bundles[index])) return
   writeProfileManifest(projectDir, {
     ...manifest,

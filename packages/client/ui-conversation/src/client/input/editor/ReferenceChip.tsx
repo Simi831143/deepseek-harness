@@ -25,8 +25,11 @@ export interface ReferenceChipProps {
  * @returns the chip body (icon + truncating label).
  */
 export function ReferenceChip({ label, appearance, invalid }: ReferenceChipProps): ReactNode {
+  const openable = (appearance === 'file' || appearance === 'skill') && !invalid
   return (
-    <span className={clsx(referenceCss.reference, css.chip, appearance === 'file' && !invalid && referenceCss.openable, invalid && css.invalid)} title={label}>
+    <span className={clsx(
+      referenceCss.reference, css.chip, appearance === 'skill' && css.skill, openable && referenceCss.openable, invalid && css.invalid,
+    )} title={label}>
       {appearance === undefined
         ? <span className={css.marker} aria-hidden>@</span>
         : <ReferenceIconRegular kind={appearance} size={14} className={css.icon} />}

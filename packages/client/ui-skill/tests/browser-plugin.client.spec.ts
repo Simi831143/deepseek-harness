@@ -6,11 +6,9 @@
  * real ClientSessionContext projections — sessionId addressing, the
  * session-keyed catalog cache (single-flight per key, scope-birth warm
  * prewarm, connection/reset clear), shared fuzzy name ranking, RPC-failure
- * rejection, pick → plain-text outcome (the plain-text-reference decision:
- * .agents/notes/archived/architecture/2026-07-25-web-input-machine-and-slash-pipeline.md),
- * the synchronous
- * lexicon reads over the settled cache, and the reference codec's two
- * projections. Direct driving is deliberate: this spec owns only the
+ * rejection, pick → skill chip whose codec ships the literal `/name`, the
+ * `uiSkill` display titles, chip drafts and catalog refresh, the synchronous
+ * lexicon reads over the settled cache, and the reference preview. Direct driving is deliberate: this spec owns only the
  * source's own contract.
  */
 import { Context } from '@deepseek-ai/cordis'
@@ -23,6 +21,7 @@ import type { SessionFixture } from '@deepseek-ai/dsh-client-test-runtime'
 import type { InjectParams } from '@deepseek-ai/dsh-client-ui-slots'
 import type { RemoteFailure } from '@deepseek-ai/dsh-api-remotes/client'
 import type { ClientSessionContext, InputTriggerSource } from '@deepseek-ai/dsh-client-ui-input-trigger/client'
+import { IconSkillOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
 import { apply, inject } from '../src/client/index.ts'
 import { SkillRow as SkillToolRow } from '../src/client/SkillRow.tsx'
 import { SkillReference, type SkillReferenceInjected } from '../src/client/SkillReference.tsx'
@@ -254,8 +253,8 @@ describe('candidates: sessionId addressing', () => {
     // Exact payload: session address only — no agent or transport vocabulary.
     expect(payloads).toEqual([{ sessionId: 's1' }])
     expect(items).toEqual([
-      { name: 'commit-helper', description: 'commit flow' },
-      { name: 'code-review', description: 'review flow' },
+      { name: 'commit-helper', icon: IconSkillOutlineRegular, description: 'commit flow' },
+      { name: 'code-review', icon: IconSkillOutlineRegular, description: 'review flow' },
     ])
     const names = async (query: string) => (await source.candidates(proj('s1'), req(query))).map(c => c.name)
     // 'de' prefixes deploy and is a subsequence of code-review: the prefix ranks first.
@@ -289,8 +288,8 @@ describe('catalog cache', () => {
     const second = await source.candidates(proj('s1'), req('co'))
     expect(payloads).toHaveLength(1)
     expect(second).toEqual([
-      { name: 'commit-helper', description: 'commit flow' },
-      { name: 'code-review', description: 'review flow' },
+      { name: 'commit-helper', icon: IconSkillOutlineRegular, description: 'commit flow' },
+      { name: 'code-review', icon: IconSkillOutlineRegular, description: 'review flow' },
     ])
     // A different session is its own key — one more RPC, not two.
     await source.candidates(proj('s2'), req(''))
@@ -305,7 +304,7 @@ describe('catalog cache', () => {
       source.candidates(proj('s1'), req('co')),
     ])
     expect(payloads).toHaveLength(1)
-    expect(a).toEqual([{ name: 'deploy', description: 'deploy flow' }])
+    expect(a).toEqual([{ name: 'deploy', icon: IconSkillOutlineRegular, description: 'deploy flow' }])
     expect(b).toHaveLength(2)
   })
 
@@ -425,8 +424,8 @@ describe('lexicon', () => {
   })
 })
 
-describe('pick lands plain text', () => {
-  it('onPick returns the literal /name text with a closing space', async () => {
+describe('pick lands a skill chip', () => {
+  it('onPick inserts an atomic chip titled by the skill name whose wire text is the literal /name', async () => {
     const { source } = await bench(listOk(CATALOG))
     const outcome = source.onPick({
       candidate: { name: 'commit-helper', description: 'commit flow' },
@@ -436,16 +435,75 @@ describe('pick lands plain text', () => {
       action: 'pick',
       span: { start: 0, end: 4, draftRev: 7 },
     })
-    expect(outcome).toEqual({ text: '/commit-helper ' })
+    expect(outcome).toEqual({
+      insert: { source: 'skill', ref: '/commit-helper', label: 'commit-helper', appearance: 'skill', clipboardText: '/commit-helper' },
+    })
   })
 
-  it('keeps the legacy reference codec removed and stays out of adjudication', async () => {
+  it('serializes a chip to its literal and stays out of adjudication', async () => {
     const { source } = await bench(listOk(CATALOG))
-    // Determinism lives host-side (the pre-step gesture boundary), so the
-    // source neither claims lines nor serializes reference markup.
-    expect(source.codec).toBeUndefined()
+    // Determinism lives host-side (the pre-step gesture boundary): the chip
+    // ships the same `/name` a hand-typed token does, and the source never claims lines.
+    expect(source.codec?.clipboardText('/deploy')).toBe('/deploy')
+    await expect(source.codec?.serialize('/deploy', new AbortController().signal)).resolves.toBe('/deploy')
     expect(typeof source.matchSpace).toBe('undefined')
     expect(typeof source.matchEnter).toBe('undefined')
+  })
+})
+
+describe('uiSkill', () => {
+  /** A contributed titles source the test can change. */
+  function titles(initial: Record<string, string>) {
+    let value: ReadonlyMap<string, string> = new Map(Object.entries(initial))
+    const listeners = new Set<() => void>()
+    return {
+      getSnapshot: () => value,
+      subscribe: (listener: () => void) => { listeners.add(listener); return () => { listeners.delete(listener) } },
+      set(next: Record<string, string>) { value = new Map(Object.entries(next)); for (const listener of listeners) listener() },
+    }
+  }
+
+  it('titles menu candidates and chips with contributed labels, matching the title as well as the name', async () => {
+    const { ctx, source } = await bench(listOk(CATALOG))
+    const market = titles({ 'commit-helper': '提交助手' })
+    const withdraw = ctx.uiSkill.contributeLabels(market)
+    expect(ctx.uiSkill.labelOf('commit-helper')).toBe('提交助手')
+    await expect(source.candidates(proj('s1'), req('提交'))).resolves.toEqual([
+      { name: 'commit-helper', label: '提交助手', icon: IconSkillOutlineRegular, description: 'commit flow' },
+    ])
+    expect(source.onPick({
+      candidate: { name: 'commit-helper', description: 'commit flow' },
+      session: proj('s1'), position: 'leading', via: 'menu', action: 'pick', span: { start: 0, end: 1, draftRev: 1 },
+    })).toMatchObject({ insert: { label: '提交助手', ref: '/commit-helper' } })
+    market.set({ 'commit-helper': '提交' })
+    expect(ctx.uiSkill.labelOf('commit-helper')).toBe('提交')
+    withdraw()
+    expect(ctx.uiSkill.labelOf('commit-helper')).toBeUndefined()
+  })
+
+  it('builds a draft that opens with the skill chip and ships /name text', async () => {
+    const { ctx } = await bench(listOk(CATALOG))
+    ctx.uiSkill.contributeLabels(titles({ 'lark-unified': '飞书套件' }))
+    expect(ctx.uiSkill.draft('lark-unified', '帮我建个日程')).toEqual({
+      text: '/lark-unified 帮我建个日程',
+      references: [{
+        source: 'skill', ref: '/lark-unified', label: '飞书套件', appearance: 'skill', clipboardText: '/lark-unified',
+        offset: 0, length: '/lark-unified'.length,
+      }],
+    })
+  })
+
+  it('refresh refetches every open session catalog but no addressed child', async () => {
+    const { list, payloads } = countingList()
+    const { ctx, source } = await bench(list, sid('child'))
+    await source.candidates(proj('s1'), req(''))
+    await source.candidates(proj('s2'), req(''))
+    expect(payloads).toHaveLength(2)
+    ctx.uiSkill.refresh()
+    await vi.waitFor(() => { expect(payloads).toHaveLength(4) })
+    expect(payloads.slice(2)).toEqual([{ sessionId: 's1' }, { sessionId: 's2' }])
+    await source.candidates(proj('s1'), req(''))
+    expect(payloads).toHaveLength(4)
   })
 })
 
@@ -458,8 +516,8 @@ describe('user-only marking', () => {
     const { source } = await bench(listOk(rows))
     const candidates = await source.candidates(proj('s1'), req(''))
     expect(candidates).toEqual([
-      { name: 'shared-skill', description: 'both surfaces' },
-      { name: 'user-only-skill', description: '仅用户 · user surface only' },
+      { name: 'shared-skill', icon: IconSkillOutlineRegular, description: 'both surfaces' },
+      { name: 'user-only-skill', icon: IconSkillOutlineRegular, description: '仅用户 · user surface only' },
     ])
   })
 })

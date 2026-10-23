@@ -1,0 +1,43 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/bundle/market/README.md
+/:
+  en: 8c538d89b92a67cc
+  zh: e0edaaa9a4baf7b0
+/deepseek-ai-dsh-market-bundle:
+  en: a68526300eac5ae7
+  zh: 0da7edaa45f98c38
+/deepseek-ai-dsh-market-bundle/summary:
+  en: 2a334082acbe96e3
+  zh: 4f92167882f110c6
+/deepseek-ai-dsh-market-bundle/table-of-contents:
+  en: 122f0d41696980b1
+  zh: a626a37cb5e869f8
+/deepseek-ai-dsh-market-bundle/use-this-package:
+  en: 769a41caccd0e135
+  zh: 6af1c5c018623f35
+/deepseek-ai-dsh-market-bundle/understand-the-implementation:
+  en: 034c3b8ab8e8c836
+  zh: 03d7452d80e0c6f0
+/deepseek-ai-dsh-market-bundle/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/deepseek-ai-dsh-market-bundle/model-experience/market-composition:
+  en: a5351bcf5ef72d7e
+  zh: 8ab1a6095e2d1cf9
+/deepseek-ai-dsh-market-bundle/model-experience/market-composition/what-the-model-sees:
+  en: 3c4316e99ecfd503
+  zh: 30907b3761d940d4
+/deepseek-ai-dsh-market-bundle/model-experience/market-composition/token-effect:
+  en: 9480dcd92bf881d2
+  zh: ec929de75f550377
+/deepseek-ai-dsh-market-bundle/model-experience/market-composition/kv-cache-effect:
+  en: b6b068371142c47d
+  zh: eddb7e56b3fed3cc
+/deepseek-ai-dsh-market-bundle/known-limitations-and-deferred-work:
+  en: d1fc9c7752ddd18f
+  zh: 5ce6337a02e6d826
+/deepseek-ai-dsh-market-bundle/known-limitations-and-deferred-work/dev-note:
+  en: 7972e4b2005ec9a4
+  zh: 754c49ec538c164c

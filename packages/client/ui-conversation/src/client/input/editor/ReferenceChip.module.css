@@ -25,6 +25,29 @@
   white-space: nowrap;
 }
 
+/* A skill reads as a neutral pill (icon + display name) rather than a link-colored token.
+ * Doubled with .chip so it outranks the shared .reference treatment loaded after this sheet. */
+.chip.skill {
+  align-items: center;
+  gap: 4px;
+  margin: 0 2px;
+  padding: 0 8px;
+  border-radius: 999px;
+  corner-shape: round;
+  font-size: 0.93em;
+  font-weight: 500;
+  color: var(--dsw-alias-label-primary);
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.chip.skill:hover {
+  background: var(--dsw-alias-interactive-bg-active);
+}
+
+.chip.skill .icon {
+  color: var(--dsw-alias-label-secondary);
+}
+
 .invalid {
   color: var(--dsw-alias-state-error-primary);
   text-decoration: line-through;

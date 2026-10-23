@@ -75,7 +75,8 @@ describe('UserText projection', () => {
   it('keeps decorated text inline and preserves whitespace between references', () => {
     const host = project('反反复复 /dsh-acp-test @执行几个命令测试', ['执行几个命令测试'], ['dsh-acp-test'])
     expect(host.querySelectorAll('div').length).toBe(0)
-    expect(host.textContent).toBe('反反复复 /dsh-acp-test 执行几个命令测试')
+    // A skill chip shows the bare name; its title keeps the literal /name.
+    expect(host.textContent).toBe('反反复复 dsh-acp-test 执行几个命令测试')
     const chips = host.querySelectorAll('[data-ref-chip]')
     expect([...chips].map(c => c.getAttribute('data-ref-chip'))).toEqual(['skill', 'session'])
     // The whitespace between tokens survives as its own inline run.
@@ -132,7 +133,7 @@ describe('UserText projection', () => {
     expect(unresolved.querySelectorAll('[data-ref-chip]').length).toBe(0)
     const resolved = project('用 /plan 看看', [], ['plan'])
     expect([...resolved.querySelectorAll('[data-ref-chip]')].map(c => [c.getAttribute('data-ref-chip'), c.textContent]))
-      .toEqual([['skill', '/plan']])
+      .toEqual([['skill', 'plan']])
   })
 
   it('marks a resolved slash token as a command chip when the caller says so', () => {
@@ -171,7 +172,7 @@ describe('UserText projection', () => {
     )}</div>)
     fireEvent.click(view.getByRole('button', { name: 'a.ts' }))
     fireEvent.click(view.getByRole('button', { name: 'notes a.md' }))
-    fireEvent.click(view.getByRole('button', { name: '/review' }))
+    fireEvent.click(view.getByRole('button', { name: 'review' }))
     expect(openFile.mock.calls).toEqual([['src/a.ts'], ['notes a.md']])
     expect(openSkill).toHaveBeenCalledWith('review')
     expect(view.container.querySelectorAll('button')).toHaveLength(3)

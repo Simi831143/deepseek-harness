@@ -13,9 +13,10 @@ import css from './Switch.module.css'
  * while a write is in flight, not only when a deployment locks the toggle.
  * @param props.title - localized hover text, typically why the toggle is locked.
  * @param props.className - extra class for layout placement.
+ * @param props.tone - on-state track color: the brand ink (default) or success green.
  * @returns the switch element.
  */
-export function Switch({ checked, onChange, label, disabled = false, title, className }: {
+export function Switch({ checked, onChange, label, disabled = false, title, className, tone = 'brand' }: {
   checked: boolean
   onChange: (next: boolean) => void
   label: string
@@ -24,6 +25,7 @@ export function Switch({ checked, onChange, label, disabled = false, title, clas
   // `| undefined` so a caller can forward an optional class straight through
   // under exactOptionalPropertyTypes (a CSS-module lookup is string|undefined).
   className?: string | undefined
+  tone?: 'brand' | 'success'
 }) {
   return (
     <button
@@ -33,7 +35,7 @@ export function Switch({ checked, onChange, label, disabled = false, title, clas
       aria-label={label}
       title={title}
       disabled={disabled}
-      className={clsx(css.switch, className)}
+      className={clsx(css.switch, tone === 'success' && css.success, className)}
       onClick={() => { onChange(!checked) }}
     >
       <span className={css.thumb} />

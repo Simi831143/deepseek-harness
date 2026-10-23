@@ -1,0 +1,43 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/client/ui-market/README.md
+/:
+  en: 6fa9c250a6771486
+  zh: a9454a977dcb6d78
+/deepseek-ai-dsh-client-ui-market:
+  en: 239ae1eee28f1461
+  zh: 8d4aa7c865e02f95
+/deepseek-ai-dsh-client-ui-market/summary:
+  en: 452867ea1a96bd77
+  zh: 4d753374181409eb
+/deepseek-ai-dsh-client-ui-market/table-of-contents:
+  en: 122f0d41696980b1
+  zh: a626a37cb5e869f8
+/deepseek-ai-dsh-client-ui-market/use-this-package:
+  en: ddedb704d33e3d0f
+  zh: 135813eb0340d9a3
+/deepseek-ai-dsh-client-ui-market/understand-the-implementation:
+  en: a3073f82c7f61329
+  zh: b78fd63b54a1f602
+/deepseek-ai-dsh-client-ui-market/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/deepseek-ai-dsh-client-ui-market/model-experience/installed-skill-discovery:
+  en: 6b5e8030b12a96b4
+  zh: 6ba193665cacecc4
+/deepseek-ai-dsh-client-ui-market/model-experience/installed-skill-discovery/what-the-model-sees:
+  en: e13edc59ac92af6d
+  zh: 8a8f36c51adbe5e3
+/deepseek-ai-dsh-client-ui-market/model-experience/installed-skill-discovery/token-effect:
+  en: 3b30361df49a1d35
+  zh: 10a9fc61bdff0783
+/deepseek-ai-dsh-client-ui-market/model-experience/installed-skill-discovery/kv-cache-effect:
+  en: 5eb61567d288b278
+  zh: 243e23ef6c195c6f
+/deepseek-ai-dsh-client-ui-market/known-limitations-and-deferred-work:
+  en: 0c0151e8cdadd533
+  zh: 1437e5619a041f47
+/deepseek-ai-dsh-client-ui-market/known-limitations-and-deferred-work/dev-note:
+  en: 7972e4b2005ec9a4
+  zh: 754c49ec538c164c

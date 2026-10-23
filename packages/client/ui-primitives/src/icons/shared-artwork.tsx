@@ -82,3 +82,16 @@ export const FolderCloseArtwork = ({ size = 16, className, strokeWidth }: Weight
     <path d="M3.63501 7.66614H12.3647" stroke="currentColor" />
   </svg>
 )
+
+/**
+ * Render shared skill geometry — a pickaxe with a sparkle — for product and reference icons.
+ * @param props - Size, optional CSS class, and inherited stroke width.
+ * @returns The decorative SVG artwork.
+ */
+export const SkillOutlineArtwork = ({ size = 16, className, strokeWidth }: WeightedArtworkProps) => (
+  <svg width={size} height={size} className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" strokeWidth={strokeWidth}>
+    <path d="M4.9 1.6Q12.2 2.1 12.7 9.4Q9.6 4.6 4.9 1.6Z" stroke="currentColor" strokeLinejoin="round" />
+    <path d="M9.15 5.15L1.9 12.4" stroke="currentColor" strokeLinecap="round" />
+    <path d="M12.6 10.3C12.6 11.83 13.37 12.6 14.9 12.6C13.37 12.6 12.6 13.37 12.6 14.9C12.6 13.37 11.83 12.6 10.3 12.6C11.83 12.6 12.6 11.83 12.6 10.3Z" stroke="currentColor" strokeLinejoin="round" />
+  </svg>
+)

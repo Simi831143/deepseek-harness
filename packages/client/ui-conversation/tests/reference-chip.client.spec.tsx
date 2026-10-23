@@ -25,6 +25,14 @@ describe('ReferenceChip', () => {
     expect(container.textContent).toBe('@commit-helper')
   })
 
+  it('renders a skill as an openable pill with the skill icon and its display title', () => {
+    const { container } = render(<ReferenceChip label="飞书套件" appearance="skill" invalid={false} />)
+    const chip = container.firstElementChild
+    expect(container.textContent).toBe('飞书套件')
+    expect(container.querySelector('svg')).not.toBeNull()
+    expect([...(chip?.classList ?? [])].some(name => name.includes('skill'))).toBe(true)
+  })
+
   it('applies the invalid styling bit', () => {
     const { container } = render(<ReferenceChip label="gone" appearance="folder" invalid />)
     const chip = container.firstElementChild

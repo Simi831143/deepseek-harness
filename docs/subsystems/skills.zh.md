@@ -211,6 +211,12 @@ interface SkillLookupOptions {
 interface SkillViewOptions extends SkillLookupOptions {
   /** Viewing scope (the calling agent); omitted reads the global layer alone. */
   readonly scope?: ScopeKey | undefined
+  /**
+   * Keep skills named in the registry's `disabled` setting. Only management
+   * surfaces that show and toggle disabled skills pass it; model and user
+   * invocation paths never do.
+   */
+  readonly includeDisabled?: boolean | undefined
 }
 ```
 
@@ -221,6 +227,11 @@ interface SkillViewOptions extends SkillLookupOptions {
 interface Config {
   /** Maximum number of completed cwd/provider catalogs kept in memory. */
   readonly collectCacheMaxEntries?: number
+  /**
+   * Skill names withheld from every read unless the reader passes
+   * `includeDisabled`. Live: a settings write takes effect on the next read.
+   */
+  readonly disabled?: Volatile<string[]>
 }
 ```
 
@@ -243,6 +254,116 @@ interface Config {
 ## Cordis API
 
 Generated from source by `scripts/gen-cordis-catalog.ts` (verified fresh by `pnpm run verify-cordis-catalog` in doc-sync; regenerate with `pnpm run gen-cordis-catalog`) — the language sides differ only in locale-specific paired document paths. Signature blocks use a `ts cordis-catalog` fence and keep the original source JSDoc; dispatch modes are defined in the [primer](../cordis-primer.zh.md#dispatch-modes), and the framework-inherited `ctx` API lives in [cordis-api/inherited.md](../cordis-api/inherited.md).
+
+<a id="ctxmarket--market"></a>
+
+### `ctx.market` — `Market`
+
+Host owner of the `market` Remote namespace and the `ctx.market` service.
+
+```ts cordis-catalog
+/**
+ * Register the domain behavior of one kind. Its installed items are synced at once.
+ * @param kind - domain behavior.
+ * @returns disposer; register it with the domain plugin's effects.
+ * @throws when another package already handles the kind.
+ */
+registerKind(kind: MarketKind): () => void
+
+/**
+ * Directory holding every installed item of one kind, one subdirectory per id.
+ * @param kind - item kind.
+ * @returns the absolute directory; it may not exist before the first install.
+ */
+kindDirectory(kind: MarketKindName): string
+
+/**
+ * Installed items of one kind, with their directories and catalog entries.
+ * @param kind - item kind.
+ * @returns every installed item of the kind.
+ */
+installedItems(kind: MarketKindName): InstalledItem[]
+
+/**
+ * Install an item for an in-process caller such as an expert installing its skills.
+ * @param ref - kind and id.
+ * @param signal - cancellation.
+ * @returns after the item is installed and its kind synced; an installed item at the catalog version returns at once.
+ */
+async installItem(ref: MarketItemRef, signal: AbortSignal = this.lifetime.signal): Promise<void>
+
+/**
+ * Read the complete market state.
+ * @returns catalog, install state, and available kinds.
+ */
+@Remote catalogSnapshot(): MarketSnapshot
+
+/**
+ * Fetch the published catalog again, ignoring the cached copy's freshness.
+ * @returns the state after the read; a failed read keeps the last good catalog and reports the error.
+ */
+@Remote async refreshCatalog(): Promise<MarketSnapshot>
+
+/**
+ * Install or update one item from the catalog.
+ * @param ref - kind and id.
+ * @param signal - caller cancellation.
+ * @returns the state after the install.
+ * @throws RemoteError `market/not-found`, `market/kind-unavailable`, or `market/install-failed`.
+ */
+@Remote async installPackage(ref: MarketItemRef, signal: AbortSignal): Promise<MarketSnapshot>
+
+/**
+ * Remove one installed item and its files.
+ * @param ref - kind and id.
+ * @returns the state after removal; removing an absent item changes nothing.
+ */
+@Remote async uninstallPackage(ref: MarketItemRef): Promise<MarketSnapshot>
+
+/**
+ * Follow market state for one browser.
+ * @param signal - observation lifetime.
+ * @returns the current state, then the state after every change.
+ */
+@Remote({ mode: 'stream' }) async *watch(signal: AbortSignal): AsyncIterable<MarketSnapshot>
+```
+
+Source: [`packages/market/market/src/index.ts`](../../packages/market/market/src/index.ts)
+
+<a id="ctxmarketskills--marketskills"></a>
+
+### `ctx.marketSkills` — `MarketSkills`
+
+Host owner of the skill kind and the `marketSkills` Remote namespace.
+
+```ts cordis-catalog
+/**
+ * List the skills the user installed that a new conversation in the default workspace sees, with their switches.
+ * @param signal - caller cancellation.
+ * @returns market downloads and personal skills, including disabled ones, sorted by name.
+ */
+@Remote async installed(signal: AbortSignal): Promise<InstalledSkillsValue>
+
+/**
+ * Switch skills on or off for every new model request, whatever their source.
+ * @param request - skill names and the target state.
+ * @param signal - caller cancellation for the list read that follows the write.
+ * @returns the list after the change.
+ * @throws RemoteError `market-skills/settings-unavailable` when the setting cannot be written.
+ */
+@Remote async setEnabled(request: SkillSwitchRequest, signal: AbortSignal): Promise<InstalledSkillsValue>
+
+/**
+ * Read the instructions of one skill, enabled or not, for the detail dialog.
+ * @param request - the skill name.
+ * @param signal - caller cancellation.
+ * @returns the Markdown body without frontmatter, and the declared version.
+ * @throws RemoteError `market-skills/not-found` when no skill of that name is visible.
+ */
+@Remote async document(request: SkillNameRequest, signal: AbortSignal): Promise<SkillDocumentValue>
+```
+
+Source: [`packages/market/market-skills/src/index.ts`](../../packages/market/market-skills/src/index.ts)
 
 <a id="ctxsessionskillcatalog--sessionskillcatalog"></a>
 
@@ -270,6 +391,12 @@ Source: [`packages/api/session-controller/src/skill-catalog.ts`](../../packages/
 Layered registry of skill providers, the host+per-scope shape the tools registry established. A registration files into the layer of its calling context's scope (scopeOf): host rows and repository plugins land in the global layer, while a plugin mounted by an agent preset's standing composition lands in that preset's layer. A read merges the global layer with the viewing scope's chain — the nearest layer's entry wins a duplicate name outright, and the rank order decides duplicates only within one layer. It exposes sorted invocation-neutral summaries and loads full skill bodies on demand.
 
 ```ts cordis-catalog
+/**
+ * Read the current `disabled` setting.
+ * @returns the names ordinary reads omit; empty when the setting is absent.
+ */
+disabledNames(): readonly string[]
+
 /**
  * Register a borrowed same-process provider synchronously during plugin
  * apply, into the calling context's layer: a scoped context (an agent

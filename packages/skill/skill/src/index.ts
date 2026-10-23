@@ -11,6 +11,8 @@
  */
 
 import { Context, Service } from '@deepseek-ai/cordis'
+import type { Volatile } from '@deepseek-ai/cordis'
+import type {} from '@deepseek-ai/cordis-plugin-loader'
 import type {} from '@deepseek-ai/dsh-llm'
 import { assertNever } from '@deepseek-ai/dsh-util-values'
 import { NamedEntries, ScopedLayers, scopeChainOf, scopeOf } from '@deepseek-ai/dsh-scope'
@@ -23,6 +25,7 @@ const DEFAULT_COLLECT_CACHE_ENTRIES = 128
 const MAX_COLLECT_ATTEMPTS = 2
 const RUNTIME_PROVIDER = 'runtime'
 const RUNTIME_RANK = 250
+const EMPTY_NAMES: readonly string[] = Object.freeze([])
 
 /** Standard precedence rank for packaged skill providers and local bundled roots. */
 export const BUNDLED_SKILL_RANK = 600
@@ -116,6 +119,22 @@ export interface SkillLookupOptions {
 export interface SkillViewOptions extends SkillLookupOptions {
   /** Viewing scope (the calling agent); omitted reads the global layer alone. */
   readonly scope?: ScopeKey | undefined
+  /**
+   * Keep skills named in the registry's `disabled` setting. Only management
+   * surfaces that show and toggle disabled skills pass it; model and user
+   * invocation paths never do.
+   */
+  readonly includeDisabled?: boolean | undefined
+}
+
+/**
+ * Return whether the registry withholds a skill from ordinary reads.
+ * @param registry - the registry whose `disabled` setting decides.
+ * @param name - skill name.
+ * @returns whether reads without `includeDisabled` omit the skill.
+ */
+export function isSkillDisabled(registry: SkillRegistry, name: string): boolean {
+  return registry.disabledNames().includes(name)
 }
 
 /**
@@ -278,6 +297,19 @@ export interface SkillProviderControl {
 export interface Config {
   /** Maximum number of completed cwd/provider catalogs kept in memory. */
   readonly collectCacheMaxEntries?: number
+  /**
+   * Skill names withheld from every read unless the reader passes
+   * `includeDisabled`. Live: a settings write takes effect on the next read.
+   */
+  readonly disabled?: Volatile<string[]>
+}
+
+/** Skill registry configuration as written in a profile: plain values before schema resolution. */
+export interface ConfigInput {
+  /** Maximum number of completed cwd/provider catalogs kept in memory. */
+  readonly collectCacheMaxEntries: number
+  /** Skill names withheld from ordinary reads. */
+  readonly disabled: string[]
 }
 
 declare module '@deepseek-ai/cordis' {
@@ -354,11 +386,14 @@ class SkillLayer implements ScopeLayer {
  * on demand.
  */
 export class SkillRegistry extends Service {
-  static Config: Schema<Config> = z.object({
+  static Config: Schema<Partial<ConfigInput>, Config> = z.object({
     collectCacheMaxEntries: z.number().default(DEFAULT_COLLECT_CACHE_ENTRIES),
+    disabled: z.array(z.string()).default([]).volatile(),
   })
 
   private readonly collectCacheMaxEntries: number
+  private readonly disabledSetting: Volatile<string[]> | undefined
+  private disabledCache: { source: readonly string[]; names: ReadonlySet<string> } | undefined
   private readonly layers = new ScopedLayers<SkillLayer>(
     scope => new SkillLayer(scope),
     () => { this.invalidateCache() },
@@ -374,6 +409,27 @@ export class SkillRegistry extends Service {
     super(ctx, 'skills')
     this.collectCacheMaxEntries = config.collectCacheMaxEntries ?? DEFAULT_COLLECT_CACHE_ENTRIES
     assertPositiveInteger('collectCacheMaxEntries', this.collectCacheMaxEntries)
+    this.disabledSetting = config.disabled
+    // A changed `disabled` setting must reach consumers holding a catalog they
+    // compare against, exactly like a provider change.
+    ctx.on('loader/volatile-update', (paths) => {
+      if (paths.some(path => path[0] === 'disabled')) this.notifyChange()
+    })
+  }
+
+  /**
+   * Read the current `disabled` setting.
+   * @returns the names ordinary reads omit; empty when the setting is absent.
+   */
+  disabledNames(): readonly string[] {
+    return this.disabledSetting?.get() ?? EMPTY_NAMES
+  }
+
+  /** The current `disabled` setting as a set, rebuilt only when the setting changes. */
+  private disabledSet(): ReadonlySet<string> {
+    const source = this.disabledNames()
+    if (this.disabledCache?.source !== source) this.disabledCache = { source, names: new Set(source) }
+    return this.disabledCache.names
   }
 
   /**
@@ -516,7 +572,19 @@ export class SkillRegistry extends Service {
     return definition
   }
 
+  /**
+   * Apply the `disabled` setting after caching, so the cache holds the full
+   * merged catalog and one cached entry serves both kinds of reader.
+   */
   private async collect(options: SkillViewOptions): Promise<CollectResult> {
+    const result = await this.collectAll(options)
+    const disabled = this.disabledSet()
+    if (options.includeDisabled === true || disabled.size === 0) return result
+    const entries = new Map([...result.entries].filter(([name]) => !disabled.has(name)))
+    return { entries, cacheable: result.cacheable }
+  }
+
+  private async collectAll(options: SkillViewOptions): Promise<CollectResult> {
     throwIfAborted(options.signal)
     let attempt = 1
     while (true) {

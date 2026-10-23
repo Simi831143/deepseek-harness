@@ -794,6 +794,19 @@ describe('UiWorkspaceService', () => {
       { name: 'empty text', options: { prompt: '' } },
       { name: 'clear without prompt', options: { clearPreviousDraft: true } },
       { name: 'reference-like text', options: { prompt: '🧭 @notes.md' } },
+      {
+        name: 'a leading skill chip',
+        options: {
+          prompt: {
+            text: '/lark-unified 建个日程',
+            references: [{
+              offset: 0, length: 13, source: 'skill', ref: '/lark-unified', label: '飞书套件',
+              appearance: 'skill', clipboardText: '/lark-unified',
+            }],
+          },
+          clearPreviousDraft: true,
+        },
+      },
     ])('prepares $name on the retained target before replacing the current selection', async ({ options }) => {
       const backing = persistSelection({})
       const b = bench({ workspaces: workspaceState([workspace('a')]) })
@@ -881,6 +894,31 @@ describe('UiWorkspaceService', () => {
         b.sessions.retained[0]!.reference.binding, expected,
       )
       expect(b.requestDraftInitialization.mock.calls[0]![1]).not.toBe(options)
+    })
+
+    it('captures a structured prompt and its references before asynchronous Session creation', async () => {
+      const b = bench({ workspaces: workspaceState([workspace('a')]) })
+      const created = Promise.withResolvers<SessionId>()
+      b.sessions.create.mockReturnValueOnce(created.promise)
+      const opening = vi.spyOn(b.uiWorkspace, 'openWorkspace')
+      const references = [{
+        offset: 0, length: 13, source: 'skill', ref: '/lark-unified', label: '飞书套件',
+        appearance: 'skill' as const, clipboardText: '/lark-unified',
+      }]
+      const prompt = { text: '/lark-unified 建个日程', references }
+      const expected = { prompt: structuredClone(prompt), clearPreviousDraft: true }
+      b.uiWorkspace.startSession(wid('a'), { prompt, clearPreviousDraft: true })
+      const completion = lastOpening(opening)
+
+      prompt.text = 'caller changed the text'
+      references[0]!.label = 'caller changed the chip'
+      references.length = 0
+      created.resolve(sid('captured'))
+      await completion
+
+      expect(b.requestDraftInitialization).toHaveBeenCalledExactlyOnceWith(
+        b.sessions.retained[0]!.reference.binding, expected,
+      )
     })
 
     it.each(['workspace', 'session', 'panel', 'disposal'] as const)(

@@ -36,49 +36,23 @@ const LICENSE_DIRECTORY = 'licenses'
 
 /** Sources this build carries, each a checkout beside this repository. */
 export const BUNDLED_SOURCES = [
-  { checkout: 'ppt-master', skills: { root: 'skills', names: ['ppt-master'] } },
+  // The market's 创建技能 entry starts a conversation with /skill-creator.
+  { checkout: 'lc-market', skills: { root: 'bundled', names: ['skill-creator'] } },
   // mattpocock/skills groups its skills by category, and preparation copies from one root per
-  // source, so each published category is its own source over the same checkout. The names are
-  // the upstream plugin manifest's (`.claude-plugin/plugin.json`); `in-progress/` and `misc/` are
-  // unpublished upstream.
+  // source, so each category is its own source over the same checkout. Only skills with no
+  // counterpart among the repository's dsh-* skills ship; the others expect an issue tracker,
+  // GLOSSARY.md, or ADRs, or overlap dsh-code-review and the repository PR template.
   {
     checkout: 'skills',
     branch: 'main',
     license: 'LICENSE',
-    skills: {
-      root: 'skills/engineering',
-      names: [
-        'ask-matt',
-        'code-review',
-        'codebase-design',
-        'diagnosing-bugs',
-        'domain-modeling',
-        'grill-with-docs',
-        'implement',
-        'implement-spec',
-        'improve-codebase-architecture',
-        'pr',
-        'prototype',
-        'research',
-        'retro',
-        'setup-matt-pocock-skills',
-        'tdd',
-        'to-spec',
-        'to-tickets',
-        'triage',
-        'wayfinder',
-        'wizard',
-      ],
-    },
+    skills: { root: 'skills/engineering', names: ['diagnosing-bugs'] },
   },
   {
     checkout: 'skills',
     branch: 'main',
     license: 'LICENSE',
-    skills: {
-      root: 'skills/productivity',
-      names: ['grill-me', 'grilling', 'handoff', 'teach', 'to-questionnaire', 'wait-what', 'writing-for-agents'],
-    },
+    skills: { root: 'skills/productivity', names: ['grilling', 'writing-for-agents'] },
   },
   { checkout: 'dsh-bundle-anysearch-search', plugin: 'dsh-bundle-anysearch-search' },
 ]

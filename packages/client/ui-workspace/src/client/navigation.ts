@@ -318,7 +318,8 @@ class UiWorkspaceService extends Service implements UiWorkspace {
   }
 
   startSession(workspaceId?: WorkspaceId, options?: StartSessionOptions): void {
-    const { agentPreset, ...draft } = options ?? {}
+    // A structured prompt is caller-owned data; a deep copy keeps later caller edits out of the pending draft.
+    const { agentPreset, ...draft } = options === undefined ? {} : structuredClone(options)
     const draftOptions = options === undefined ? undefined : draft
     const initializeDraft = draftOptions !== undefined
       && (draftOptions.prompt !== undefined || draftOptions.clearPreviousDraft === true)

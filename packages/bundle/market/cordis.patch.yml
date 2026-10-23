@@ -1,0 +1,22 @@
+# LC Camera Agent market, layered over the shipped Web composition.
+#
+# The catalog is a static `index.json` on the intranet nginx, published by
+# copying files to \\172.24.126.12\worksapce\lc-camera-agent\market. Installed
+# packages, the catalog cache and install records live under the DSH home.
+# 我安装的 lists market downloads and the user's personal skill folders only;
+# skills the application, its composition or the project ships stay off it.
+# Its switches write the `disabled` setting of the `skill` row.
+
+- insert:
+    - id: market
+      name: '@deepseek-ai/dsh-market'
+      config:
+        catalogUrl: http://172.24.126.12/lc-camera-agent/market/index.json
+
+    - id: market-skills
+      name: '@deepseek-ai/dsh-market-skills'
+      config:
+        registryEntry: skill
+
+    - id: ui-market
+      name: '@deepseek-ai/dsh-client-ui-market'

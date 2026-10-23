@@ -1,0 +1,304 @@
+/* Skill detail dialog: fixed header with the install button, scrolling body below. */
+
+.dialog {
+  width: min(640px, 100%);
+  max-height: 100%;
+  padding: 0;
+  gap: 0;
+}
+
+.header {
+  display: flex;
+  flex: none;
+  gap: 16px;
+  padding: 24px 20px 16px 24px;
+}
+
+.icon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  object-fit: cover;
+  color: var(--dsw-alias-label-secondary);
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.headerBody {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 0;
+}
+
+.titleRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+}
+
+.title {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 28px;
+}
+
+.close {
+  flex: none;
+}
+
+.titleRow > [role='switch'] {
+  margin-top: 4px;
+}
+
+.id {
+  margin-top: -6px;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.more {
+  width: 32px;
+  padding: 0;
+  justify-content: center;
+}
+
+.muted {
+  margin: 0;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+/* Inline confirmation: the dialog keeps its focus layer instead of stacking a second modal. */
+.confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 1px solid var(--dsw-alias-border-l3);
+  border-radius: 10px;
+  background: var(--dsw-alias-bg-module-platform);
+}
+
+.confirmTitle {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 22px;
+}
+
+.confirmText {
+  margin: 0;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.confirmActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.overview {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.overviewTools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 28px;
+}
+
+.overviewTools > h3 {
+  margin: 0;
+}
+
+.overviewSearch {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.overviewSearchInput {
+  width: 180px;
+}
+
+.overviewCount {
+  min-width: 36px;
+  font-size: 12px;
+  text-align: center;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+/* The instructions scroll on their own so the header and examples stay in view. */
+.document {
+  max-height: 360px;
+  overflow: auto;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--dsw-alias-bg-module-platform);
+}
+
+.document :global(mark[data-overview-hit]) {
+  border-radius: 2px;
+  color: inherit;
+  background: var(--dsw-alias-state-warn-tertiary);
+}
+
+.document :global(mark[data-overview-hit][data-current]) {
+  background: var(--dsw-alias-state-warn-secondary);
+  outline: 1px solid var(--dsw-alias-state-warn-primary);
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-height: 0;
+  overflow: auto;
+  padding: 0 24px 24px;
+}
+
+.description {
+  margin: 0;
+  font-size: 14px;
+  line-height: 22px;
+  white-space: pre-line;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sectionTitle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 22px;
+}
+
+.examples {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.example {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 14px;
+  border: 0;
+  border-radius: 10px;
+  color: var(--dsw-alias-label-primary);
+  background: var(--dsw-alias-bg-module-platform);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 120ms ease;
+}
+
+.example:hover:not(:disabled) {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.example:focus-visible {
+  outline: var(--dsw-focus-ring-width) solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary));
+  outline-offset: 1px;
+}
+
+.example:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.exampleText {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 13px;
+  line-height: 20px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.exampleIcon {
+  flex: none;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: var(--dsw-alias-bg-module-platform);
+}
+
+.fact {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.fact dt {
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.fact dd {
+  margin: 0;
+  font-weight: 600;
+}
+
+.spin {
+  animation: dsh-market-detail-spin 900ms linear infinite;
+}
+
+@keyframes dsh-market-detail-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spin { animation: none; }
+}

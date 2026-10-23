@@ -40,19 +40,15 @@ describe('Client Cordis inspect catalog', () => {
     expect(new Set(names).size).toBe(names.length)
   })
 
-  it('describes text-only draft initialization in Workspace navigation', () => {
+  it('describes text or structured draft initialization in Workspace navigation', () => {
     const result = queryServiceApi('uiWorkspace') as {
       referencedTypes: readonly { name: string; declaration: string }[]
     }
-    expect(result.referencedTypes.find(type => type.name === 'StartSessionOptions')?.declaration)
-      .toContain('DraftInitializationOptions')
-    expect(result.referencedTypes.find(type => type.name === 'DraftInitializationOptions')?.declaration)
-      .toContain('readonly prompt?: string')
-    expect(result.referencedTypes.find(type => type.name === 'DraftInitializationOptions')?.declaration)
-      .toContain('readonly clearPreviousDraft?: boolean')
-    expect(result.referencedTypes.map(type => type.name)).not.toEqual(expect.arrayContaining([
-      'DraftInput', 'DraftSnapshot', 'DraftReference',
-    ]))
+    const declaration = (name: string) => result.referencedTypes.find(type => type.name === name)?.declaration
+    expect(declaration('StartSessionOptions')).toContain('DraftInitializationOptions')
+    expect(declaration('DraftInitializationOptions')).toContain('readonly prompt?: DraftInput')
+    expect(declaration('DraftInitializationOptions')).toContain('readonly clearPreviousDraft?: boolean')
+    expect(declaration('DraftSnapshot')).toContain('readonly references: readonly DraftReference[]')
   })
 
   it('includes the current referenced type closure for the Sessions service', () => {

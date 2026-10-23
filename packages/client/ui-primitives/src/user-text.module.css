@@ -31,6 +31,23 @@
   font-family: var(--dsw-font-markdown-code-font-family);
 }
 
+/* A skill named by its display title: a neutral capsule around the glyph and
+   label. Still inline (see .refChip), so it shares the consumer's baseline;
+   the padding and background extend the box without changing line height. */
+.pillChip {
+  padding: 1px 8px;
+  border-radius: 999px;
+  corner-shape: round;
+  color: var(--dsw-alias-label-primary);
+  background: var(--dsw-alias-interactive-bg-hover);
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
+.pillChip .refIcon {
+  color: var(--dsw-alias-label-secondary);
+}
+
 /* Inline reference glyphs (always ReferenceIcon svgs) ride the consumer's own
    font: 1em keeps the glyph at the text's size in the bubble (14px + user
    setting), the queue preview's fixed 13px line, and any future consumer — a
