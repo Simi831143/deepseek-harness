@@ -1,3 +1,4 @@
+import { es, fr, de, ru, pt } from '../src/client/locales.ts'
 /**
  * ui-skill browser half: source and keyed toolview registration +
  * locale dictionaries + source duplicate-name proof +
@@ -5,10 +6,13 @@
  * the source behavior contract driven directly on the captured source with
  * real ClientSessionContext projections — sessionId addressing, the
  * session-keyed catalog cache (single-flight per key, scope-birth warm
- * prewarm, connection/reset clear), shared fuzzy name ranking, RPC-failure
- * rejection, pick → skill chip whose codec ships the literal `/name`, the
- * `uiSkill` display titles, chip drafts and catalog refresh, the synchronous
- * lexicon reads over the settled cache, and the reference preview. Direct driving is deliberate: this spec owns only the
+ * prewarm, plugin-manager/changed and connection/reset clears), shared fuzzy
+ * name ranking, RPC-failure
+ * rejection, pick → plain-text outcome (the plain-text-reference decision:
+ * .agents/notes/archived/architecture/2026-07-25-web-input-machine-and-slash-pipeline.md),
+ * the synchronous
+ * lexicon reads over the settled cache, and the reference codec's two
+ * projections. Direct driving is deliberate: this spec owns only the
  * source's own contract.
  */
 import { Context } from '@deepseek-ai/cordis'
@@ -21,7 +25,6 @@ import type { SessionFixture } from '@deepseek-ai/dsh-client-test-runtime'
 import type { InjectParams } from '@deepseek-ai/dsh-client-ui-slots'
 import type { RemoteFailure } from '@deepseek-ai/dsh-api-remotes/client'
 import type { ClientSessionContext, InputTriggerSource } from '@deepseek-ai/dsh-client-ui-input-trigger/client'
-import { IconSkillOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
 import { apply, inject } from '../src/client/index.ts'
 import { SkillRow as SkillToolRow } from '../src/client/SkillRow.tsx'
 import { SkillReference, type SkillReferenceInjected } from '../src/client/SkillReference.tsx'
@@ -139,6 +142,7 @@ describe('apply', () => {
     expect(entry?.component).toBe(SkillToolRow)
     expect(presentation.dictionaries).toEqual([{
       namespace: 'skill', dictionaries: {
+        es, fr, de, ru, pt,
         zh: {
           'row.title': '加载技能',
           'row.running': '正在加载 skill',
@@ -158,6 +162,16 @@ describe('apply', () => {
           'row.instructions': 'Instructions',
           'row.inspect': 'Inspect',
           'menu.userOnly': 'user-only',
+        },
+        ja: {
+          'row.title': 'スキル',
+          'row.running': 'スキルを読み込み中',
+          'row.preparing': 'スキルの読み込みを準備中',
+          'row.failed': 'スキルの読み込みに失敗しました',
+          'row.stopped': 'スキルの読み込みが停止しました',
+          'row.instructions': '手順',
+          'row.inspect': '詳細を確認',
+          'menu.userOnly': 'ユーザー専用',
         },
       },
     }])
@@ -253,8 +267,8 @@ describe('candidates: sessionId addressing', () => {
     // Exact payload: session address only — no agent or transport vocabulary.
     expect(payloads).toEqual([{ sessionId: 's1' }])
     expect(items).toEqual([
-      { name: 'commit-helper', icon: IconSkillOutlineRegular, description: 'commit flow' },
-      { name: 'code-review', icon: IconSkillOutlineRegular, description: 'review flow' },
+      { name: 'commit-helper', description: 'commit flow' },
+      { name: 'code-review', description: 'review flow' },
     ])
     const names = async (query: string) => (await source.candidates(proj('s1'), req(query))).map(c => c.name)
     // 'de' prefixes deploy and is a subsequence of code-review: the prefix ranks first.
@@ -288,8 +302,8 @@ describe('catalog cache', () => {
     const second = await source.candidates(proj('s1'), req('co'))
     expect(payloads).toHaveLength(1)
     expect(second).toEqual([
-      { name: 'commit-helper', icon: IconSkillOutlineRegular, description: 'commit flow' },
-      { name: 'code-review', icon: IconSkillOutlineRegular, description: 'review flow' },
+      { name: 'commit-helper', description: 'commit flow' },
+      { name: 'code-review', description: 'review flow' },
     ])
     // A different session is its own key — one more RPC, not two.
     await source.candidates(proj('s2'), req(''))
@@ -304,7 +318,7 @@ describe('catalog cache', () => {
       source.candidates(proj('s1'), req('co')),
     ])
     expect(payloads).toHaveLength(1)
-    expect(a).toEqual([{ name: 'deploy', icon: IconSkillOutlineRegular, description: 'deploy flow' }])
+    expect(a).toEqual([{ name: 'deploy', description: 'deploy flow' }])
     expect(b).toHaveLength(2)
   })
 
@@ -374,6 +388,19 @@ describe('catalog cache', () => {
     await source.candidates(proj('s2'), req(''))
     expect(payloads).toHaveLength(4)
   })
+
+  it('plugin-manager/changed clears every cached session', async () => {
+    const { list, payloads } = countingList()
+    const { source, remote } = await bench(list)
+    await source.candidates(proj('s1'), req(''))
+    await source.candidates(proj('s2'), req(''))
+    expect(payloads).toHaveLength(2)
+    // A switched plugin may register into the global layer every session reads.
+    remote.emit('plugin-manager/changed', [{ reason: 'bundle' }])
+    await source.candidates(proj('s1'), req(''))
+    await source.candidates(proj('s2'), req(''))
+    expect(payloads).toHaveLength(4)
+  })
 })
 
 describe('lexicon', () => {
@@ -424,8 +451,8 @@ describe('lexicon', () => {
   })
 })
 
-describe('pick lands a skill chip', () => {
-  it('onPick inserts an atomic chip titled by the skill name whose wire text is the literal /name', async () => {
+describe('pick lands plain text', () => {
+  it('onPick returns the literal /name text with a closing space', async () => {
     const { source } = await bench(listOk(CATALOG))
     const outcome = source.onPick({
       candidate: { name: 'commit-helper', description: 'commit flow' },
@@ -435,75 +462,16 @@ describe('pick lands a skill chip', () => {
       action: 'pick',
       span: { start: 0, end: 4, draftRev: 7 },
     })
-    expect(outcome).toEqual({
-      insert: { source: 'skill', ref: '/commit-helper', label: 'commit-helper', appearance: 'skill', clipboardText: '/commit-helper' },
-    })
+    expect(outcome).toEqual({ text: '/commit-helper ' })
   })
 
-  it('serializes a chip to its literal and stays out of adjudication', async () => {
+  it('keeps the legacy reference codec removed and stays out of adjudication', async () => {
     const { source } = await bench(listOk(CATALOG))
-    // Determinism lives host-side (the pre-step gesture boundary): the chip
-    // ships the same `/name` a hand-typed token does, and the source never claims lines.
-    expect(source.codec?.clipboardText('/deploy')).toBe('/deploy')
-    await expect(source.codec?.serialize('/deploy', new AbortController().signal)).resolves.toBe('/deploy')
+    // Determinism lives host-side (the pre-step gesture boundary), so the
+    // source neither claims lines nor serializes reference markup.
+    expect(source.codec).toBeUndefined()
     expect(typeof source.matchSpace).toBe('undefined')
     expect(typeof source.matchEnter).toBe('undefined')
-  })
-})
-
-describe('uiSkill', () => {
-  /** A contributed titles source the test can change. */
-  function titles(initial: Record<string, string>) {
-    let value: ReadonlyMap<string, string> = new Map(Object.entries(initial))
-    const listeners = new Set<() => void>()
-    return {
-      getSnapshot: () => value,
-      subscribe: (listener: () => void) => { listeners.add(listener); return () => { listeners.delete(listener) } },
-      set(next: Record<string, string>) { value = new Map(Object.entries(next)); for (const listener of listeners) listener() },
-    }
-  }
-
-  it('titles menu candidates and chips with contributed labels, matching the title as well as the name', async () => {
-    const { ctx, source } = await bench(listOk(CATALOG))
-    const market = titles({ 'commit-helper': '提交助手' })
-    const withdraw = ctx.uiSkill.contributeLabels(market)
-    expect(ctx.uiSkill.labelOf('commit-helper')).toBe('提交助手')
-    await expect(source.candidates(proj('s1'), req('提交'))).resolves.toEqual([
-      { name: 'commit-helper', label: '提交助手', icon: IconSkillOutlineRegular, description: 'commit flow' },
-    ])
-    expect(source.onPick({
-      candidate: { name: 'commit-helper', description: 'commit flow' },
-      session: proj('s1'), position: 'leading', via: 'menu', action: 'pick', span: { start: 0, end: 1, draftRev: 1 },
-    })).toMatchObject({ insert: { label: '提交助手', ref: '/commit-helper' } })
-    market.set({ 'commit-helper': '提交' })
-    expect(ctx.uiSkill.labelOf('commit-helper')).toBe('提交')
-    withdraw()
-    expect(ctx.uiSkill.labelOf('commit-helper')).toBeUndefined()
-  })
-
-  it('builds a draft that opens with the skill chip and ships /name text', async () => {
-    const { ctx } = await bench(listOk(CATALOG))
-    ctx.uiSkill.contributeLabels(titles({ 'lark-unified': '飞书套件' }))
-    expect(ctx.uiSkill.draft('lark-unified', '帮我建个日程')).toEqual({
-      text: '/lark-unified 帮我建个日程',
-      references: [{
-        source: 'skill', ref: '/lark-unified', label: '飞书套件', appearance: 'skill', clipboardText: '/lark-unified',
-        offset: 0, length: '/lark-unified'.length,
-      }],
-    })
-  })
-
-  it('refresh refetches every open session catalog but no addressed child', async () => {
-    const { list, payloads } = countingList()
-    const { ctx, source } = await bench(list, sid('child'))
-    await source.candidates(proj('s1'), req(''))
-    await source.candidates(proj('s2'), req(''))
-    expect(payloads).toHaveLength(2)
-    ctx.uiSkill.refresh()
-    await vi.waitFor(() => { expect(payloads).toHaveLength(4) })
-    expect(payloads.slice(2)).toEqual([{ sessionId: 's1' }, { sessionId: 's2' }])
-    await source.candidates(proj('s1'), req(''))
-    expect(payloads).toHaveLength(4)
   })
 })
 
@@ -516,8 +484,8 @@ describe('user-only marking', () => {
     const { source } = await bench(listOk(rows))
     const candidates = await source.candidates(proj('s1'), req(''))
     expect(candidates).toEqual([
-      { name: 'shared-skill', icon: IconSkillOutlineRegular, description: 'both surfaces' },
-      { name: 'user-only-skill', icon: IconSkillOutlineRegular, description: '仅用户 · user surface only' },
+      { name: 'shared-skill', description: 'both surfaces' },
+      { name: 'user-only-skill', description: '仅用户 · user surface only' },
     ])
   })
 })
@@ -594,7 +562,7 @@ describe('reference preview', () => {
     expect(list.mock.calls.map(([payload]) => payload)).toEqual([{ sessionId: 'first' }, { sessionId: 'second' }])
   })
 
-  it.each(['reset', 'preset', 'dispose'] as const)('cancels a pending preview on %s even if the RPC completes late', async (reason) => {
+  it.each(['reset', 'preset', 'plugin', 'dispose'] as const)('cancels a pending preview on %s even if the RPC completes late', async (reason) => {
     const gate = Promise.withResolvers<ListResult>()
     const { ctx, source, remote, fiber, openResource } = await bench(() => gate.promise)
     const session = proj('preview')
@@ -604,6 +572,7 @@ describe('reference preview', () => {
     const completion = expect(source.candidates(session, req(''))).rejects.toThrow()
     if (reason === 'reset') ctx.emit('connection/reset')
     else if (reason === 'preset') remote.emit('agent-preset/selected', [session.sessionId, 'minimal'])
+    else if (reason === 'plugin') remote.emit('plugin-manager/changed', [{ reason: 'plugin' }])
     else await fiber.dispose()
     expect(listener).toHaveBeenCalledTimes(1)
     gate.resolve({ ok: true, value: { skills: rows } })

@@ -37,9 +37,7 @@ export function directoryInstallSection(source) {
 !macroend`)
   result = replaceOnce(result, '!insertmacro setLinkVars', `!insertmacro setLinkVars
 !insertmacro dshStageApplication`)
-  // Promotion only fails after its retry window; the old installation is restored by then, so the message says the
-  // current version is unchanged rather than asking the user to close an application that is no longer running.
-  result = replaceOnce(result, '!insertmacro installApplicationFiles', 'Call dshPromoteDirectories\nIfErrors 0 +4\n  SetErrorLevel 2\n  MessageBox MB_OK|MB_ICONEXCLAMATION "$(INSTALLER_REPLACE_FAILED)" /SD IDOK\n  Quit')
+  result = replaceOnce(result, '!insertmacro installApplicationFiles', 'Call dshPromoteDirectories\nIfErrors 0 +3\n  SetErrorLevel 2\n  Quit')
   result = replaceOnce(result, '!ifdef UNINSTALLER_ICON\n  File /oname=uninstallerIcon.ico "${UNINSTALLER_ICON}"\n!endif\n', '')
   // The staging macro uses the upstream installer macro, including its signed uninstaller.
   return result
