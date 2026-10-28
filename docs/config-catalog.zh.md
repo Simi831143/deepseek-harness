@@ -1423,6 +1423,35 @@ export interface Config {
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-experimental-worktree -->
 
+<!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-feishu-account -->
+<a id="deepseek-aidsh-feishu-account"></a>
+
+## `@deepseek-ai/dsh-feishu-account`
+
+- `inject`: `credentials` · `authorization`
+- `source`: [`packages/credentials/feishu-account/src/types.ts:2`](../packages/credentials/feishu-account/src/types.ts)
+
+```ts config-catalog
+/** Host configuration for the Feishu account provider. */
+export interface FeishuAccountConfig {
+  /** Feishu custom application id. */
+  appId?: string
+  /** Environment variable containing the app secret. */
+  appSecretRef?: string
+  /** Least-privilege user token scope requested at authorization and refresh. */
+  scope?: string
+  /** Feishu request deadline in milliseconds. */
+  requestTimeoutMs?: number
+  /** Maximum duration of one browser authorization attempt. */
+  attemptTimeoutMs?: number
+  /** Authorization URL, overridable for local tests. */
+  authorizeEndpoint?: string
+  /** Feishu API origin, overridable for local tests. */
+  apiOrigin?: string
+}
+```
+<!-- END GENERATED config-catalog:@deepseek-ai/dsh-feishu-account -->
+
 <!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-file-reference-local -->
 <a id="deepseek-aidsh-file-reference-local"></a>
 
@@ -1845,7 +1874,7 @@ export interface Config extends ProtocolConfig, ModelListingConfig {
 
 - `inject`: `llm`
 - `refs`: `Api` (`@earendil-works/pi-ai`) · `CacheRetention` (`@earendil-works/pi-ai`) · `Model` (`@earendil-works/pi-ai`) · `ModelThinkingLevel` (`@earendil-works/pi-ai`) · `OpenAICompletionsCompat` (`@earendil-works/pi-ai`) · [`RetryPolicyConfig`](../packages/llm/llm/src/index.ts) · `ThinkingBudgets` (`@earendil-works/pi-ai`) · `Transport` (`@earendil-works/pi-ai`) · `Volatile` (`@deepseek-ai/cordis`)
-- `source`: [`packages/llm/llm-pi-ai/src/config.ts:222`](../packages/llm/llm-pi-ai/src/config.ts)
+- `source`: [`packages/llm/llm-pi-ai/src/config.ts:241`](../packages/llm/llm-pi-ai/src/config.ts)
 
 ```ts config-catalog
 /** Plugin configuration: the provider routes this instance owns. */
@@ -1941,6 +1970,21 @@ export interface PiAiProviderProfile {
    * requests instead of being rejected by a request-size cap.
    */
   maxRequestImageBytes?: number
+  /**
+   * Maximum image occurrences per request, for gateways that cap the image
+   * count independently of payload size. When a request retains more, the
+   * oldest images are replaced by text placeholders in steps of
+   * {@link imageOffloadCountQuantum} until the request fits. Omission leaves
+   * the count unbounded.
+   */
+  maxRequestImages?: number
+  /**
+   * Image occurrences offloaded as one step once {@link maxRequestImages} is
+   * exceeded (default 1). A larger step rewrites earlier history less often,
+   * so provider prompt caches are invalidated less often. Requires
+   * `maxRequestImages` and must not exceed it.
+   */
+  imageOffloadCountQuantum?: number
   /** Total-pixel budget for each deterministic inline request version. */
   requestImagePixelBudget?: number
   /**
@@ -2250,6 +2294,48 @@ export interface LspLocalServerConfig {
 }
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-lsp-stdio -->
+
+<!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-market -->
+<a id="deepseek-aidsh-market"></a>
+
+## `@deepseek-ai/dsh-market`
+
+- `inject`: `storageDomain` · `typert`
+- `source`: [`packages/market/market/src/index.ts:66`](../packages/market/market/src/index.ts)
+
+```ts config-catalog
+/** Market core configuration. */
+export interface Config {
+  /** Absolute URL of the published `index.json`; empty disables remote reads. */
+  catalogUrl: string
+  /** Market home; defaults to `<DSH home>/market`. */
+  home?: string
+  /** Deadline for one catalog request. */
+  catalogTimeoutMs: number
+  /** Deadline for one package download. */
+  downloadTimeoutMs: number
+  /** How long a directory rename keeps retrying while another process holds the path. */
+  renameRetryMs: number
+}
+```
+<!-- END GENERATED config-catalog:@deepseek-ai/dsh-market -->
+
+<!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-market-skills -->
+<a id="deepseek-aidsh-market-skills"></a>
+
+## `@deepseek-ai/dsh-market-skills`
+
+- `inject`: `market` · `skills` · `workingDirectory` · `typert`
+- `source`: [`packages/market/market-skills/src/index.ts:49`](../packages/market/market-skills/src/index.ts)
+
+```ts config-catalog
+/** Configuration of the skill kind. */
+export interface Config {
+  /** Profile entry id of the `@deepseek-ai/dsh-skill` row whose `disabled` setting the switches write. */
+  registryEntry?: string
+}
+```
+<!-- END GENERATED config-catalog:@deepseek-ai/dsh-market-skills -->
 
 <!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-mcp-client -->
 <a id="deepseek-aidsh-mcp-client"></a>
@@ -3173,13 +3259,19 @@ export interface Config {
 
 ## `@deepseek-ai/dsh-skill`
 
-- `source`: [`packages/skill/skill/src/index.ts:278`](../packages/skill/skill/src/index.ts)
+- `refs`: `Volatile` (`@deepseek-ai/cordis`)
+- `source`: [`packages/skill/skill/src/index.ts:297`](../packages/skill/skill/src/index.ts)
 
 ```ts config-catalog
 /** Skill registry configuration. */
 export interface Config {
   /** Maximum number of completed cwd/provider catalogs kept in memory. */
   readonly collectCacheMaxEntries?: number
+  /**
+   * Skill names withheld from every read unless the reader passes
+   * `includeDisabled`. Live: a settings write takes effect on the next read.
+   */
+  readonly disabled?: Volatile<string[]>
 }
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-skill -->
@@ -4706,6 +4798,7 @@ export interface Config {
 | `@deepseek-ai/dsh-client-locale` | — | [`packages/client/locale/src/index.ts`](../packages/client/locale/src/index.ts) |
 | `@deepseek-ai/dsh-client-modules` | `loader` | [`packages/client/modules/src/index.ts`](../packages/client/modules/src/index.ts) |
 | `@deepseek-ai/dsh-client-resources` | — | [`packages/client/resources/src/index.ts`](../packages/client/resources/src/index.ts) |
+| `@deepseek-ai/dsh-client-ui-account-feishu` | — | [`packages/client/ui-account-feishu/src/index.ts`](../packages/client/ui-account-feishu/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-action-cards` | — | [`packages/experimental/client-ui-action-cards/src/index.ts`](../packages/experimental/client-ui-action-cards/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-agent-preset` | — | [`packages/client/ui-agent-preset/src/index.ts`](../packages/client/ui-agent-preset/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-approval` | — | [`packages/client/ui-approval/src/index.ts`](../packages/client/ui-approval/src/index.ts) |
@@ -4726,6 +4819,7 @@ export interface Config {
 | `@deepseek-ai/dsh-client-ui-input-trigger` | — | [`packages/client/ui-input-trigger/src/index.ts`](../packages/client/ui-input-trigger/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-jobs` | — | [`packages/client/ui-jobs/src/index.ts`](../packages/client/ui-jobs/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-layout` | — | [`packages/client/ui-layout/src/index.ts`](../packages/client/ui-layout/src/index.ts) |
+| `@deepseek-ai/dsh-client-ui-market` | — | [`packages/client/ui-market/src/index.ts`](../packages/client/ui-market/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-message-feedback` | — | [`packages/client/ui-message-feedback/src/index.ts`](../packages/client/ui-message-feedback/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-model-selection` | — | [`packages/client/ui-model-selection/src/index.ts`](../packages/client/ui-model-selection/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-open-in-app` | — | [`packages/client/ui-open-in-app/src/index.ts`](../packages/client/ui-open-in-app/src/index.ts) |
@@ -4848,6 +4942,7 @@ export interface Config {
 <!-- BEGIN GENERATED config-catalog:library -->
 | `package` | `inject` | `source` |
 | --- | --- | --- |
+| `@deepseek-ai/dsh-account-feishu` | — | [`packages/bundle/account-feishu/src/index.ts`](../packages/bundle/account-feishu/src/index.ts) |
 | `@deepseek-ai/dsh-agent-loop-testkit` | — | [`packages/test-support/agent-loop-testkit/src/index.ts`](../packages/test-support/agent-loop-testkit/src/index.ts) |
 | `@deepseek-ai/dsh-anonymous-user-id` | — | [`packages/identity/anonymous-user-id/src/index.ts`](../packages/identity/anonymous-user-id/src/index.ts) |
 | `@deepseek-ai/dsh-app-boot` | — | [`packages/boot/app-boot/src/index.ts`](../packages/boot/app-boot/src/index.ts) |
@@ -4886,6 +4981,7 @@ export interface Config {
 | `@deepseek-ai/dsh-llm-deepseek` | — | [`packages/llm/llm-deepseek/src/index.ts`](../packages/llm/llm-deepseek/src/index.ts) |
 | `@deepseek-ai/dsh-llm-mock-server` | — | [`packages/test-support/llm-mock-server/src/index.ts`](../packages/test-support/llm-mock-server/src/index.ts) |
 | `@deepseek-ai/dsh-loader-smoke` | — | [`packages/test-support/loader-smoke/src/index.ts`](../packages/test-support/loader-smoke/src/index.ts) |
+| `@deepseek-ai/dsh-market-bundle` | — | [`packages/bundle/market/src/index.ts`](../packages/bundle/market/src/index.ts) |
 | `@deepseek-ai/dsh-native-command` | — | [`packages/util/native-command/src/index.ts`](../packages/util/native-command/src/index.ts) |
 | `@deepseek-ai/dsh-official-bundles` | — | [`packages/util/official-bundles/src/index.ts`](../packages/util/official-bundles/src/index.ts) |
 | `@deepseek-ai/dsh-output-retention` | — | [`packages/util/output-retention/src/index.ts`](../packages/util/output-retention/src/index.ts) |

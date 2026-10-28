@@ -359,6 +359,44 @@ describe('pi-ai request context conversion', () => {
       .rejects.toMatchObject({ code: 'IMAGE_OFFLOAD_REQUIRED', failure: { offloadImages: 1 } })
     expect(readImageRequest).toHaveBeenCalledTimes(1)
   })
+  it('fails with whole count steps to offload when retained occurrences exceed the image bound', async () => {
+    const shot: ContentBlock = { type: 'image', attachment: ref }
+    const fourShots = request([user([shot, shot]), user([shot, shot])])
+
+    await expect(toPiContext(fourShots, imageContext(attachments, { maxRequestImages: 3 })))
+      .rejects.toMatchObject({
+        code: 'IMAGE_OFFLOAD_REQUIRED',
+        message: expect.stringContaining('(3 images)') as string,
+        failure: { offloadImages: 1 },
+      })
+    await expect(toPiContext(fourShots, imageContext(attachments, {
+      maxRequestImageBytes: 1024,
+      maxRequestImages: 3,
+      imageOffloadCountQuantum: 2,
+    }))).rejects.toMatchObject({
+      code: 'IMAGE_OFFLOAD_REQUIRED',
+      message: expect.stringContaining('(1024 base64 bytes, 3 images)') as string,
+      failure: { offloadImages: 2 },
+    })
+
+    const afterStep = await toPiContext(
+      request([user([{ ...shot, offloaded: true }, { ...shot, offloaded: true }]), user([shot, shot])]),
+      imageContext(attachments, { maxRequestImages: 3, imageOffloadCountQuantum: 2 }),
+    )
+    expect(afterStep.messages).toEqual([
+      { role: 'user', content: offloadedImageText(ref).repeat(2), timestamp: 0 },
+      {
+        role: 'user',
+        content: [
+          expect.objectContaining({ type: 'text' }),
+          expect.objectContaining({ type: 'image' }),
+          expect.objectContaining({ type: 'text' }),
+          expect.objectContaining({ type: 'image' }),
+        ],
+        timestamp: 0,
+      },
+    ])
+  })
 
   it('renders an offloaded occurrence with independently resolved access', async () => {
     const sized: ImageAttachmentRef = { ...ref, bytes: 3 }

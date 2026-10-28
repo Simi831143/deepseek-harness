@@ -145,6 +145,10 @@
             api: anthropic-messages
             baseURL: 'http://172.16.92.211:23323'
             apiKeyEnv: LONGCHEER_API_KEY
+            # The gateway rejects a request carrying more than 16 images; offloading
+            # the oldest 8 at a time rewrites earlier history once per 8 new images.
+            maxRequestImages: 16
+            imageOffloadCountQuantum: 8
             # This deployment exposes the configured model as its complete catalog.
             models:
               - id: qwen3.8-plus

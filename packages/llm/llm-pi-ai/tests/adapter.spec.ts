@@ -14,7 +14,7 @@ import * as LlmPiAi from '@deepseek-ai/dsh-llm-pi-ai'
 import { PiAiAdapter } from '@deepseek-ai/dsh-llm-pi-ai'
 import { MAX_TIMER_DELAY_MS } from '@deepseek-ai/dsh-timeout'
 import { getBuiltinModels } from '@earendil-works/pi-ai/providers/all'
-import { DEFAULT_MAX_REQUEST_IMAGE_BYTES, resolveProfiles } from '../src/config.ts'
+import { DEFAULT_IMAGE_OFFLOAD_COUNT_QUANTUM, DEFAULT_MAX_REQUEST_IMAGE_BYTES, resolveProfiles } from '../src/config.ts'
 import { memoryAuth } from './auth-double.ts'
 import { assemble } from './assemble.ts'
 import { anthropicTextEvents, closeMockServers, mockServer, textEvents } from './mock-server.ts'
@@ -53,6 +53,65 @@ async function harness(baseURL: string, overrides: Record<string, unknown> = {})
     providers: { deepseek: { apiKeyEnv: 'PI_TEST_KEY', baseURL, ...overrides } },
   })
   return ctx
+}
+
+/** Attachment service, mounted after the adapter, serving one-byte request versions of every image. */
+function lateAttachmentStore() {
+  const readImageRequest = vi.fn((
+    value: ImageAttachmentRef,
+    _target: ImageRequestTarget,
+    _signal?: AbortSignal,
+  ): Promise<RequestImageAttachment> => (
+    Promise.resolve({
+      variantId: ImageVariantId(`sha256:${'b'.repeat(64)}`),
+      attachment: value,
+      data: Uint8Array.of(1),
+      mediaType: value.mediaType,
+      bytes: 1,
+      width: value.width,
+      height: value.height,
+      depth: 'uchar',
+      space: 'srgb',
+      hasAlpha: true,
+    })
+  ))
+
+  class LateAttachmentStore extends AttachmentStore {
+    readonly imageLimits: ImageAttachmentLimits = {
+      maxImageBytes: 1,
+      maxImagesPerMessage: 1,
+      maxMessageImageBytes: 1,
+      maxImagePixels: 1,
+      maxImageDimension: 2000,
+      mediaTypes: ['image/png'],
+    }
+
+    validateImage(_input: SaveImageAttachment): Promise<void> {
+      return Promise.reject(new Error('not used'))
+    }
+
+    saveImage(_input: SaveImageAttachment): Promise<ImageAttachmentRef> {
+      return Promise.reject(new Error('not used'))
+    }
+
+    readImage(value: ImageAttachmentRef): Promise<StoredImageAttachment> {
+      return Promise.resolve({ ref: value, data: Uint8Array.of(1) })
+    }
+
+    override imageHostPath(_ref: ImageAttachmentRef): string {
+      return HOST_IMAGE_PATH
+    }
+
+    override readImageRequest(
+      value: ImageAttachmentRef,
+      policy: ImageRequestTarget,
+      signal?: AbortSignal,
+    ): Promise<RequestImageAttachment> {
+      return readImageRequest(value, policy, signal)
+    }
+  }
+
+  return { LateAttachmentStore, readImageRequest }
 }
 
 /** Direct adapter over the real profile resolver, with a fixed key per call. */
@@ -243,69 +302,8 @@ describe('PiAiAdapter provider routing', () => {
 
   it('resolves attachment and filesystem services mounted after the adapter when dispatching an image', async () => {
     const server = await mockServer([{ status: 401, body: JSON.stringify({ error: { message: 'expected mock failure' } }) }])
-    const attachmentId = AttachmentId(`sha256:${'a'.repeat(64)}`)
-    const ref: ImageAttachmentRef = {
-      attachmentId,
-      mediaType: 'image/png',
-      bytes: 1,
-      width: 1,
-      height: 1,
-    }
-    const readImage = vi.fn((_ref: ImageAttachmentRef): Promise<StoredImageAttachment> =>
-      Promise.resolve({ ref, data: Uint8Array.of(1) }))
-    const readImageRequest = vi.fn((
-      value: ImageAttachmentRef,
-      _target: ImageRequestTarget,
-      _signal?: AbortSignal,
-    ): Promise<RequestImageAttachment> => (
-      Promise.resolve({
-        variantId: ImageVariantId(`sha256:${'b'.repeat(64)}`),
-        attachment: value,
-        data: Uint8Array.of(1),
-        mediaType: value.mediaType,
-        bytes: 1,
-        width: value.width,
-        height: value.height,
-        depth: 'uchar',
-        space: 'srgb',
-        hasAlpha: true,
-      })
-    ))
-
-    class LateAttachmentStore extends AttachmentStore {
-      readonly imageLimits: ImageAttachmentLimits = {
-        maxImageBytes: 1,
-        maxImagesPerMessage: 1,
-        maxMessageImageBytes: 1,
-        maxImagePixels: 1,
-        maxImageDimension: 2000,
-        mediaTypes: ['image/png'],
-      }
-
-      validateImage(_input: SaveImageAttachment): Promise<void> {
-        return Promise.reject(new Error('not used'))
-      }
-
-      saveImage(_input: SaveImageAttachment): Promise<ImageAttachmentRef> {
-        return Promise.reject(new Error('not used'))
-      }
-
-      readImage(value: ImageAttachmentRef): Promise<StoredImageAttachment> {
-        return readImage(value)
-      }
-
-      override imageHostPath(_ref: ImageAttachmentRef): string {
-        return HOST_IMAGE_PATH
-      }
-
-      override readImageRequest(
-        value: ImageAttachmentRef,
-        policy: ImageRequestTarget,
-        signal?: AbortSignal,
-      ): Promise<RequestImageAttachment> {
-        return readImageRequest(value, policy, signal)
-      }
-    }
+    const ref = IMAGE_REF
+    const { LateAttachmentStore, readImageRequest } = lateAttachmentStore()
 
     const ctx = new Context()
     await ctx.plugin(LlmRuntime)
@@ -332,6 +330,34 @@ describe('PiAiAdapter provider routing', () => {
     }, expect.any(AbortSignal))
     expect(JSON.stringify(server.requests[0])).toContain(MODEL_IMAGE_PATH)
     expect(server.paths).toEqual(['/v1/responses'])
+  })
+
+  it('fails a request over the route image-count bound before provider I/O', async () => {
+    const server = await mockServer([])
+    const { LateAttachmentStore, readImageRequest } = lateAttachmentStore()
+    const ctx = new Context()
+    await ctx.plugin(LlmRuntime)
+    await ctx.plugin(LlmPiAi, {
+      providers: {
+        openai: { apiKeyEnv: 'PI_TEST_KEY', baseURL: `${server.url}/v1`, maxRequestImages: 2, imageOffloadCountQuantum: 2 },
+      },
+    })
+    await ctx.plugin(LateAttachmentStore)
+    await ctx.plugin(MappedFileSystem)
+
+    const image = { type: 'image', attachment: IMAGE_REF } as const
+    const result = await assemble(ctx, {
+      provider: 'openai',
+      model: 'gpt-4.1',
+      messages: [createUserMessage({
+        content: [image, image, image],
+        source: { kind: 'model', provider: 'deepseek-official', model: 'deepseek-v4-flash' },
+      })],
+    })
+
+    expect(result.finish).toMatchObject({ kind: 'error', failure: { code: 'IMAGE_OFFLOAD_REQUIRED', offloadImages: 2 } })
+    expect(readImageRequest).toHaveBeenCalledTimes(1)
+    expect(server.requests).toHaveLength(0)
   })
 
   it('forces one wire request for an SDK-retryable provider failure', async () => {
@@ -895,6 +921,23 @@ describe('provider profile lifecycle', () => {
       .toBe(DEFAULT_MAX_REQUEST_IMAGE_BYTES)
     expect(resolveProfiles({ openai: { maxRequestImageBytes: 1024 } }).get('openai')?.maxRequestImageBytes)
       .toBe(1024)
+  })
+
+  it('resolves the image-count bound and its offload step', () => {
+    expect(resolveProfiles({ openai: {} }).get('openai')).toMatchObject({
+      imageOffloadCountQuantum: DEFAULT_IMAGE_OFFLOAD_COUNT_QUANTUM,
+    })
+    expect(resolveProfiles({ openai: {} }).get('openai')).not.toHaveProperty('maxRequestImages')
+    expect(resolveProfiles({ openai: { maxRequestImages: 16, imageOffloadCountQuantum: 8 } }).get('openai'))
+      .toMatchObject({ maxRequestImages: 16, imageOffloadCountQuantum: 8 })
+    expect(() => resolveProfiles({ openai: { maxRequestImages: 0 } })).toThrow(/maxRequestImages must be a positive/)
+    expect(() => resolveProfiles({ openai: { maxRequestImages: 1.5 } })).toThrow(/maxRequestImages must be a positive/)
+    expect(() => resolveProfiles({ openai: { imageOffloadCountQuantum: 8 } }))
+      .toThrow(/imageOffloadCountQuantum requires maxRequestImages/)
+    expect(() => resolveProfiles({ openai: { maxRequestImages: 16, imageOffloadCountQuantum: 0 } }))
+      .toThrow(/imageOffloadCountQuantum must be a positive/)
+    expect(() => resolveProfiles({ openai: { maxRequestImages: 16, imageOffloadCountQuantum: 17 } }))
+      .toThrow(/imageOffloadCountQuantum must not exceed maxRequestImages/)
   })
 
   it.each([

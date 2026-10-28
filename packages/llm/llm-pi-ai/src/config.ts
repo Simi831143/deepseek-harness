@@ -60,6 +60,8 @@ export const DEFAULT_MAX_REQUEST_IMAGE_BYTES = 20 * 1024 * 1024
 export const DEFAULT_REQUEST_IMAGE_PIXEL_BUDGET = 2048 * 2048
 /** Default raw encoded-byte target before inline base64 expansion; the smallest quality-ladder output is used when no quality fits. */
 export const DEFAULT_REQUEST_IMAGE_MAX_BYTES = 1024 * 1024
+/** Default image occurrences offloaded as one step once a request exceeds its `maxRequestImages` bound. */
+export const DEFAULT_IMAGE_OFFLOAD_COUNT_QUANTUM = 1
 
 /** Context capacity assumed for a model neither configuration nor the catalog sizes. */
 export const DEFAULT_CONTEXT_WINDOW = 1_000_000
@@ -171,6 +173,21 @@ export interface PiAiProviderProfile {
    * requests instead of being rejected by a request-size cap.
    */
   maxRequestImageBytes?: number
+  /**
+   * Maximum image occurrences per request, for gateways that cap the image
+   * count independently of payload size. When a request retains more, the
+   * oldest images are replaced by text placeholders in steps of
+   * {@link imageOffloadCountQuantum} until the request fits. Omission leaves
+   * the count unbounded.
+   */
+  maxRequestImages?: number
+  /**
+   * Image occurrences offloaded as one step once {@link maxRequestImages} is
+   * exceeded (default 1). A larger step rewrites earlier history less often,
+   * so provider prompt caches are invalidated less often. Requires
+   * `maxRequestImages` and must not exceed it.
+   */
+  imageOffloadCountQuantum?: number
   /** Total-pixel budget for each deterministic inline request version. */
   requestImagePixelBudget?: number
   /**
@@ -195,6 +212,8 @@ export interface ResolvedPiAiProviderProfile
   streamIdleTimeoutMs: number
   /** Positive request-level base64 image payload bound after defaulting. */
   maxRequestImageBytes: number
+  /** Positive image-count offload step after defaulting; read only when `maxRequestImages` is set. */
+  imageOffloadCountQuantum: number
   /** Positive total-pixel request-version budget after defaulting. */
   requestImagePixelBudget: number
   /** Positive raw request-version byte target after defaulting; the smallest quality-ladder output is used when no quality fits. */
@@ -343,6 +362,8 @@ const profile = z.object({
   websocketConnectTimeoutMs: z.natural(),
   streamIdleTimeoutMs: z.number().min(Number.MIN_VALUE).max(MAX_TIMER_DELAY_MS).default(DEFAULT_STREAM_IDLE_TIMEOUT_MS),
   maxRequestImageBytes: z.number().step(1).min(1).default(DEFAULT_MAX_REQUEST_IMAGE_BYTES),
+  maxRequestImages: z.number().step(1).min(1),
+  imageOffloadCountQuantum: z.number().step(1).min(1),
   requestImagePixelBudget: z.number().step(1).min(1).default(DEFAULT_REQUEST_IMAGE_PIXEL_BUDGET),
   requestImageMaxBytes: z.number().step(1).min(1).default(DEFAULT_REQUEST_IMAGE_MAX_BYTES),
   retryPolicy: RetryPolicySchema,
@@ -438,6 +459,20 @@ export function resolveProfiles(
     if (!Number.isInteger(maxRequestImageBytes) || maxRequestImageBytes <= 0) {
       throw new Error(`llm-pi-ai: provider "${provider}" maxRequestImageBytes must be a positive integer`)
     }
+    const { maxRequestImages } = source
+    if (maxRequestImages !== undefined && (!Number.isSafeInteger(maxRequestImages) || maxRequestImages <= 0)) {
+      throw new Error(`llm-pi-ai: provider "${provider}" maxRequestImages must be a positive safe integer`)
+    }
+    if (source.imageOffloadCountQuantum !== undefined && maxRequestImages === undefined) {
+      throw new Error(`llm-pi-ai: provider "${provider}" imageOffloadCountQuantum requires maxRequestImages`)
+    }
+    const imageOffloadCountQuantum = source.imageOffloadCountQuantum ?? DEFAULT_IMAGE_OFFLOAD_COUNT_QUANTUM
+    if (!Number.isSafeInteger(imageOffloadCountQuantum) || imageOffloadCountQuantum <= 0) {
+      throw new Error(`llm-pi-ai: provider "${provider}" imageOffloadCountQuantum must be a positive safe integer`)
+    }
+    if (maxRequestImages !== undefined && imageOffloadCountQuantum > maxRequestImages) {
+      throw new Error(`llm-pi-ai: provider "${provider}" imageOffloadCountQuantum must not exceed maxRequestImages`)
+    }
     const requestImagePixelBudget = source.requestImagePixelBudget ?? DEFAULT_REQUEST_IMAGE_PIXEL_BUDGET
     if (!Number.isSafeInteger(requestImagePixelBudget) || requestImagePixelBudget <= 0) {
       throw new Error(`llm-pi-ai: provider "${provider}" requestImagePixelBudget must be a positive safe integer`)
@@ -495,6 +530,7 @@ export function resolveProfiles(
       ...apiKeyEnv === undefined ? {} : { apiKeyEnv: credentialRef(apiKeyEnv) },
       streamIdleTimeoutMs,
       maxRequestImageBytes,
+      imageOffloadCountQuantum,
       requestImagePixelBudget,
       requestImageMaxBytes,
       retryPolicy: resolveRetryPolicy(retryPolicy, `llm-pi-ai: provider "${provider}" retryPolicy`),
