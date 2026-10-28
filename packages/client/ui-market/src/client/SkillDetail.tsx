@@ -2,10 +2,10 @@
  * Detail dialog of one skill, opened from the market catalog and from the
  * installed-skill manager alike. It joins the skill's catalog entry (display
  * name, icon, description, example requests, version) with its installed
- * state (switch, uninstall, overview of its instructions), so any skill shows
- * the parts it has: a catalog skill not yet installed offers Install, an
- * installed skill offers the switch, and a market download also offers
- * Uninstall; built-in skills ship with the application and only switch off.
+ * state (switch, overview of its instructions, more actions), so any skill
+ * shows the parts it has: a catalog skill not yet installed offers Install,
+ * and an installed skill offers the switch plus Edit, Open folder and
+ * Uninstall, whether it came from the market or a personal skill folder.
  * Picking an example
  * installs the skill when needed, then opens a new conversation whose composer
  * holds the skill chip and the example.
@@ -14,9 +14,9 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import type { MarketItemView, MarketText } from '@deepseek-ai/dsh-market/types'
 import type { InstalledSkillOrigin, InstalledSkillView } from '@deepseek-ai/dsh-market-skills/types'
 import {
-  Button, IconCloseOutlineRegular, IconDownloadOutlineRegular, IconEllipsisOutlineRegular,
-  IconFlatListOutlineRegular, IconInfoOutlineRegular, IconLoadingOutlineRegular, IconNewChatOutlineRegular, IconSkillOutlineRegular,
-  IconSparkleRegular, IconTrashOutlineRegular, Menu, MenuItemButton, Modal, Switch,
+  Button, IconCloseOutlineRegular, IconDownloadOutlineRegular, IconEditOutlineRegular, IconEllipsisOutlineRegular,
+  IconFlatListOutlineRegular, IconFolderOpenOutlineRegular, IconInfoOutlineRegular, IconLoadingOutlineRegular, IconNewChatOutlineRegular,
+  IconSkillOutlineRegular, IconSparkleRegular, IconTrashOutlineRegular, Menu, MenuItemButton, Modal, Switch,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import { ItemIcon } from './ItemIcon.tsx'
 import type { MarketPageProps } from './MarketPage.tsx'
@@ -44,6 +44,7 @@ export function SkillDetail(props: SkillDetailProps): ReactNode {
   const installed = props.useMarket(state => state.installedSkills?.skills.find(entry => entry.name === skill))
   const installing = props.useMarket(state => state.market?.installing.includes(`skill:${skill}`) ?? false)
   const switching = props.useMarket(state => state.switching.includes(skill))
+  const canReveal = props.useMarket(state => state.canReveal)
   const [installingForTry, setInstallingForTry] = useState(false)
   const [confirming, setConfirming] = useState(false)
   const mounted = useRef(true)
@@ -81,7 +82,18 @@ export function SkillDetail(props: SkillDetailProps): ReactNode {
   const overviewHeading = <h3 className={css.sectionTitle}><IconFlatListOutlineRegular size={16} />{t('overview')}</h3>
   const uninstall = async (): Promise<void> => {
     setConfirming(false)
+    if (installed?.origin === 'user') {
+      // The deleted skill leaves the list, and the dialog with it.
+      if (await props.uninstallPersonal(skill, name) && mounted.current) onClose()
+      return
+    }
     await props.uninstall(ref, name)
+  }
+  const path = installed?.path
+  const reveal = canReveal && path !== undefined ? () => { void props.revealSkill(path, name) } : undefined
+  const edit = (): void => {
+    onClose()
+    props.editSkill(skill)
   }
 
   return (
@@ -105,8 +117,8 @@ export function SkillDetail(props: SkillDetailProps): ReactNode {
           <div className={css.actions}>
             <PrimaryAction {...props} item={item} installed={installed} busy={busy}
               onInstall={() => { void ensureInstalled() }} onTry={() => { void tryWith('') }} />
-            {installed?.removable === true && (
-              <MoreMenu {...props} onUninstall={() => { setConfirming(true) }} />
+            {installed !== undefined && (
+              <MoreMenu {...props} onEdit={edit} onReveal={reveal} onUninstall={() => { setConfirming(true) }} />
             )}
           </div>
         </div>
@@ -115,7 +127,7 @@ export function SkillDetail(props: SkillDetailProps): ReactNode {
         {confirming && installed !== undefined && (
           <div className={css.confirm} role="alertdialog" aria-label={t('confirmUninstall', { name })}>
             <p className={css.confirmTitle}>{t('confirmUninstall', { name })}</p>
-            <p className={css.confirmText}>{t('confirmUninstallMarket')}</p>
+            <p className={css.confirmText}>{t(installed.origin === 'market' ? 'confirmUninstallMarket' : 'confirmUninstallUser')}</p>
             <div className={css.confirmActions}>
               <Button variant="outline" size="sm" onClick={() => { setConfirming(false) }}>{t('cancel')}</Button>
               <Button variant="primary" size="sm" disabled={switching} onClick={() => { void uninstall() }}>{t('uninstall')}</Button>
@@ -202,8 +214,14 @@ function PrimaryAction({ item, installed, t, busy, onInstall, onTry }: SkillDeta
   )
 }
 
-function MoreMenu({ t, onUninstall }: SkillDetailProps & { onUninstall: () => void }): ReactNode {
+function MoreMenu({ t, onEdit, onReveal, onUninstall }: SkillDetailProps & {
+  onEdit: () => void
+  /** Absent when the Host has no file manager or the skill has no file path. */
+  onReveal: (() => void) | undefined
+  onUninstall: () => void
+}): ReactNode {
   const [open, setOpen] = useState(false)
+  const pick = (action: () => void) => () => { setOpen(false); action() }
   return (
     <Menu open={open} onClose={() => { setOpen(false) }} align="start" portal autoFocus
       anchor={(
@@ -212,7 +230,11 @@ function MoreMenu({ t, onUninstall }: SkillDetailProps & { onUninstall: () => vo
           <IconEllipsisOutlineRegular size={16} />
         </Button>
       )}>
-      <MenuItemButton danger icon={<IconTrashOutlineRegular size={14} />} onSelect={() => { setOpen(false); onUninstall() }}>
+      <MenuItemButton icon={<IconEditOutlineRegular size={14} />} onSelect={pick(onEdit)}>{t('edit')}</MenuItemButton>
+      {onReveal !== undefined && (
+        <MenuItemButton icon={<IconFolderOpenOutlineRegular size={14} />} onSelect={pick(onReveal)}>{t('openFolder')}</MenuItemButton>
+      )}
+      <MenuItemButton danger icon={<IconTrashOutlineRegular size={14} />} onSelect={pick(onUninstall)}>
         {t('uninstall')}
       </MenuItemButton>
     </Menu>

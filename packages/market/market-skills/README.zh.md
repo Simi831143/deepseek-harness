@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`dsh-market-skills` 注册市场技能类型，通过 `ctx.marketSkills` 提供市场技能和个人技能，并将已安装的市场目录接入共享技能注册表。所有技能来源共用一个启用状态设置。
+`dsh-market-skills` 注册市场技能类型，通过 `ctx.marketSkills` 提供市场技能和个人技能，并将已安装的市场目录接入共享技能注册表。所有技能来源共用一个启用状态设置，个人技能可以从其所在文件夹删除。
 
 ## 目录
 
@@ -22,7 +22,7 @@ kind: "package-reference"
 <a id="use-this-package"></a>
 ## 使用此包
 
-将此包与 `dsh-market`、技能注册表、settings 和 working-directory 服务一起挂载。使用 `marketSkills` Remote 列出已安装技能、读取技能文档或修改启用状态。市场下载可以删除；个人技能仍由用户拥有，只能停用。
+将此包与 `dsh-market`、技能注册表、settings 和 working-directory 服务一起挂载。使用 `marketSkills` Remote 列出已安装技能、读取技能文档、修改启用状态或删除个人技能。市场下载由市场的 `uninstallPackage` 删除。`uninstallPersonal` 从 `<DSH home>/skills` 或 `~/.agents/skills` 删除个人技能的目录或其 Markdown 文件；对链接进来的技能只删除链接，保留被链接的目录；其他来源的技能一律拒绝删除。
 
 <a id="understand-the-implementation"></a>
 ## 实现说明

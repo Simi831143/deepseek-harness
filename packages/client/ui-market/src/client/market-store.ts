@@ -13,6 +13,7 @@ import type { HostObservable } from '@deepseek-ai/dsh-client-ui-slots'
 export type MarketNotice =
   | { readonly seq: number; readonly kind: 'installed' | 'uninstalled'; readonly name: string }
   | { readonly seq: number; readonly kind: 'install-failed' | 'uninstall-failed'; readonly name: string; readonly reason: string }
+  | { readonly seq: number; readonly kind: 'reveal-failed'; readonly name: string }
   | { readonly seq: number; readonly kind: 'switch-failed' | 'load-failed'; readonly reason: string }
 
 /** Everything the market views render. */
@@ -26,6 +27,8 @@ export interface MarketState {
   readonly installedLoading: boolean
   /** Skill names whose switch is being written. */
   readonly switching: readonly string[]
+  /** Whether the Host can show a path in its file manager; false until the Host answers or after a failed read. */
+  readonly canReveal: boolean
   readonly notice: MarketNotice | null
 }
 
@@ -42,6 +45,10 @@ export interface MarketRemote {
   installedSkills(): Promise<MarketResult<InstalledSkillsValue>>
   setSkillsEnabled(request: SkillSwitchRequest): Promise<MarketResult<InstalledSkillsValue>>
   skillDocument(request: SkillNameRequest): Promise<MarketResult<SkillDocumentValue>>
+  uninstallPersonal(request: SkillNameRequest): Promise<MarketResult<InstalledSkillsValue>>
+  canReveal(): Promise<MarketResult<boolean>>
+  /** Show one Host path selected in the Host's file manager. */
+  reveal(path: string): Promise<MarketResult<unknown>>
 }
 
 /** Store operations injected into the views. */
@@ -49,6 +56,19 @@ export interface MarketActions {
   /** @returns whether the item is installed afterwards; a failure is reported as a notice. */
   install(ref: MarketItemRef, name: string): Promise<boolean>
   uninstall(ref: MarketItemRef, name: string): Promise<void>
+  /**
+   * Delete a personal skill's files from its personal skill folder.
+   * @param skill - skill name.
+   * @param name - display name for the notice.
+   * @returns whether the skill was deleted; a failure is reported as a notice.
+   */
+  uninstallPersonal(skill: string, name: string): Promise<boolean>
+  /**
+   * Show a skill's instruction file selected in the Host's file manager.
+   * @param path - absolute instruction file path on the Host.
+   * @param name - display name for the failure notice.
+   */
+  revealSkill(path: string, name: string): Promise<void>
   refresh(): Promise<void>
   loadInstalledSkills(): Promise<void>
   /** @returns whether the switch was saved; a failure is reported as a notice. */
@@ -76,7 +96,8 @@ export interface MarketStore extends MarketActions {
  */
 export function createMarketStore(remote: MarketRemote): MarketStore {
   let state: MarketState = {
-    market: undefined, streamFailed: false, installedSkills: undefined, installedLoading: false, switching: [], notice: null,
+    market: undefined, streamFailed: false, installedSkills: undefined, installedLoading: false, switching: [],
+    canReveal: false, notice: null,
   }
   let disposed = false
   let seq = 0
@@ -111,6 +132,8 @@ export function createMarketStore(remote: MarketRemote): MarketStore {
       if (state.installedSkills !== undefined && installedSetChanged(previous, frame.value)) void loadInstalledSkills()
     }
   })().catch(() => { publish({ streamFailed: true }) })
+  // A Host without a desktop, or one that did not answer, offers no file-manager action.
+  void remote.canReveal().then((result) => { publish({ canReveal: result.ok && result.value }) })
 
   return {
     state: {
@@ -128,6 +151,15 @@ export function createMarketStore(remote: MarketRemote): MarketStore {
       if (result.ok) { publish({ market: result.value }); notify({ kind: 'uninstalled', name }) }
       else notify({ kind: 'uninstall-failed', name, reason: reasonOf(result.error) })
       if (state.installedSkills !== undefined) await loadInstalledSkills()
+    },
+    async uninstallPersonal(skill, name) {
+      const result = await remote.uninstallPersonal({ name: skill })
+      if (result.ok) { publish({ installedSkills: result.value }); notify({ kind: 'uninstalled', name }) }
+      else notify({ kind: 'uninstall-failed', name, reason: reasonOf(result.error) })
+      return result.ok
+    },
+    async revealSkill(path, name) {
+      if (!(await remote.reveal(path)).ok) notify({ kind: 'reveal-failed', name })
     },
     async refresh() {
       const result = await remote.refresh()

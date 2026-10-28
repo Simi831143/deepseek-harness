@@ -14,7 +14,7 @@ const state: MarketState = {
   market: { revision: 1, source: 'remote', categories: [], featured: [], items: [], kinds: ['skill'], installing: [] },
   streamFailed: false,
   installedSkills: { complete: true, skills: [] },
-  installedLoading: false, switching: [], notice: null,
+  installedLoading: false, switching: [], canReveal: false, notice: null,
 }
 
 const t: MarketPageProps['t'] = (key, params) => {

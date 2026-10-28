@@ -1,4 +1,4 @@
-/** Install, uninstall and switch outcomes, shown even after the market page is left. */
+/** Install, uninstall, switch and open-folder outcomes, shown even after the market page is left. */
 import type { ReactNode } from 'react'
 import { IconWarningOutlineRegular, Toast } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale } from '@deepseek-ai/dsh-client-ui-slots'
@@ -30,6 +30,7 @@ function noticeText(notice: MarketNotice, t: MarketToastProps['t']): string {
     case 'uninstalled': return t('uninstallDone', { name: notice.name })
     case 'install-failed': return t('installFailed', { name: notice.name, reason: notice.reason })
     case 'uninstall-failed': return t('uninstallFailed', { name: notice.name, reason: notice.reason })
+    case 'reveal-failed': return t('revealFailed', { name: notice.name })
     case 'switch-failed': return t('switchFailed', { reason: notice.reason })
     case 'load-failed': return t('loadFailed', { reason: notice.reason })
   }

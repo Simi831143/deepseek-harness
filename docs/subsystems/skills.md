@@ -345,6 +345,18 @@ Host owner of the skill kind and the `marketSkills` Remote namespace.
 @Remote async installed(signal: AbortSignal): Promise<InstalledSkillsValue>
 
 /**
+ * Delete one personal skill: its directory under a personal skill folder, or its Markdown file
+ * when it sits in the folder itself. A symbolic link is removed, never its target. Market
+ * downloads are removed by the market's `uninstallPackage`.
+ * @param request - the skill name.
+ * @param signal - caller cancellation for the list read that follows the deletion.
+ * @returns the list after the deletion.
+ * @throws RemoteError `market-skills/not-found` when no skill of that name is visible, or
+ *   `market-skills/remove-failed` when it is not a personal skill or its files cannot be deleted.
+ */
+@Remote async uninstallPersonal(request: SkillNameRequest, signal: AbortSignal): Promise<InstalledSkillsValue>
+
+/**
  * Switch skills on or off for every new model request, whatever their source.
  * @param request - skill names and the target state.
  * @param signal - caller cancellation for the list read that follows the write.

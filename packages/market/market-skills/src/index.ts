@@ -1,18 +1,20 @@
 /**
  * Skill kind of the market. Installed market skills reach every Agent through
  * one global skill provider, and the `marketSkills` Remote namespace lists the
- * skills the user installed, from the market or a personal skill folder, and
- * switches them on and off through the skill registry's `disabled` setting.
+ * skills the user installed, from the market or a personal skill folder,
+ * switches them on and off through the skill registry's `disabled` setting,
+ * and deletes personal skills from their folder.
  * @module @deepseek-ai/dsh-market-skills
  */
-import { stat } from 'node:fs/promises'
-import { join } from 'node:path'
+import { rm, stat } from 'node:fs/promises'
+import { dirname, join, resolve } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-agent-preset-registry'
+import { resolveAgentsHome, resolveDshHome } from '@deepseek-ai/dsh-home-paths'
 import type { InstalledItem, MarketCatalogItem, MarketKind } from '@deepseek-ai/dsh-market'
 import type { ScopeKey } from '@deepseek-ai/dsh-scope'
 import type {} from '@deepseek-ai/dsh-settings'
-import type { SkillCandidate, SkillProviderControl, SkillProviderObservation, SkillSummary } from '@deepseek-ai/dsh-skill'
+import type { SkillCandidate, SkillCatalogSnapshot, SkillProviderControl, SkillProviderObservation, SkillSummary } from '@deepseek-ai/dsh-skill'
 import { FileSystemSkillProvider } from '@deepseek-ai/dsh-skill-filesystem'
 import type {} from '@deepseek-ai/dsh-working-directory'
 import { Remote, RemoteError, TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol'
@@ -29,15 +31,19 @@ declare module '@deepseek-ai/cordis' {
   }
 }
 
-/** Provider name of installed market skills; the management page marks them removable. */
+/** Provider name of installed market skills; the management page reports them with origin `market`. */
 export const MARKET_SKILL_PROVIDER = 'market'
 
 /**
- * Filesystem sources of the user's personal skill folders, `<DSH home>/skills` and
- * `~/.agents/skills`, where skill-creator writes. Every other source belongs to the
- * application, its composition, or the open project, so the management page leaves it out.
+ * The user's personal skill folders by filesystem source, `<DSH home>/skills` and
+ * `~/.agents/skills`, where skill-creator writes. They resolve the same `DSH_HOME` and
+ * `DSH_AGENTS_HOME` the filesystem provider's default roots read. Every other source belongs
+ * to the application, its composition, or the open project, so the management page leaves it out.
  */
-const PERSONAL_SOURCES: ReadonlySet<string> = new Set(['user-dsh', 'user-agents'])
+const PERSONAL_ROOTS: ReadonlyMap<string, () => string> = new Map([
+  ['user-dsh', () => join(resolveDshHome(), 'skills')],
+  ['user-agents', () => join(resolveAgentsHome(), 'skills')],
+])
 
 /** Configuration of the skill kind. */
 export interface Config {
@@ -93,25 +99,45 @@ export class MarketSkills extends TypertRemoteService {
    */
   @Remote
   async installed(signal: AbortSignal): Promise<InstalledSkillsValue> {
-    const lease = await this.defaultScope()
-    try {
-      const snapshot = await this.ctx.skills.snapshot({
-        cwd: this.ctx.workingDirectory.defaultDirectory,
-        signal,
-        includeDisabled: true,
-        ...lease === undefined ? {} : { scope: lease.key },
-      })
-      const disabled = new Set(this.ctx.skills.disabledNames())
-      return {
-        skills: snapshot.skills.flatMap((skill) => {
-          const origin = originOf(skill)
-          return origin === undefined ? [] : [view(skill, origin, !disabled.has(skill.name))]
-        }),
-        complete: snapshot.complete,
-      }
-    } finally {
-      await lease?.[Symbol.asyncDispose]()
+    const snapshot = await this.defaultSnapshot(signal)
+    const disabled = new Set(this.ctx.skills.disabledNames())
+    return {
+      skills: snapshot.skills.flatMap((skill) => {
+        const origin = originOf(skill)
+        return origin === undefined ? [] : [view(skill, origin, !disabled.has(skill.name))]
+      }),
+      complete: snapshot.complete,
     }
+  }
+
+  /**
+   * Delete one personal skill: its directory under a personal skill folder, or its Markdown file
+   * when it sits in the folder itself. A symbolic link is removed, never its target. Market
+   * downloads are removed by the market's `uninstallPackage`.
+   * @param request - the skill name.
+   * @param signal - caller cancellation for the list read that follows the deletion.
+   * @returns the list after the deletion.
+   * @throws RemoteError `market-skills/not-found` when no skill of that name is visible, or
+   *   `market-skills/remove-failed` when it is not a personal skill or its files cannot be deleted.
+   */
+  @Remote
+  async uninstallPersonal(request: SkillNameRequest, signal: AbortSignal): Promise<InstalledSkillsValue> {
+    const skill = (await this.defaultSnapshot(signal)).skills.find(entry => entry.name === request.name)
+    if (skill === undefined) throw new RemoteError('market-skills/not-found', `no skill named ${request.name}`, { name: request.name })
+    const target = personalTarget(skill)
+    if (target === undefined) {
+      throw new RemoteError('market-skills/remove-failed', `${request.name} is not in a personal skill folder`, { name: request.name, reason: 'not-personal' })
+    }
+    try {
+      // rm removes a symbolic link or junction itself and never descends into its target.
+      await rm(target, { recursive: true, force: true })
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error)
+      throw new RemoteError('market-skills/remove-failed', reason, { name: request.name, reason })
+    }
+    // The filesystem provider's watcher reports the deletion only after its stability delay.
+    this.invalidate?.()
+    return await this.installed(signal)
   }
 
   /**
@@ -166,6 +192,21 @@ export class MarketSkills extends TypertRemoteService {
     }
   }
 
+  /** Every skill a new conversation in the default workspace sees, disabled ones included. */
+  private async defaultSnapshot(signal: AbortSignal): Promise<SkillCatalogSnapshot> {
+    const lease = await this.defaultScope()
+    try {
+      return await this.ctx.skills.snapshot({
+        cwd: this.ctx.workingDirectory.defaultDirectory,
+        signal,
+        includeDisabled: true,
+        ...lease === undefined ? {} : { scope: lease.key },
+      })
+    } finally {
+      await lease?.[Symbol.asyncDispose]()
+    }
+  }
+
   /** Hold the default preset's scope so the list includes personal skills, as a new conversation would. */
   private async defaultScope(): Promise<({ key: ScopeKey } & AsyncDisposable) | undefined> {
     try {
@@ -201,14 +242,27 @@ function view(skill: SkillSummary, origin: InstalledSkillOrigin, enabled: boolea
     origin,
     ...skill.path === undefined ? {} : { path: skill.path },
     enabled,
-    removable: origin === 'market',
   }
 }
 
 /** @returns the origin of a skill the user installed, or undefined for one the application or project ships. */
 function originOf(skill: SkillSummary): InstalledSkillOrigin | undefined {
   if (skill.provider === MARKET_SKILL_PROVIDER) return 'market'
-  return PERSONAL_SOURCES.has(skill.source) ? 'user' : undefined
+  return PERSONAL_ROOTS.has(skill.source) ? 'user' : undefined
+}
+
+/**
+ * @returns the path that holds one personal skill: a directory that is a direct child of its
+ *   personal folder, or a Markdown file directly in that folder; undefined anywhere else.
+ */
+function personalTarget(skill: SkillSummary): string | undefined {
+  const root = skill.provider === MARKET_SKILL_PROVIDER ? undefined : PERSONAL_ROOTS.get(skill.source)?.()
+  if (root === undefined || skill.resourceBase?.kind !== 'directory' || skill.path === undefined) return undefined
+  // The base is the listed entry as spelled under the folder, so a linked directory resolves to the link.
+  const base = resolve(skill.resourceBase.path)
+  if (base !== root && dirname(base) === root) return base
+  const file = resolve(skill.path)
+  return base === root && dirname(file) === root ? file : undefined
 }
 
 /**

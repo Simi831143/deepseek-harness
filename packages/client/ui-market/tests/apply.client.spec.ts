@@ -35,7 +35,7 @@ it('mounts the market and marketSkills namespaces', async () => {
   for (const method of ['catalogSnapshot', 'refreshCatalog', 'installPackage', 'uninstallPackage', 'watch']) {
     expect(typeof market[method]).toBe('function')
   }
-  for (const method of ['installed', 'setEnabled']) expect(typeof skills[method]).toBe('function')
+  for (const method of ['installed', 'setEnabled', 'document', 'uninstallPersonal']) expect(typeof skills[method]).toBe('function')
   await disposeSkills()
   await disposeMarket()
 })

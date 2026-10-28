@@ -2,10 +2,12 @@
  * Market, browser half: the sidebar's Market entry, the page it opens in the
  * main column, and the toast that reports install outcomes. The page reads the
  * `market` and `marketSkills` Remote namespaces, which this plugin mounts
- * itself so the shared API Remotes package needs no market entry.
+ * itself so the shared API Remotes package needs no market entry, and shows a
+ * skill's folder through the `session` namespace's file-manager reveal.
  */
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-api-remotes/client'
+import type {} from '@deepseek-ai/dsh-api-session-controller/remote'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type { MainPanelId } from '@deepseek-ai/dsh-client-ui-layout/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
@@ -19,7 +21,7 @@ import marketRemote from '@deepseek-ai/dsh-market/remote'
 import marketSkillsRemote from '@deepseek-ai/dsh-market-skills/remote'
 import { en, zh, type MarketLocaleKey } from './locales.ts'
 import { createMarketStore, type MarketActions, type MarketState } from './market-store.ts'
-import { MarketPage } from './MarketPage.tsx'
+import { MarketPage, SKILL_CREATOR } from './MarketPage.tsx'
 import { MarketPanelIcon } from './MarketPanelIcon.tsx'
 import { MarketToast } from './MarketToast.tsx'
 import { createMarketNavigation } from './navigation-store.ts'
@@ -38,7 +40,7 @@ export const NS = 'market'
 export const PANEL_ID = 'market' as MainPanelId
 
 /** Services the plugin needs before it mounts its Remote namespaces. */
-export const inject = ['remote', 'slots', 'locale', 'layout', 'uiWorkspace']
+export const inject = ['remote', 'remote.session', 'slots', 'locale', 'layout', 'uiWorkspace']
 
 /** State and actions every market view receives. */
 export interface MarketFace extends MarketActions {
@@ -49,7 +51,16 @@ export interface MarketFace extends MarketActions {
    * @param text - request text after the chip.
    */
   trySkill(skill: string, text: string): void
+  /**
+   * Open a new conversation whose composer asks skill-creator to edit one skill, unsent:
+   * the skill-creator chip, the request, and a chip for the skill being edited.
+   * @param skill - name of the skill to edit.
+   */
+  editSkill(skill: string): void
 }
+
+/** Where the edited skill's chip goes in the `promptEdit` copy. */
+const SKILL_SLOT = '{skill}'
 
 /** Catalog titles of market skills in the active language, recomputed only when the catalog or language changes. */
 function skillTitles(market: HostObservable<MarketState>, language: HostObservable<string>): HostObservable<SkillLabels> {
@@ -92,6 +103,9 @@ function registerUi(ctx: Context): void {
     installedSkills: () => ctx.remote.marketSkills.installed(),
     setSkillsEnabled: request => afterSkillWrite(ctx.remote.marketSkills.setEnabled(request)),
     skillDocument: request => ctx.remote.marketSkills.document(request),
+    uninstallPersonal: request => afterSkillWrite(ctx.remote.marketSkills.uninstallPersonal(request)),
+    canReveal: () => ctx.remote.session.canOpenWorkspacePath(),
+    reveal: path => ctx.remote.session.openWorkspacePath({ path, action: 'reveal' }),
   })
   ctx.effect(() => () => { store.dispose(); return stream.dispose() }, 'ui-market: market stream')
   const language: HostObservable<string> = {
@@ -110,6 +124,8 @@ function registerUi(ctx: Context): void {
     hooks: { market: store.state, language },
     install: (ref, name) => store.install(ref, name),
     uninstall: (ref, name) => store.uninstall(ref, name),
+    uninstallPersonal: (skill, name) => store.uninstallPersonal(skill, name),
+    revealSkill: (path, name) => store.revealSkill(path, name),
     refresh: () => store.refresh(),
     loadInstalledSkills: () => store.loadInstalledSkills(),
     setSkillsEnabled: (names, enabled) => store.setSkillsEnabled(names, enabled),
@@ -118,6 +134,14 @@ function registerUi(ctx: Context): void {
     trySkill: (skill, text) => {
       // Without the skill plugin the literal still loads the skill host-side; it just shows as text.
       startSession(ctx.get('uiSkill')?.draft(skill, text) ?? `/${skill} ${text}`)
+    },
+    editSkill: (skill) => {
+      const [before = '', after = ''] = t('promptEdit').split(SKILL_SLOT)
+      const parts = [{ skill: SKILL_CREATOR }, { text: before }, { skill }, { text: after }]
+      const uiSkill = ctx.get('uiSkill')
+      startSession(uiSkill === undefined
+        ? parts.map(part => 'skill' in part ? `/${part.skill}` : part.text.trim()).filter(Boolean).join(' ')
+        : uiSkill.compose(parts))
     },
   }
   ctx.slots.inject('shell.overlay', () => ctx.slots.register({
@@ -148,7 +172,7 @@ export async function apply(ctx: Context): Promise<() => Promise<void>> {
     await disposeMarket()
     throw error
   }
-  const ui = ctx.inject(['remote.market', 'remote.marketSkills', 'slots', 'locale', 'layout', 'uiWorkspace'], registerUi)
+  const ui = ctx.inject(['remote.market', 'remote.marketSkills', 'remote.session', 'slots', 'locale', 'layout', 'uiWorkspace'], registerUi)
   try {
     await ui
   } catch (error) {

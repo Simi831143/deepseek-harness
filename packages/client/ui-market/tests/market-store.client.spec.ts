@@ -10,7 +10,7 @@ function snapshot(patch: Partial<MarketSnapshot> = {}): MarketSnapshot {
 
 const installed: InstalledSkillsValue = {
   complete: true,
-  skills: [{ name: 'office-docx', description: 'Word', origin: 'user', enabled: true, removable: false }],
+  skills: [{ name: 'office-docx', description: 'Word', origin: 'user', enabled: true }],
 }
 
 function remote(frames: MarketSnapshot[], patch: Partial<MarketRemote> = {}): MarketRemote {
@@ -22,9 +22,44 @@ function remote(frames: MarketSnapshot[], patch: Partial<MarketRemote> = {}): Ma
     installedSkills: vi.fn(() => Promise.resolve({ ok: true as const, value: installed })),
     setSkillsEnabled: vi.fn(() => Promise.resolve({ ok: true as const, value: installed })),
     skillDocument: vi.fn(() => Promise.resolve({ ok: true as const, value: { name: 'office-docx', content: '# Word' } })),
+    uninstallPersonal: vi.fn(() => Promise.resolve({ ok: true as const, value: { complete: true, skills: [] } })),
+    canReveal: vi.fn(() => Promise.resolve({ ok: true as const, value: true })),
+    reveal: vi.fn(() => Promise.resolve({ ok: true as const, value: { opened: true } })),
     ...patch,
   }
 }
+
+it('reads once whether the Host can show a folder, and treats a failed read as no', async () => {
+  const able = createMarketStore(remote([]))
+  expect(able.state.getSnapshot().canReveal).toBe(false)
+  await vi.waitFor(() => { expect(able.state.getSnapshot().canReveal).toBe(true) })
+  const canReveal = vi.fn(() => Promise.resolve({ ok: false as const, error: { message: 'offline' } }))
+  const unable = createMarketStore(remote([], { canReveal }))
+  await vi.waitFor(() => { expect(canReveal).toHaveBeenCalledOnce() })
+  expect(unable.state.getSnapshot().canReveal).toBe(false)
+})
+
+it('deletes a personal skill, publishes the list after it, and reports a failure', async () => {
+  const store = createMarketStore(remote([]))
+  expect(await store.uninstallPersonal('camera-log', 'camera-log')).toBe(true)
+  expect(store.state.getSnapshot()).toMatchObject({ installedSkills: { skills: [] }, notice: { kind: 'uninstalled', name: 'camera-log' } })
+  const failing = createMarketStore(remote([], {
+    uninstallPersonal: vi.fn(() => Promise.resolve({ ok: false as const, error: { message: 'EBUSY' } })),
+  }))
+  expect(await failing.uninstallPersonal('camera-log', 'camera-log')).toBe(false)
+  expect(failing.state.getSnapshot().notice).toMatchObject({ kind: 'uninstall-failed', name: 'camera-log', reason: 'EBUSY' })
+})
+
+it('reveals a skill file and reports only a failed reveal', async () => {
+  const reveal = vi.fn(() => Promise.resolve({ ok: true as const, value: { opened: true } }))
+  const store = createMarketStore(remote([], { reveal }))
+  await store.revealSkill('/home/me/.agents/skills/camera-log/SKILL.md', 'camera-log')
+  expect(reveal).toHaveBeenCalledWith('/home/me/.agents/skills/camera-log/SKILL.md')
+  expect(store.state.getSnapshot().notice).toBeNull()
+  const failing = createMarketStore(remote([], { reveal: vi.fn(() => Promise.resolve({ ok: false as const, error: {} })) }))
+  await failing.revealSkill('/missing/SKILL.md', 'camera-log')
+  expect(failing.state.getSnapshot().notice).toMatchObject({ kind: 'reveal-failed', name: 'camera-log' })
+})
 
 it('publishes stream frames and marks a stream that failed', async () => {
   const store = createMarketStore(remote([], {

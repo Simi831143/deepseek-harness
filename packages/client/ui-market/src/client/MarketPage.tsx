@@ -185,8 +185,8 @@ function SearchInput({ label, value, onChange }: { label: string; value: string;
   )
 }
 
-/** The skill 创建技能 opens with; Desktop bundles it from the lc-market content repository. */
-const SKILL_CREATOR = 'skill-creator'
+/** The skill 创建技能 and 编辑 open with; Desktop bundles it from the lc-market content repository. */
+export const SKILL_CREATOR = 'skill-creator'
 
 function AddSkillMenu(props: MarketPageProps): ReactNode {
   const { t } = props

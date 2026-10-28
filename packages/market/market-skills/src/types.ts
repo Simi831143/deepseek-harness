@@ -7,10 +7,15 @@ declare module '@deepseek-ai/dsh-typert-protocol' {
     'market-skills/settings-unavailable': { readonly reason: string }
     /** No skill of this name is visible to a new conversation. */
     'market-skills/not-found': { readonly name: string }
+    /** A personal skill's files lie outside the personal skill folders or could not be deleted. */
+    'market-skills/remove-failed': { readonly name: string; readonly reason: string }
   }
 }
 
-/** Where an installed skill comes from: a market download, or the user's personal skill folder. */
+/**
+ * Where an installed skill comes from: a market download, which the market uninstalls,
+ * or the user's personal skill folder, which `uninstallPersonal` deletes from.
+ */
 export type InstalledSkillOrigin = 'market' | 'user'
 
 /** One skill the user installed that new conversations see, enabled or not. */
@@ -21,8 +26,6 @@ export interface InstalledSkillView {
   /** Absolute instruction file path when the provider exposes one. */
   readonly path?: string
   readonly enabled: boolean
-  /** Whether the market page can uninstall it: only market downloads; personal skills only switch off. */
-  readonly removable: boolean
 }
 
 /**

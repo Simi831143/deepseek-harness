@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-The market client plugin presents catalog skills in a browser page, follows Host installation state, and lets users install, enable, disable, or remove market skills. It mounts the `market` and `marketSkills` Remote namespaces that it consumes.
+The market client plugin presents catalog skills in a browser page, follows Host installation state, and lets users install, enable, disable, edit, or remove market and personal skills. It mounts the `market` and `marketSkills` Remote namespaces that it consumes and reveals skill folders through the `session` namespace.
 
 ## Table of Contents
 
@@ -22,7 +22,13 @@ The market client plugin presents catalog skills in a browser page, follows Host
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount the plugin with the Web client and the Host market bundle. Open the Market panel to browse skill categories, inspect a skill, install it, and manage the installed list. The page refreshes skill labels and slash-menu candidates after an install or switch.
+Mount the plugin with the Web client and the Host market bundle. Open the Market panel to browse skill categories, inspect a skill, install it, and manage the installed list. The page refreshes skill labels and slash-menu candidates after an install, switch, or deletion.
+
+Every installed skill's detail dialog has one More actions menu, whether the skill came from the market or a personal folder:
+
+- **Edit** opens a new conversation whose composer reads `/skill-creator 请帮我编辑 /<skill> 这个 skill`, with both names as skill chips, unsent.
+- **Open folder** shows the skill's instruction file selected in the Host file manager. It appears only when the Host reports a desktop and the skill has a file path.
+- **Uninstall** asks for confirmation. A market skill is uninstalled through the market; a personal skill's folder is deleted.
 
 <a id="understand-the-implementation"></a>
 ## Understand the implementation
@@ -51,7 +57,8 @@ None directly; model-visible skill content is owned by the Host skill consumer.
 <a id="known-limitations-and-deferred-work"></a>
 
 - The page requires the Host market Remote namespaces and shows the last available catalog when the catalog endpoint is offline.
-- Only market-installed skills can be removed from this page; personal skills can be switched off but their files remain user-owned.
+- Deleting a personal skill cannot be undone from the page; the files are removed, not moved to the recycle bin.
+- Edit relies on the `skill-creator` skill; a composition without it sends the chip as plain text.
 
 ### Dev Note
 

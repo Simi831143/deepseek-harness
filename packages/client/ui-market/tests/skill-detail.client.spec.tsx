@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 /**
  * The skill detail dialog joins the catalog entry with the installed state:
- * display fields, install, the success-toned switch, uninstall of market
- * downloads only (built-in skills just switch off), the overview of the skill's instructions with its
- * search, and an example turning into a conversation that opens with the skill.
+ * display fields, install, the success-toned switch, one more-actions menu
+ * (edit, open folder, uninstall) for market and personal skills alike, the
+ * overview of the skill's instructions with its search, and an example
+ * turning into a conversation that opens with the skill.
  */
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
@@ -21,19 +22,19 @@ const lark: MarketItemView = {
 }
 
 const larkInstalled: InstalledSkillView = {
-  name: 'lark-unified', description: 'Lark', origin: 'market', enabled: true, removable: true,
+  name: 'lark-unified', description: 'Lark', origin: 'market', enabled: true, path: 'C:\\dsh\\market\\skill\\lark-unified\\SKILL.md',
 }
 
 const cameraLog: InstalledSkillView = {
-  name: 'camera-log', description: '相机日志汇总', origin: 'user', enabled: true, removable: false,
+  name: 'camera-log', description: '相机日志汇总', origin: 'user', enabled: true, path: 'C:\\Users\\me\\.agents\\skills\\camera-log\\SKILL.md',
 }
 
-function stateOf(items: readonly MarketItemView[], installed: readonly InstalledSkillView[] | undefined): MarketState {
+function stateOf(items: readonly MarketItemView[], installed: readonly InstalledSkillView[] | undefined, canReveal = true): MarketState {
   return {
     market: { revision: 1, source: 'remote', categories: [], featured: [], items: [...items], kinds: ['skill'], installing: [] },
     streamFailed: false,
     installedSkills: installed === undefined ? undefined : { complete: true, skills: [...installed] },
-    installedLoading: false, switching: [], notice: null,
+    installedLoading: false, switching: [], canReveal, notice: null,
   }
 }
 
@@ -48,16 +49,20 @@ const DOCUMENT = '# 使用说明\n\n先读取飞书文档，再写回飞书。\n
 function show(skill: string, state: MarketState, patch: {
   install?: (ref: unknown, name: string) => Promise<boolean>
   document?: () => Promise<MarketResult<SkillDocumentValue>>
+  uninstallPersonal?: () => Promise<boolean>
 } = {}) {
   const props = {
     t, skill, text: (value: { zh: string }) => value.zh, onClose: vi.fn(),
     useMarket: <T,>(select: (value: MarketState) => T): T => select(state),
     install: vi.fn(patch.install ?? (() => Promise.resolve(true))),
     uninstall: vi.fn(() => Promise.resolve()),
+    uninstallPersonal: vi.fn(patch.uninstallPersonal ?? (() => Promise.resolve(true))),
+    revealSkill: vi.fn(() => Promise.resolve()),
     loadInstalledSkills: vi.fn(() => Promise.resolve()),
     setSkillsEnabled: vi.fn(() => Promise.resolve(true)),
     readSkillDocument: vi.fn(patch.document ?? (() => Promise.resolve({ ok: true as const, value: { name: skill, content: DOCUMENT } }))),
     trySkill: vi.fn(),
+    editSkill: vi.fn(),
   }
   // The dialog reads only these members of the page props.
   const page: Partial<SkillDetailProps> = props
@@ -162,19 +167,74 @@ it('uninstalls a market skill by deleting it after a confirmation', async () => 
   expect(confirm.textContent).toContain(zh.confirmUninstallMarket)
   await act(async () => { fireEvent.click(screen.getByRole('button', { name: zh.uninstall })) })
   expect(props.uninstall).toHaveBeenCalledWith({ kind: 'skill', id: 'lark-unified' }, '飞书套件')
+  expect(props.uninstallPersonal).not.toHaveBeenCalled()
   expect(screen.queryByRole('alertdialog')).toBeNull()
 })
 
-it('switches a personal skill but offers no uninstall', () => {
+it('offers the same more-actions menu for market and personal skills', () => {
+  show('lark-unified', stateOf([{ ...lark, installedVersion: '2.3.0' }], [larkInstalled]))
+  fireEvent.click(screen.getByRole('button', { name: zh.more }))
+  const market = screen.getAllByRole('menuitem').map(item => item.textContent)
+  cleanup()
+  show('camera-log', stateOf([], [cameraLog]))
+  fireEvent.click(screen.getByRole('button', { name: zh.more }))
+  expect(screen.getAllByRole('menuitem').map(item => item.textContent)).toEqual(market)
+  expect(market).toEqual([zh.edit, zh.openFolder, zh.uninstall])
+})
+
+it('deletes a personal skill from its folder after a confirmation and closes the dialog', async () => {
   const props = show('camera-log', stateOf([], [cameraLog]))
   expect(screen.getByRole('heading', { name: 'camera-log' })).toBeTruthy()
-  expect(screen.getByText('相机日志汇总')).toBeTruthy()
   expect(screen.getByText(zh.originUser)).toBeTruthy()
-  // The market did not write a personal skill's folder, so the switch is the only way to turn it off.
-  expect(screen.queryByRole('button', { name: zh.more })).toBeNull()
+  fireEvent.click(screen.getByRole('button', { name: zh.more }))
+  fireEvent.click(screen.getByRole('menuitem', { name: zh.uninstall }))
+  expect(screen.getByRole('alertdialog').textContent).toContain(zh.confirmUninstallUser)
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: zh.uninstall })) })
+  expect(props.uninstallPersonal).toHaveBeenCalledWith('camera-log', 'camera-log')
+  expect(props.uninstall).not.toHaveBeenCalled()
+  expect(props.onClose).toHaveBeenCalledOnce()
+})
+
+it('stays open when a personal skill could not be deleted', async () => {
+  const props = show('camera-log', stateOf([], [cameraLog]), { uninstallPersonal: () => Promise.resolve(false) })
+  fireEvent.click(screen.getByRole('button', { name: zh.more }))
+  fireEvent.click(screen.getByRole('menuitem', { name: zh.uninstall }))
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: zh.uninstall })) })
+  expect(props.onClose).not.toHaveBeenCalled()
+})
+
+it('opens the folder of the skill file in the Host file manager', () => {
+  const props = show('camera-log', stateOf([], [cameraLog]))
+  fireEvent.click(screen.getByRole('button', { name: zh.more }))
+  fireEvent.click(screen.getByRole('menuitem', { name: zh.openFolder }))
+  expect(props.revealSkill).toHaveBeenCalledWith(cameraLog.path, 'camera-log')
+  expect(screen.queryByRole('menu')).toBeNull()
+})
+
+it('hides open folder when the Host has no file manager or the skill has no file', () => {
+  show('camera-log', stateOf([], [cameraLog], false))
+  fireEvent.click(screen.getByRole('button', { name: zh.more }))
+  expect(screen.queryByRole('menuitem', { name: zh.openFolder })).toBeNull()
+  cleanup()
+  const { path: _path, ...virtual } = cameraLog
+  show('camera-log', stateOf([], [virtual]))
+  fireEvent.click(screen.getByRole('button', { name: zh.more }))
+  expect(screen.getAllByRole('menuitem').map(item => item.textContent)).toEqual([zh.edit, zh.uninstall])
+})
+
+it('closes the dialog and hands the skill to the editor conversation', () => {
+  const props = show('lark-unified', stateOf([{ ...lark, installedVersion: '2.3.0' }], [larkInstalled]))
+  fireEvent.click(screen.getByRole('button', { name: zh.more }))
+  fireEvent.click(screen.getByRole('menuitem', { name: zh.edit }))
+  expect(props.onClose).toHaveBeenCalledOnce()
+  expect(props.editSkill).toHaveBeenCalledWith('lark-unified')
+})
+
+it('switches a personal skill through the shared registry setting', () => {
+  const props = show('camera-log', stateOf([], [cameraLog]))
+  expect(screen.getByText('相机日志汇总')).toBeTruthy()
   fireEvent.click(screen.getByRole('switch', { name: '启用camera-log' }))
   expect(props.setSkillsEnabled).toHaveBeenCalledWith(['camera-log'], false)
-  expect(props.uninstall).not.toHaveBeenCalled()
 })
 
 it('renders nothing for a skill that is neither published nor installed', () => {

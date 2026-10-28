@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-market-skills` registers the market skill kind, exposes installed market and personal skills through `ctx.marketSkills`, and contributes installed market directories to the shared skill registry. One enablement setting applies across every skill source.
+`dsh-market-skills` registers the market skill kind, exposes installed market and personal skills through `ctx.marketSkills`, and contributes installed market directories to the shared skill registry. One enablement setting applies across every skill source, and personal skills can be deleted from their folder.
 
 ## Table of Contents
 
@@ -22,7 +22,7 @@ English | [中文](README.zh.md)
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount this package beside `dsh-market`, the skill registry, settings, and working-directory services. Use the `marketSkills` Remote to list installed skills, read a skill document, or change enablement. Market downloads can be removed; personal skills remain user-owned and can only be switched off.
+Mount this package beside `dsh-market`, the skill registry, settings, and working-directory services. Use the `marketSkills` Remote to list installed skills, read a skill document, change enablement, or delete a personal skill. The market's `uninstallPackage` removes market downloads. `uninstallPersonal` deletes a personal skill's directory, or its Markdown file, from `<DSH home>/skills` or `~/.agents/skills`; it removes a linked skill's link and keeps the linked directory, and it refuses skills from any other source.
 
 <a id="understand-the-implementation"></a>
 ## Understand the implementation

@@ -9,6 +9,9 @@ import type { HostObservable } from '@deepseek-ai/dsh-client-ui-slots'
 /** Display titles by skill name. */
 export type SkillLabels = ReadonlyMap<string, string>
 
+/** One run of a composed draft: plain text, or a chip for one skill. */
+export type SkillDraftPart = { readonly text: string } | { readonly skill: string }
+
 /** The `uiSkill` service. */
 export interface UiSkill {
   /**
@@ -31,6 +34,13 @@ export interface UiSkill {
    * @returns a draft for `uiWorkspace.startSession(..., { prompt })`.
    */
   draft(name: string, text: string): DraftSnapshot
+  /**
+   * Build a composer draft from text and skill chips in order; one space separates neighbours.
+   * Every skill a chip names loads host-side when the draft is sent.
+   * @param parts - text runs and skill names; empty text runs are dropped.
+   * @returns a draft for `uiWorkspace.startSession(..., { prompt })`.
+   */
+  compose(parts: readonly SkillDraftPart[]): DraftSnapshot
   /** Drop every cached skill catalog and refetch the open ones, e.g. after a skill was installed or switched. */
   refresh(): void
 }
