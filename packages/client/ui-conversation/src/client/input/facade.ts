@@ -323,7 +323,7 @@ export class SessionInputShell implements SessionInput {
       return 'applied'
     }
     if (whenDraftExists === 'keep') return 'preserved'
-    this.draftEditor.appendDraft(options.prompt)
+    this.draftEditor.appendDraft(resolveDraftInput(options.prompt).text)
     return 'applied'
   }
 

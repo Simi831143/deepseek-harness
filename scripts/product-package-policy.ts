@@ -49,4 +49,11 @@ export const PRODUCT_PACKAGE_POLICY: Readonly<Record<string, ProductPackagePolic
   'packages/client/web': { category: 'web-distribution', reason: 'Browser boot kernel bundled into the Web distribution.' },
   'packages/client/ui-dockkit': { category: 'web-distribution', reason: 'Layout library bundled into the Web distribution.' },
   'packages/util/package-manifest': { category: 'declarations', reason: 'Shared package metadata declarations have no runtime mount.' },
+  'packages/bundle/account-feishu': { category: 'optional', reason: 'LC Camera Agent Desktop adds this bundle to its own profile.' },
+  'packages/credentials/feishu-account': { category: 'optional', reason: 'Mounted by the LC Camera Agent Desktop account-feishu bundle.' },
+  'packages/client/ui-account-feishu': { category: 'optional', reason: 'Mounted by the LC Camera Agent Desktop account-feishu bundle.' },
+  'packages/bundle/market': { category: 'optional', reason: 'LC Camera Agent Desktop adds this bundle to its own profile.' },
+  'packages/market/market': { category: 'optional', reason: 'Mounted by the LC Camera Agent Desktop market bundle.' },
+  'packages/market/market-skills': { category: 'optional', reason: 'Mounted by the LC Camera Agent Desktop market bundle.' },
+  'packages/client/ui-market': { category: 'optional', reason: 'Mounted by the LC Camera Agent Desktop market bundle.' },
 }

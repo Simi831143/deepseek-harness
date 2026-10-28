@@ -47,7 +47,7 @@ One store per client follows the shared `account` Remote stream, reads the profi
 | [`src/client/FeishuAccountMenu.tsx`](src/client/FeishuAccountMenu.tsx) | Sidebar launcher and its menu |
 | [`src/client/FeishuAccountSection.tsx`](src/client/FeishuAccountSection.tsx) | Settings account page |
 | [`src/client/attempt-status.tsx`](src/client/attempt-status.tsx) | Shared attempt guidance, link fallbacks, and failure copy |
-| [`src/client/locales.ts`](src/client/locales.ts) | English and Chinese copy |
+| [`src/client/locales.ts`](src/client/locales.ts) | Copy for every UI language |
 | [`tsdown.config.ts`](tsdown.config.ts) | Client bundle entry configuration |
 
 </details>

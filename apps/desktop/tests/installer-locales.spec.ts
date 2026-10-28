@@ -1,7 +1,7 @@
 import { SHIPPED_LOCALE_IDS } from '../../../scripts/shipped-locales.ts'
 import { createRequire } from 'node:module'
 /** Per-language installer resources feed both the packaging language list and the NSIS compiler. */
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, it, onTestFinished } from 'vitest'
@@ -23,9 +23,23 @@ it('generates Japanese NSIS strings from the same files that select packaged lan
   expect(source).toContain('LangString INSTALLER_INSTALL ${LANG_JAPANESE} "今すぐインストール"')
   expect(source).toContain('LangString INSTALLER_NATIVE_PROGRESS ${LANG_JAPANESE} "インストールを準備しています… %d%%"')
   expect(source).toContain('!ifdef LANG_JAPANESE\n')
-  expect(source.match(/^LangString /gmu)).toHaveLength(248)
+  expect(source.match(/^LangString /gmu)).toHaveLength(264)
   const japanese = locales.filter(locale => locale.id === 'ja_JP')
   expect(renderInstallerStrings(japanese)).not.toContain('${LANG_ENGLISH}')
+})
+
+it('translates every string referenced by the installer source', () => {
+  const references = new Set([
+    new URL('../installer/', import.meta.url),
+    new URL('../scripts/', import.meta.url),
+  ].flatMap(directory => readdirSync(directory)
+    .filter(name => name.endsWith('.nsh'))
+    .flatMap(name => [...readFileSync(new URL(name, directory), 'utf8')
+      .matchAll(/\$\((INSTALLER_[A-Z_]+)\)/gu)].map(match => match[1]!))))
+  expect(references.size).toBeGreaterThan(0)
+  for (const locale of readInstallerLocales()) {
+    for (const key of references) expect(locale.strings, `${locale.id}: ${key}`).toHaveProperty(key)
+  }
 })
 
 it.each(['en_US', 'zh_CN', 'ja_JP', 'es_ES', 'fr_FR', 'de_DE', 'ru_RU', 'pt_BR'])('rejects a missing %s configuration', (id) => {

@@ -1,5 +1,5 @@
 /* Shared avatar */
-.avatar { display: inline-flex; align-items: center; justify-content: center; flex: none; overflow: hidden; border-radius: 50%;
+.avatar { display: inline-flex; align-items: center; justify-content: center; flex: none; overflow: hidden; border-radius: 50%; corner-shape: round;
   background: var(--dsw-alias-bg-skeleton); color: var(--dsw-alias-label-secondary); font-weight: 500; line-height: 1; }
 .avatarImage { display: block; width: 100%; height: 100%; object-fit: cover; }
 
@@ -9,7 +9,7 @@
 .trigger { user-select: none; display: flex; align-items: center; box-sizing: border-box; width: 100%; height: 44px; gap: 8px; padding: 6px;
   border: 0; border-radius: var(--dsw-radius-md); background: transparent; color: var(--dsw-alias-label-primary); font: inherit; font-size: 14px; cursor: pointer; }
 .trigger[data-collapsed='true'] { width: 36px; height: 36px; justify-content: center; gap: 0; padding: 0; }
-.trigger:hover { background: var(--dsw-alias-interactive-bg-hover); }
+@media (hover: hover) { .trigger:hover { background: var(--dsw-alias-interactive-bg-hover); } }
 .trigger:focus-visible { outline: var(--dsw-focus-ring-width) solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary)); outline-offset: 2px; }
 .triggerLabel { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .menuList[role='menu'] { min-width: 180px; max-width: 280px; padding: 4px; }

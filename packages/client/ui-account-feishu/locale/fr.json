@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Interface du compte Feishu",
+    "description": "Propose la connexion Feishu par code QR dans la barre latérale et les paramètres, et affiche le compte actuel."
+  }
+}

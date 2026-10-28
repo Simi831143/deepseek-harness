@@ -60,6 +60,7 @@
   margin-left: 6px;
   padding: 0 6px;
   border-radius: 999px;
+  corner-shape: round;
   font-size: 12px;
   line-height: 18px;
   color: var(--dsw-alias-label-secondary);
@@ -95,23 +96,6 @@
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
 }
 
-.card {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  min-width: 0;
-  box-sizing: border-box;
-  padding: 14px 16px;
-  border: 1px solid var(--dsw-alias-border-l3);
-  border-radius: 12px;
-  background: var(--dsw-alias-bg-layer-2);
-  transition: border-color 120ms ease;
-}
-
-.card:hover {
-  border-color: var(--dsw-alias-border-l4);
-}
-
 .cardOff {
   opacity: 0.6;
 }
@@ -131,7 +115,7 @@
   justify-content: center;
   width: 32px;
   height: 32px;
-  border-radius: 8px;
+  border-radius: var(--dsw-radius-sm);
   object-fit: cover;
   color: var(--dsw-alias-label-secondary);
   background: var(--dsw-alias-interactive-bg-hover);
@@ -228,15 +212,17 @@
   height: 28px;
   padding: 0;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--dsw-radius-sm);
   color: var(--dsw-alias-label-secondary);
   background: transparent;
   cursor: pointer;
 }
 
-.cardAction:hover {
-  color: var(--dsw-alias-label-primary);
-  background: var(--dsw-alias-interactive-bg-hover);
+@media (hover: hover) {
+  .cardAction:hover {
+    color: var(--dsw-alias-label-primary);
+    background: var(--dsw-alias-interactive-bg-hover);
+  }
 }
 
 .cardDescription {

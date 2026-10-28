@@ -71,14 +71,15 @@ export const FolderCloseArtwork = ({ size = 16, className, strokeWidth }: Weight
 )
 
 /**
- * Render shared skill geometry — a pickaxe with a sparkle — for product and reference icons.
+ * Render skill geometry — a magic wand with a large and a small sparkle — for reference icons;
+ * it matches the `skill-outline` product glyph.
  * @param props - Size, optional CSS class, and inherited stroke width.
  * @returns The decorative SVG artwork.
  */
 export const SkillOutlineArtwork = ({ size = 16, className, strokeWidth }: WeightedArtworkProps) => (
   <svg width={size} height={size} className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" strokeWidth={strokeWidth}>
-    <path d="M4.9 1.6Q12.2 2.1 12.7 9.4Q9.6 4.6 4.9 1.6Z" stroke="currentColor" strokeLinejoin="round" />
-    <path d="M9.15 5.15L1.9 12.4" stroke="currentColor" strokeLinecap="round" />
-    <path d="M12.6 10.3C12.6 11.83 13.37 12.6 14.9 12.6C13.37 12.6 12.6 13.37 12.6 14.9C12.6 13.37 11.83 12.6 10.3 12.6C11.83 12.6 12.6 11.83 12.6 10.3Z" stroke="currentColor" strokeLinejoin="round" />
+    <path d="M2.4 13.6L8.4 7.6" stroke="currentColor" strokeLinecap="round" />
+    <path d="M11 1.5C11 3.83 12.17 5 14.5 5C12.17 5 11 6.17 11 8.5C11 6.17 9.83 5 7.5 5C9.83 5 11 3.83 11 1.5Z" stroke="currentColor" strokeLinejoin="round" />
+    <path d="M13 10.4C13 11.47 13.53 12 14.6 12C13.53 12 13 12.53 13 13.6C13 12.53 12.47 12 11.4 12C12.47 12 13 11.47 13 10.4Z" stroke="currentColor" strokeLinejoin="round" />
   </svg>
 )

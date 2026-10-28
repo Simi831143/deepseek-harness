@@ -1,6 +1,6 @@
-DeepSeek Harness
-DeepSeek Harness
-Welcome to DeepSeek Harness
+LC Camera Agent
+LC Camera Agent
+Welcome to LC Camera Agent
 Build potential. Explore intelligence.
 Sign in
 Add API Key

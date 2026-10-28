@@ -40,8 +40,10 @@
   background: var(--dsw-alias-interactive-bg-hover);
 }
 
-.chip.skill:hover {
-  background: var(--dsw-alias-interactive-bg-active);
+@media (hover: hover) {
+  .chip.skill:hover {
+    background: var(--dsw-alias-interactive-bg-active);
+  }
 }
 
 .chip.skill .icon {

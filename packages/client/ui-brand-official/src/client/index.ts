@@ -1,4 +1,4 @@
-/** Official brand occupants for the generic browser-brand slots. */
+/** LC Camera Agent brand occupants for the browser sidebar slots. */
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 // Type-only: pulls the locale plugin's Context merge (ctx.locale).
 import type {} from '@deepseek-ai/dsh-client-locale/client'
@@ -9,7 +9,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
 // Type-only: pulls the locale namespace table this package merges into.
 import type {} from '@deepseek-ai/dsh-client-ui-slots'
 import { OfficialBrandMark, OfficialBrandName } from './Brand.tsx'
-import { en, zh, type BrandKey } from './locales.ts'
+import { en, ja, es, fr, de, ru, pt, zh, type BrandKey } from './locales.ts'
 
 export type { BrandKey } from './locales.ts'
 
@@ -27,14 +27,12 @@ const NS = 'brand'
 export const inject = ['slots', 'locale']
 
 /**
- * Fill the sidebar brand slots as one declaration-aware registration set. The
- * conversation hero stays on its declaring package's animated fish fallback,
- * so the official build registers nothing there.
+ * Fill the sidebar brand slots in every build profile as one declaration-aware
+ * registration set. The conversation hero retains its declaring package's fallback.
  * @param ctx - Client root context.
  */
 export function apply(ctx: ClientContext): void {
-  ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-brand-official: dictionaries')
-  if (process.env.DSH_CLIENT_BUILD_PROFILE !== 'official') return
+  ctx.effect(() => ctx.locale.register(NS, { zh, en, ja, es, fr, de, ru, pt }), 'ui-brand-official: dictionaries')
   ctx.slots.inject('sidebar.brand.mark', () =>
     ctx.slots.inject('sidebar.brand.name', function* () {
       yield ctx.slots.register({ name: 'sidebar.brand.mark' }, OfficialBrandMark)

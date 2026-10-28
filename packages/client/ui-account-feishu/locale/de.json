@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Feishu-Kontooberfläche",
+    "description": "Bietet die Feishu-Anmeldung per QR-Code in der Seitenleiste und den Einstellungen und zeigt das aktuelle Konto an."
+  }
+}

@@ -7,7 +7,7 @@ import type { AccountClientMetadata } from '@deepseek-ai/dsh-deepseek-account/ty
 import { createFeishuAccountStore, type FeishuAccountActions, type FeishuSession } from './account-store.ts'
 import { FeishuAccountMenu } from './FeishuAccountMenu.tsx'
 import { FeishuAccountSection } from './FeishuAccountSection.tsx'
-import { en, zh, type FeishuAccountKey } from './locales.ts'
+import { en, ja, es, fr, de, ru, pt, zh, type FeishuAccountKey } from './locales.ts'
 import type { HostObservable } from '@deepseek-ai/dsh-client-ui-slots'
 
 /** Locale namespace owned by the Feishu account UI. */
@@ -30,7 +30,7 @@ export interface FeishuAccountFace extends FeishuAccountActions {
  * @param ctx - browser plugin context.
  */
 export function apply(ctx: ClientContext): void {
-  ctx.effect(() => ctx.locale.register(NS, { en, zh }), 'ui-account-feishu: dictionaries')
+  ctx.effect(() => ctx.locale.register(NS, { zh, en, ja, es, fr, de, ru, pt }), 'ui-account-feishu: dictionaries')
   const client = (): AccountClientMetadata => ({
     version: process.env.DSH_CLIENT_VERSION ?? '', locale: ctx.locale.getSnapshot().active,
     timezoneOffsetSeconds: -new Date().getTimezoneOffset() * 60,

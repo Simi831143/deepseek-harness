@@ -251,8 +251,8 @@ function userApi(state: {
     copySid,
     getLastError: vi.fn(() => 5),
     formatMessageW: vi.fn(() => 0),
-  } as unknown as Win32Bindings
-  return { api, copySid }
+  }
+  return { api: stubBindings(api), copySid }
 }
 
 describe('findUserSid failure paths', () => {

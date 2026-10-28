@@ -9,8 +9,9 @@
  */
 
 import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
-import { join, resolve } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 import { parseArgs } from 'node:util'
+import { withFileLock } from '../../packages/util/atomic-write/src/index.ts'
 import { pnpmInvocation } from '../pnpm-invocation.ts'
 import { releaseFamily, tarballName, type ReleaseFamily, type ReleaseMember } from './families.ts'
 import { isEntry, runConcurrent } from './process.ts'
@@ -114,10 +115,13 @@ async function main(): Promise<void> {
   const root = process.cwd()
   const destination = resolve(root, values.out ?? DEFAULT_OUTPUT)
   family.verifyBuildArtifacts(root)
-  const order = await packFamilyMembers(root, family, destination, concurrency)
-  writeFileSync(join(destination, PUBLISH_ORDER_FILE), `${order.join('\n')}\n`)
+  mkdirSync(dirname(destination), { recursive: true })
+  await withFileLock(destination, async () => {
+    const order = await packFamilyMembers(root, family, destination, concurrency)
+    writeFileSync(join(destination, PUBLISH_ORDER_FILE), `${order.join('\n')}\n`)
 
-  console.log(`release pack: family ${family.id}, ${String(order.length)} tarball(s) in ${values.out ?? DEFAULT_OUTPUT}`)
+    console.log(`release pack: family ${family.id}, ${String(order.length)} tarball(s) in ${values.out ?? DEFAULT_OUTPUT}`)
+  }, { waitMs: 5_000 })
 }
 
 if (isEntry(import.meta.url)) await main()

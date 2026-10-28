@@ -19,7 +19,7 @@ import type { HostObservable } from '@deepseek-ai/dsh-client-ui-slots'
 import type { MarketItemView } from '@deepseek-ai/dsh-market/types'
 import marketRemote from '@deepseek-ai/dsh-market/remote'
 import marketSkillsRemote from '@deepseek-ai/dsh-market-skills/remote'
-import { en, zh, type MarketLocaleKey } from './locales.ts'
+import { en, ja, es, fr, de, ru, pt, zh, type MarketLocaleKey } from './locales.ts'
 import { createMarketStore, type MarketActions, type MarketState } from './market-store.ts'
 import { MarketPage, SKILL_CREATOR } from './MarketPage.tsx'
 import { MarketPanelIcon } from './MarketPanelIcon.tsx'
@@ -84,7 +84,7 @@ function skillTitles(market: HostObservable<MarketState>, language: HostObservab
 }
 
 function registerUi(ctx: Context): void {
-  ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-market: dictionaries')
+  ctx.effect(() => ctx.locale.register(NS, { zh, en, ja, es, fr, de, ru, pt }), 'ui-market: dictionaries')
   const t = ctx.locale.bind(NS)
   const stream = ctx.remote.$stream({
     name: 'market', open: signal => ctx.remote.market.watch(signal), ended: () => new Error('market stream ended'),

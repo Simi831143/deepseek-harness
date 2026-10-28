@@ -43,15 +43,8 @@ describe('official browser-brand plugin', () => {
     expect(inject).toEqual(['slots', 'locale'])
   })
 
-  it('leaves every slot empty outside the official build profile', async () => {
-    vi.stubEnv('DSH_CLIENT_BUILD_PROFILE', 'local')
-    const subject = await bench()
-    await subject.ctx.plugin({ inject: [...inject], apply }).await()
-    for (const hole of HOLES) expect(subject.slots.entries(hole)).toHaveLength(0)
-  })
-
-  it('fills declarations before or after apply and removes every occupant on teardown', async () => {
-    vi.stubEnv('DSH_CLIENT_BUILD_PROFILE', 'official')
+  it.each(['official', 'local'])('fills declarations and removes every occupant on teardown in %s builds', async (profile) => {
+    vi.stubEnv('DSH_CLIENT_BUILD_PROFILE', profile)
     const before = await bench()
     const fiber = before.ctx.plugin({ inject: [...inject], apply })
     await fiber.await()
@@ -81,8 +74,8 @@ describe('official browser-brand plugin', () => {
     expect(subject.slots.entries(HERO_HOLE)).toHaveLength(0)
   })
 
-  it('renders the dictionary product name inside the occupant and both requested mark sizes', async () => {
-    vi.stubEnv('DSH_CLIENT_BUILD_PROFILE', 'official')
+  it.each(['official', 'local'])('renders the product name and both requested mark sizes in %s builds', async (profile) => {
+    vi.stubEnv('DSH_CLIENT_BUILD_PROFILE', profile)
     const subject = await bench()
     await subject.ctx.plugin({ inject: [...inject], apply }).await()
 

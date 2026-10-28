@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Marché",
+    "description": "Lit le catalogue publié du marché, vérifie et installe ses éléments, et enregistre les éléments installés."
+  }
+}

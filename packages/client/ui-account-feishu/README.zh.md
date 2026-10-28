@@ -47,7 +47,7 @@ kind: "package-reference"
 | [`src/client/FeishuAccountMenu.tsx`](src/client/FeishuAccountMenu.tsx) | 侧边栏入口及其菜单 |
 | [`src/client/FeishuAccountSection.tsx`](src/client/FeishuAccountSection.tsx) | 设置账号页 |
 | [`src/client/attempt-status.tsx`](src/client/attempt-status.tsx) | 共用的登录进度提示、链接兜底和失败文案 |
-| [`src/client/locales.ts`](src/client/locales.ts) | 中英文文案 |
+| [`src/client/locales.ts`](src/client/locales.ts) | 所有界面语言的文案 |
 | [`tsdown.config.ts`](tsdown.config.ts) | Client bundle 入口配置 |
 
 </details>

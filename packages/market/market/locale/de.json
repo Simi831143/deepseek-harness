@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Markt",
+    "description": "Liest den veröffentlichten Marktkatalog, prüft und installiert Einträge und erfasst installierte Einträge."
+  }
+}

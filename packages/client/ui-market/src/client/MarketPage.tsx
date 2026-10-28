@@ -13,6 +13,7 @@ import type { MarketFace } from './index.ts'
 import { ItemIcon } from './ItemIcon.tsx'
 import type { createMarketNavigation } from './navigation-store.ts'
 import { SkillDetail } from './SkillDetail.tsx'
+import cardCss from './MarketCard.module.css'
 import css from './MarketPage.module.css'
 
 /** Props the `main` slot assembles for the market page. */
@@ -151,7 +152,7 @@ function SkillCard(props: MarketPageProps & {
   const upToDate = item.installedVersion !== undefined && item.installedVersion === item.version
   // The title button covers the card (see .cardOpen), so a click anywhere but the install button opens the detail.
   return (
-    <li className={clsx(css.card, css.cardClickable)}>
+    <li className={clsx(cardCss.card, css.cardClickable)}>
       <div className={css.cardHead}>
         <ItemIcon item={item} className={css.icon} glyphSize={18} />
         <div className={css.cardTitleBlock}>
@@ -277,7 +278,7 @@ function InstalledCard(props: MarketPageProps & { display: InstalledDisplay; bus
   const { display: { skill, catalog, title, description }, busy, t, onOpen } = props
   // The title button covers the card (see .cardOpen), so a click anywhere but the switch opens the detail.
   return (
-    <li className={clsx(css.card, css.cardClickable, !skill.enabled && css.cardOff)}>
+    <li className={clsx(cardCss.card, css.cardClickable, !skill.enabled && css.cardOff)}>
       <div className={css.cardHead}>
         {catalog === undefined
           ? <span className={css.letter} aria-hidden="true">{skill.name.slice(0, 1).toUpperCase()}</span>

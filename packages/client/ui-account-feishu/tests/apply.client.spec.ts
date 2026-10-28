@@ -11,9 +11,10 @@ const manifest = JSON.parse(readFileSync(resolve(import.meta.dirname, '../packag
   name: string
   dsh: { client: { inject: string[] } }
 }
+// The account-feishu bundle disables the upstream account card; both occupy the `account` Settings section.
 const it = createClientTest({ roster: ClientRoster.of([...webApp.rows, {
   name: manifest.name, inject: manifest.dsh.client.inject, immediately: false,
-}]) })
+}]).without(['@deepseek-ai/dsh-client-ui-settings-account']) })
 const view: AccountView = { status: 'signed-out', links: { usageUrl: '', topUpUrl: '' }, attempt: null }
 
 function face(c: TestClient, slot: 'settings.launcher' | 'settings.section'): FeishuAccountFace {

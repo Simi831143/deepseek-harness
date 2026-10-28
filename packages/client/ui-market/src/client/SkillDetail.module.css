@@ -21,7 +21,7 @@
   justify-content: center;
   width: 56px;
   height: 56px;
-  border-radius: 14px;
+  border-radius: var(--dsw-radius-md);
   object-fit: cover;
   color: var(--dsw-alias-label-secondary);
   background: var(--dsw-alias-interactive-bg-hover);
@@ -94,8 +94,8 @@
   flex-direction: column;
   gap: 8px;
   padding: 12px 14px;
-  border: 1px solid var(--dsw-alias-border-l3);
-  border-radius: 10px;
+  border: 0.5px solid var(--dsw-alias-border-l3);
+  border-radius: var(--dsw-radius-md);
   background: var(--dsw-alias-bg-module-platform);
 }
 
@@ -161,8 +161,10 @@
   max-height: 360px;
   overflow: auto;
   padding: 12px 14px;
-  border-radius: 10px;
+  border-radius: var(--dsw-radius-md);
   background: var(--dsw-alias-bg-module-platform);
+  --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
+  --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
 }
 
 .document :global(mark[data-overview-hit]) {
@@ -226,7 +228,7 @@
   box-sizing: border-box;
   padding: 10px 14px;
   border: 0;
-  border-radius: 10px;
+  border-radius: var(--dsw-radius-md);
   color: var(--dsw-alias-label-primary);
   background: var(--dsw-alias-bg-module-platform);
   font: inherit;
@@ -235,8 +237,10 @@
   transition: background-color 120ms ease;
 }
 
-.example:hover:not(:disabled) {
-  background: var(--dsw-alias-interactive-bg-hover);
+@media (hover: hover) {
+  .example:hover:not(:disabled) {
+    background: var(--dsw-alias-interactive-bg-hover);
+  }
 }
 
 .example:focus-visible {
@@ -270,7 +274,7 @@
   gap: 24px;
   margin: 0;
   padding: 10px 14px;
-  border-radius: 10px;
+  border-radius: var(--dsw-radius-md);
   background: var(--dsw-alias-bg-module-platform);
 }
 

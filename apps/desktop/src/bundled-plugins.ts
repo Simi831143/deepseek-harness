@@ -235,7 +235,8 @@ function readJson(path: string): unknown {
     throw error
   }
   try {
-    return JSON.parse(text) as unknown
+    const value: unknown = JSON.parse(text)
+    return value
   } catch (error) {
     throw new Error(`desktop bundled plugins: ${path} is not valid JSON: ${error instanceof Error ? error.message : String(error)}`)
   }

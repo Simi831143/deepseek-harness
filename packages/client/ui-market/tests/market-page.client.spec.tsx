@@ -37,7 +37,7 @@ it('starts 创建技能 with the skill-creator chip and the request template aft
     trySkill: vi.fn(),
   }
   // The page reads only these members of its props before the menu pick.
-  render(<MarketPage {...(props as unknown as MarketPageProps)} />)
+  render(<MarketPage {...Object.assign({} as MarketPageProps, props)} />)
   fireEvent.click(screen.getByRole('button', { name: zh.addSkill }))
   fireEvent.click(screen.getByRole('menuitem', { name: new RegExp(zh.addCreate) }))
   expect(props.trySkill).toHaveBeenCalledWith('skill-creator', '请帮我创建一个可以实现「」的技能')

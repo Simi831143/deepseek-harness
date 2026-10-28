@@ -25,6 +25,7 @@ function failureCopy(failure: DesktopUpdateFailureKind | undefined, t: SettingsT
     'stop-failed': t('desktop.update.stopFailed'),
     'tasks-changed': t('desktop.update.tasksChanged'),
     'tasks-unavailable': t('desktop.update.tasksUnavailable'),
+    'fullscreen-timeout': t('desktop.update.fullscreenTimeout'),
   }
   return failures[failure ?? 'install']
 }
