@@ -1,0 +1,16 @@
+# Bilingual-pair consistency record for guide.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write docs/upgrade-guide/v0.2.1-rc.3/desktop-anysearch-package-rename/guide.md
+/:
+  en: 8ce903dd622a8775
+  zh: f1b4b39e3636c935
+/desktop-s-bundled-anysearch-plugin-is-renamed-anysearch-search:
+  en: 224e7b53b12db8aa
+  zh: e7a533e495a483ee
+/desktop-s-bundled-anysearch-plugin-is-renamed-anysearch-search/change:
+  en: 37154de8fc5d37a9
+  zh: eedc530d20420199
+/desktop-s-bundled-anysearch-plugin-is-renamed-anysearch-search/migration:
+  en: 51d9df35b4737fc4
+  zh: d1f2389526dc7c5d

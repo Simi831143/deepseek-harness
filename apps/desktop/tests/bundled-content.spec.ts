@@ -275,7 +275,7 @@ describe('bundled sources', () => {
     expect(mattpocock.map(source => source.skills?.root)).toEqual(['skills/engineering', 'skills/productivity'])
     for (const source of mattpocock) expect(source).toMatchObject({ branch: 'main', license: 'LICENSE' })
     expect(mattpocock.flatMap(source => source.skills?.names ?? [])).toEqual(['diagnosing-bugs', 'grilling', 'writing-for-agents'])
-    expect(plugins).toEqual(['dsh-bundle-anysearch-search'])
+    expect(plugins).toEqual(['anysearch-search'])
     expect(new Set(skills).size).toBe(skills.length)
     for (const name of skills) expect(name).toMatch(/^[a-z0-9]+(?:-[a-z0-9]+)*$/u)
   })

@@ -54,7 +54,7 @@ export const BUNDLED_SOURCES = [
     license: 'LICENSE',
     skills: { root: 'skills/productivity', names: ['grilling', 'writing-for-agents'] },
   },
-  { checkout: 'dsh-bundle-anysearch-search', plugin: 'dsh-bundle-anysearch-search' },
+  { checkout: 'anysearch-search', plugin: 'anysearch-search' },
 ]
 
 /** Environment override for the directory holding the source checkouts. */
