@@ -24,6 +24,7 @@ Build Desktop installers locally or through Windows or macOS Actions, choose dep
 - [Local Official bundles from a loopback registry](#local-official-bundles-from-a-loopback-registry)
 - [Runtime file selection and installation checks](#runtime-file-selection)
 - [Bundled Scrapling MCP](#bundled-scrapling-mcp)
+- [Bundled Cua Driver MCP](#bundled-cua-driver-mcp)
 - [Desktop runtime preparation](#desktop-runtime-preparation)
 - [Installation and release verification](#verification)
 
@@ -285,6 +286,20 @@ The Windows pipeline runs [`prepare-scrapling-runtime.ts`](../scripts/prepare-sc
 [`smoke-scrapling-runtime.ts`](../scripts/smoke-scrapling-runtime.ts) starts the real stdio server from a relocated resource with an empty PATH and browser cache, then checks MCP discovery, HTTP requests, JavaScript rendering, stealthy fetch, screenshot output, persistent session use and session closure against a private local fixture. [`smoke-packaged-runtime.ts`](../scripts/smoke-packaged-runtime.ts) repeats that check against the final Windows application resources. These checks do not require an LLM key.
 
 Scrapling still follows the target website's access rules, robots policy, authentication and network availability. Dynamic and stealthy fetches require the bundled Chromium process and may be slower or fail when a site blocks automation; the bundle does not promise access to restricted content or bypass a site's controls. The complete installer is a separate packaging operation: confirm its full version string before running the packaging command, as required by [Release versions](#release-versions).
+
+<a id="bundled-cua-driver-mcp"></a>
+
+## Bundled Cua Driver MCP
+
+Windows builds include Cua Driver 0.38.0 under `resources/runtime/cua-driver`: the `cua-driver.exe` from the upstream `cua-driver-rs-v0.38.0` windows-x86_64 release, which Cua AI, Inc. signs, and its MIT license and third-party notices. The release's SDK libraries and its UIAccess worker are omitted, because `cua-driver mcp` runs the driver inside its own process and a per-user installation cannot grant the worker UIAccess integrity.
+
+Desktop Host registers this payload as the `cua-driver` stdio MCP server and starts `cua-driver.exe mcp` with `CUA_DRIVER_RS_TELEMETRY_ENABLED=0`, so the driver sends no usage events to its upstream telemetry service. The driver exits when the MCP connection closes. Its tools reach the model as `mcp__cua-driver__<tool>`, and window-state text carries the snapshot id from which the model forms element tokens. Other Desktop targets do not include this Windows-only resource.
+
+The Windows pipeline runs [`prepare-cua-driver-runtime.ts`](../scripts/prepare-cua-driver-runtime.ts) after `prepare:scrapling`. It downloads the locked release archive, verifies its SHA-256 digest, and swaps a complete staged directory into `runtime/cua-driver`. Signing keeps the upstream signature and fails on an invalid one. The lock data is in [`cua-driver-lock.json`](../scripts/cua-driver-lock.json); upgrading the driver means replacing its version, URL, digest and archive directory.
+
+[`smoke-cua-driver-runtime.ts`](../scripts/smoke-cua-driver-runtime.ts) starts the real stdio server from a relocated resource, then checks the locked server version, the discovery of the tools the computer-use workflow needs, and a permission probe that drives no window. [`smoke-packaged-runtime.ts`](../scripts/smoke-packaged-runtime.ts) repeats that check against the final Windows application resources. These checks do not require an LLM key.
+
+The driver operates the same desktop as the user, and every Desktop Session shares it. Background input routes through accessibility and posted messages; Chromium and Electron windows refuse some background input and need a foreground retry, which briefly activates the target window. A profile that also defines an MCP server named `cua-driver` conflicts with this registration, so remove that entry before installing a build that bundles the driver.
 
 <a id="desktop-runtime-preparation"></a>
 

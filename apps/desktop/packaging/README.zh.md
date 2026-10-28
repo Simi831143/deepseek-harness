@@ -24,6 +24,7 @@ description: "在本地或 Windows／macOS Actions 中生成 Desktop 安装包�
 - [用回环 registry 安装本地 Official 包](#local-official-bundles-from-a-loopback-registry)
 - [运行时文件筛选与安装检查](#runtime-file-selection)
 - [内置 Scrapling MCP](#bundled-scrapling-mcp)
+- [内置 Cua Driver MCP](#bundled-cua-driver-mcp)
 - [Desktop 运行时准备](#desktop-runtime-preparation)
 - [安装与发布验收](#verification)
 
@@ -285,6 +286,20 @@ Windows 流水线在 `prepare:runtime` 后运行[`prepare-scrapling-runtime.ts`]
 [`smoke-scrapling-runtime.ts`](../scripts/smoke-scrapling-runtime.ts) 从重定位后的资源启动真实 stdio 服务器，使用空 PATH 和浏览器缓存，然后针对私有本地 fixture 检查 MCP 发现、HTTP 请求、JavaScript 渲染、stealthy fetch、截图输出、持久会话使用和会话关闭。[`smoke-packaged-runtime.ts`](../scripts/smoke-packaged-runtime.ts) 会针对最终 Windows 应用资源再次执行这项检查。这些检查不需要 LLM key。
 
 Scrapling 仍遵循目标网站的访问规则、robots 策略、身份验证和网络可用性。动态抓取和 stealthy fetch 需要内置 Chromium 进程；网站阻止自动化时，它们可能变慢或失败；该载荷不承诺访问受限内容，也不绕过网站控制。完整安装包是单独的打包操作：运行打包命令前先确认完整版本字符串，具体要求见[发布版本](#release-versions)。
+
+<a id="bundled-cua-driver-mcp"></a>
+
+## 内置 Cua Driver MCP
+
+Windows 构建会在 `resources/runtime/cua-driver` 中包含 Cua Driver 0.38.0：上游 `cua-driver-rs-v0.38.0` windows-x86_64 发布中由 Cua AI, Inc. 签名的 `cua-driver.exe`，以及它的 MIT 许可证和第三方声明。发布中的 SDK 库和 UIAccess worker 不随包携带，因为 `cua-driver mcp` 在自身进程内运行驱动，而按用户安装无法为该 worker 授予 UIAccess 完整性级别。
+
+Desktop Host 将该载荷注册为名为 `cua-driver` 的 stdio MCP 服务器，并在 `CUA_DRIVER_RS_TELEMETRY_ENABLED=0` 下启动 `cua-driver.exe mcp`，因此驱动不会向上游遥测服务发送使用事件。MCP 连接关闭时驱动退出。其工具以 `mcp__cua-driver__<tool>` 的名称提供给模型，窗口状态文本带有快照 id，模型据此组成元素 token。其他 Desktop 目标不包含这个 Windows 专用资源。
+
+Windows 流水线在 `prepare:scrapling` 后运行[`prepare-cua-driver-runtime.ts`](../scripts/prepare-cua-driver-runtime.ts)。它下载锁定的发布压缩包，校验其 SHA-256 摘要，然后将完整暂存目录替换到 `runtime/cua-driver`。签名阶段保留上游签名，签名无效时失败。锁定数据位于[`cua-driver-lock.json`](../scripts/cua-driver-lock.json)；升级驱动需要替换其中的版本、URL、摘要和压缩包目录。
+
+[`smoke-cua-driver-runtime.ts`](../scripts/smoke-cua-driver-runtime.ts) 从重定位后的资源启动真实 stdio 服务器，然后检查锁定的服务器版本、计算机操作流程所需工具的发现结果，以及一次不操作任何窗口的权限探测。[`smoke-packaged-runtime.ts`](../scripts/smoke-packaged-runtime.ts) 会针对最终 Windows 应用资源再次执行这项检查。这些检查不需要 LLM key。
+
+驱动与用户操作同一个桌面，所有 Desktop 会话共用它。后台输入经由无障碍接口和投递消息；Chromium 和 Electron 窗口会拒绝部分后台输入，需要前台重试，重试时会短暂激活目标窗口。如果 profile 也定义了名为 `cua-driver` 的 MCP 服务器，会与此注册冲突，因此安装内置驱动的构建前需要删除该条目。
 
 <a id="desktop-runtime-preparation"></a>
 

@@ -525,7 +525,10 @@ export async function packageTarget(
     await pack()
     await prepareRuntime()
   }
-  if (target.platform === 'win32') await execute(['run', 'prepare:scrapling'], downloadEnv)
+  if (target.platform === 'win32') {
+    await execute(['run', 'prepare:scrapling'], downloadEnv)
+    await execute(['run', 'prepare:cua-driver'], downloadEnv)
+  }
   if (signPrimaryRuntime) await execute(['run', 'sign:primary-runtime'], electronBuilderEnv)
   await execute(['run', 'prepare:packages'], targetEnv)
   await execute(['run', 'prepare:dsh', ...(signPrimaryRuntime ? ['--defer-runtime-smoke'] : [])], downloadEnv)

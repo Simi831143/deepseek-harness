@@ -1,6 +1,5 @@
 /** Assemble the Windows Scrapling MCP without requiring Python or pip on the build host. */
 import { cpSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
-import { rename } from 'node:fs/promises'
 import { join } from 'node:path'
 import extractZip from 'extract-zip'
 import { x as extractTar } from 'tar'
@@ -8,27 +7,7 @@ import { downloadPrimaryRuntimeAsset } from '../../../scripts/primary-runtime/pr
 import pythonLock from '../../../scripts/primary-runtime/lock.json' with { type: 'json' }
 import lock from './scrapling-lock.json' with { type: 'json' }
 import { resolveDesktopBuildTarget, resolveDesktopTargetBuildPaths } from './desktop-build-paths.mjs'
-
-// Windows endpoint scanners can hold a handle while they inspect a newly extracted tree.
-// Keep the complete staged directory intact for the same 60-second window as the installer.
-const DIRECTORY_REPLACE_ATTEMPTS = 240
-const DIRECTORY_REPLACE_DELAY_MS = 250
-
-async function replacePreparedDirectory(source: string, destination: string): Promise<void> {
-  let lastError: Error | undefined
-  for (let attempt = 0; attempt < DIRECTORY_REPLACE_ATTEMPTS; attempt++) {
-    try {
-      await rename(source, destination)
-      return
-    } catch (error) {
-      const code = error instanceof Error && 'code' in error ? String(error.code) : undefined
-      if (code !== 'EPERM' && code !== 'EACCES' && code !== 'EBUSY') throw error
-      lastError = error instanceof Error ? error : new Error(String(error), { cause: error })
-      await new Promise<void>(resolve => setTimeout(resolve, DIRECTORY_REPLACE_DELAY_MS))
-    }
-  }
-  throw lastError ?? new Error(`Scrapling runtime: unable to replace ${destination}`)
-}
+import { replacePreparedDirectory } from './prepared-directory.ts'
 
 /**
  * Download checksum-locked Python, MCP libraries and Chromium to external application resources.
@@ -66,7 +45,7 @@ export async function prepareScraplingRuntime(): Promise<void> {
     }, undefined, 2)}\n`)
     const destination = join(paths.runtime, 'scrapling')
     rmSync(destination, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 })
-    await replacePreparedDirectory(staging, destination)
+    await replacePreparedDirectory(staging, destination, 'Scrapling runtime')
   } finally {
     rmSync(staging, { recursive: true, force: true })
   }

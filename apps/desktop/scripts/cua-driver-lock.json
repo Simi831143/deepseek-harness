@@ -1,0 +1,8 @@
+{
+  "cuaDriverVersion": "0.38.0",
+  "archive": {
+    "url": "https://github.com/trycua/cua/releases/download/cua-driver-rs-v0.38.0/cua-driver-rs-0.38.0-windows-x86_64.zip",
+    "sha256": "997f20114ad3db227a854e1e5a886234f76405b155f4af70605d4b7ca4a436a1",
+    "directory": "cua-driver-rs-0.38.0-windows-x86_64"
+  }
+}

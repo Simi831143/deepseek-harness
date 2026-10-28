@@ -12,6 +12,7 @@ import * as desktopOffice from './office.ts'
 import * as desktopBundledSkills from './bundled-skills.ts'
 import * as mcpClient from '@deepseek-ai/dsh-mcp-client'
 import { desktopScraplingConfig } from './scrapling.ts'
+import { desktopCuaDriverConfig } from './cua-driver.ts'
 import { localDragResource } from './file-drag.ts'
 
 import { installDesktopUpdateTaskControl } from './update-tasks.ts'
@@ -141,6 +142,8 @@ async function main(): Promise<void> {
   await ctx.plugin(desktopBundledSkills, { source: bundledPayload })
   const scrapling = desktopScraplingConfig(bundledPayload)
   if (scrapling !== undefined) await ctx.plugin(mcpClient, scrapling)
+  const cuaDriver = desktopCuaDriverConfig(bundledPayload)
+  if (cuaDriver !== undefined) await ctx.plugin(mcpClient, cuaDriver)
   installPlatformSessionPublisher(ctx, (session) => {
     if (process.connected) process.send?.({ type: 'platform-session', session })
   })
