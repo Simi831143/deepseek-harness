@@ -1,9 +1,9 @@
 /**
  * Market, browser half: the sidebar's Market entry, the page it opens in the
  * main column, and the toast that reports install outcomes. The page reads the
- * `market` and `marketSkills` Remote namespaces, which this plugin mounts
- * itself so the shared API Remotes package needs no market entry, and shows a
- * skill's folder through the `session` namespace's file-manager reveal.
+ * `market`, `marketSkills` and `marketConnectors` Remote namespaces, which this
+ * plugin mounts itself so the shared API Remotes package needs no market entry,
+ * and shows a skill's folder through the `session` namespace's file-manager reveal.
  */
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-api-remotes/client'
@@ -18,6 +18,7 @@ import type { SkillLabels } from '@deepseek-ai/dsh-client-ui-skill/client'
 import type { HostObservable } from '@deepseek-ai/dsh-client-ui-slots'
 import type { MarketItemView } from '@deepseek-ai/dsh-market/types'
 import marketRemote from '@deepseek-ai/dsh-market/remote'
+import marketConnectorsRemote from '@deepseek-ai/dsh-market-connectors/remote'
 import marketSkillsRemote from '@deepseek-ai/dsh-market-skills/remote'
 import { en, ja, es, fr, de, ru, pt, zh, type MarketLocaleKey } from './locales.ts'
 import { createMarketStore, type MarketActions, type MarketState } from './market-store.ts'
@@ -57,6 +58,11 @@ export interface MarketFace extends MarketActions {
    * @param skill - name of the skill to edit.
    */
   editSkill(skill: string): void
+  /**
+   * Open a new conversation whose composer holds a request to diagnose a connector, unsent.
+   * @param prompt - the request with the connector's configuration and failure.
+   */
+  diagnose(prompt: string): void
 }
 
 /** Where the edited skill's chip goes in the `promptEdit` copy. */
@@ -89,6 +95,9 @@ function registerUi(ctx: Context): void {
   const stream = ctx.remote.$stream({
     name: 'market', open: signal => ctx.remote.market.watch(signal), ended: () => new Error('market stream ended'),
   })
+  const connectorStream = ctx.remote.$stream({
+    name: 'marketConnectors', open: signal => ctx.remote.marketConnectors.watch(signal), ended: () => new Error('connector stream ended'),
+  })
   // The composer's skill list is cached per conversation; an install or switch must reach it.
   const skillsChanged = (): void => { ctx.get('uiSkill')?.refresh() }
   const afterSkillWrite = <T extends { ok: boolean }>(result: Promise<T>): Promise<T> => result.then((value) => {
@@ -106,8 +115,19 @@ function registerUi(ctx: Context): void {
     uninstallPersonal: request => afterSkillWrite(ctx.remote.marketSkills.uninstallPersonal(request)),
     canReveal: () => ctx.remote.session.canOpenWorkspacePath(),
     reveal: path => ctx.remote.session.openWorkspacePath({ path, action: 'reveal' }),
+    watchConnectors: () => connectorStream,
+    connectorList: () => ctx.remote.marketConnectors.connectorList(),
+    setConnectorEnabled: request => ctx.remote.marketConnectors.setConnectorEnabled(request),
+    retryConnector: request => ctx.remote.marketConnectors.retryConnector(request),
+    parseCustomConnectors: request => ctx.remote.marketConnectors.parseCustomConnectors(request),
+    saveCustomConnector: request => ctx.remote.marketConnectors.saveCustomConnector(request),
+    removeCustomConnector: request => ctx.remote.marketConnectors.removeCustomConnector(request),
+    saveConnectorSettings: request => ctx.remote.marketConnectors.saveConnectorSettings(request),
   })
-  ctx.effect(() => () => { store.dispose(); return stream.dispose() }, 'ui-market: market stream')
+  ctx.effect(() => () => {
+    store.dispose()
+    return Promise.all([stream.dispose(), connectorStream.dispose()]).then(() => undefined)
+  }, 'ui-market: market streams')
   const language: HostObservable<string> = {
     getSnapshot: () => ctx.locale.getSnapshot().active,
     subscribe: listener => ctx.locale.subscribe(listener),
@@ -130,7 +150,15 @@ function registerUi(ctx: Context): void {
     loadInstalledSkills: () => store.loadInstalledSkills(),
     setSkillsEnabled: (names, enabled) => store.setSkillsEnabled(names, enabled),
     readSkillDocument: skill => store.readSkillDocument(skill),
+    setConnectorEnabled: (id, enabled, confirmed, name) => store.setConnectorEnabled(id, enabled, confirmed, name),
+    retryConnector: (id, name) => store.retryConnector(id, name),
+    refreshConnectors: () => store.refreshConnectors(),
+    parseCustomConnectors: text => store.parseCustomConnectors(text),
+    saveCustomConnector: request => store.saveCustomConnector(request),
+    removeCustomConnector: name => store.removeCustomConnector(name),
+    saveConnectorSettings: (id, values) => store.saveConnectorSettings(id, values),
     dismissNotice: () => { store.dismissNotice() },
+    diagnose: (prompt) => { startSession(prompt) },
     trySkill: (skill, text) => {
       // Without the skill plugin the literal still loads the skill host-side; it just shows as text.
       startSession(ctx.get('uiSkill')?.draft(skill, text) ?? `/${skill} ${text}`)
@@ -164,22 +192,26 @@ function registerUi(ctx: Context): void {
  * @returns disposer joining UI and Remote withdrawal.
  */
 export async function apply(ctx: Context): Promise<() => Promise<void>> {
-  const disposeMarket = await ctx.remote.$mount(marketRemote)
-  let disposeSkills: (() => Promise<void>) | undefined
+  // Mounted in order and withdrawn in reverse; a failed mount withdraws the ones before it.
+  const mounted: (() => Promise<void>)[] = []
+  const withdraw = async (): Promise<void> => { for (const dispose of mounted.splice(0).reverse()) await dispose() }
   try {
-    disposeSkills = await ctx.remote.$mount(marketSkillsRemote)
+    for (const contribution of [marketRemote, marketSkillsRemote, marketConnectorsRemote]) {
+      mounted.push(await ctx.remote.$mount(contribution))
+    }
   } catch (error) {
-    await disposeMarket()
+    await withdraw()
     throw error
   }
-  const ui = ctx.inject(['remote.market', 'remote.marketSkills', 'remote.session', 'slots', 'locale', 'layout', 'uiWorkspace'], registerUi)
+  const ui = ctx.inject([
+    'remote.market', 'remote.marketSkills', 'remote.marketConnectors', 'remote.session', 'slots', 'locale', 'layout', 'uiWorkspace',
+  ], registerUi)
   try {
     await ui
   } catch (error) {
     await ui.dispose()
-    await disposeSkills()
-    await disposeMarket()
+    await withdraw()
     throw error
   }
-  return async () => { await ui.dispose(); await disposeSkills(); await disposeMarket() }
+  return async () => { await ui.dispose(); await withdraw() }
 }

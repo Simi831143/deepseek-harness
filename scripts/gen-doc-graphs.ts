@@ -454,7 +454,7 @@ const SERVICE_ROLES: ServiceRole[] = [
     title: 'Credential seam',
     mode: 'seam',
     implementations: ['credentials-local'],
-    consumers: ['api-settings-controller', 'llm-deepseek', 'llm-pi-ai'],
+    consumers: ['api-settings-controller', 'llm-deepseek', 'llm-pi-ai', 'market-connectors'],
     note: 'Configuration carries references to secrets; providers own the values. Consumers resolve per operation, so a rotated credential reaches the very next request; the settings controller exposes value-free views and write-only storage.',
   },
   {
@@ -654,7 +654,7 @@ const SERVICE_ROLES: ServiceRole[] = [
     pkg: 'market',
     title: 'Market catalog and package installation',
     mode: 'service',
-    consumers: ['market-skills', 'client-ui-market'],
+    consumers: ['market-skills', 'market-connectors', 'client-ui-market'],
     note: 'Loads the published catalog, owns verified package installation and removal, and exposes the current catalog and install state to Host and browser consumers.',
   },
   {
@@ -664,6 +664,14 @@ const SERVICE_ROLES: ServiceRole[] = [
     mode: 'service',
     consumers: ['client-ui-market'],
     note: 'Registers the market skill kind, projects installed skills into the shared registry, and exposes document and enablement operations to the browser.',
+  },
+  {
+    key: 'marketConnectors',
+    pkg: 'market-connectors',
+    title: 'Installed market connector management',
+    mode: 'service',
+    consumers: ['client-ui-market'],
+    note: 'Registers the market connector kind, starts each switched-on connector program as an mcp-client instance, and exposes connector state and switches to the browser.',
   },
   {
     key: 'agents',

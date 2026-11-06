@@ -92,6 +92,8 @@ kind: "package-reference"
 
 服务器连接断开时——例如本地服务器进程崩溃——插件会以从 500 ms 起逐次翻倍、上限 30 s 的延迟自动重连，并刷新工具集；重连进度在日志中可见。中断期间最后已知的工具仍会列出，但对它们的调用会失败，直到服务器恢复。连续失败十次后，该服务器的工具会被移除，重连停止，直到你重载配置或重启 harness；服务器持续连接一段时间后，该计数会重置。设置 `reconnect.enabled: false` 可禁用自动重连——此时工具在断开后仍会列出，但调用失败，直到你重载。编辑配置项会在原地重载服务器连接，未变的名称保持不变。
 
+本地服务器的 stderr 逐行写进 harness 日志，标签为 `mcp-client(<serverName>) stderr:`。不是合法 UTF-8 的行按 GBK 解码：中文 Windows 上 `cmd.exe` 和很多 Windows 程序按这个代码页输出。设置 `failOnStartupError: true` 时，首次连接失败会抛出 `McpStartupError`，它的 `stderr` 字段是服务器最后 50 行输出，总长不超过 8 KB，调用方可以据此说明服务器为什么没起来。Streamable HTTP 服务器没有 stderr，这个字段为空。
+
 -----
 
 <a id="understand-the-implementation"></a>
@@ -118,7 +120,8 @@ kind: "package-reference"
 | [`src/connection.ts`](src/connection.ts) | 连接监督器：客户端世代、重连策略、尝试预算、dispose（资源释放） |
 | [`src/server-context.ts`](src/server-context.ts) | 资源提供方注册与字面服务器指令 |
 | [`src/tools.ts`](src/tools.ts) | 工具桥接：发现、命名、注册交换、执行、图片投影 |
-| [`src/transport.ts`](src/transport.ts) | 传输工厂：带清洗环境的 stdio spawn、Streamable HTTP |
+| [`src/transport.ts`](src/transport.ts) | 传输工厂：带清洗环境和 stderr 管道的 stdio spawn、Streamable HTTP |
+| [`src/stderr.ts`](src/stderr.ts) | stderr 分行、先 UTF-8 后 GBK 的解码、有上限的末尾几行 |
 
 导出的 `createMcpToolDefinition(ctx, options)` 将上游工具 schema 和原始结果回调适配到相同的规范值、错误和持久化图像投影。每次回调都收到原样的 `ToolExecution`，包括其 Agent 和取消信号；SDK 的规范类型校验会在投影前检查返回结果。调用方负责注册、取消截止时间和提供方卸载。原生 Cua Driver 提供方使用此适配函数，无需打开 MCP 传输。
 
@@ -135,6 +138,8 @@ SDK 通过旧版通知或现代协议订阅接收工具列表变化。监督器�
 ### 环境清洗（stdio）
 
 子进程环境以子进程 seam 的 `scrubbedParentEnv()` 为基座——删除匹配 `/KEY|PASSWORD|SECRET|TOKEN/i` 的环境名称与所有 `DSH_*` 名称——再在其上合并配置的 `env`，因此显式覆盖得以保留。实际 spawn 由 MCP SDK 负责；本包共享清洗定义，而非 spawn 路径。
+
+监督器要求 stderr 走管道，并在 `start()` 之前挂上读取器，所以最早的输出也能读到。管道在子进程整个生命周期里一直被读：没人读的管道写满后，服务器会卡住。读取器按换行字节分行，超过 4 KB 仍没有换行时截断成一行，每行先用严格 UTF-8 解码，失败再用 GBK。SDK 的版本协商探测跑在一个兄弟进程上，那个进程的 stderr 被丢弃，所以只读会话进程的输出。末尾几行在首次失败的连接等到进程退出之后取出，这时重试计时器还没有触发。
 
 </details>
 

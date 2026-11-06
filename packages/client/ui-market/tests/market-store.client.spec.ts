@@ -1,11 +1,12 @@
 /** The market store follows the Host stream and reports each outcome once. */
 import type { MarketSnapshot } from '@deepseek-ai/dsh-market/types'
+import type { ConnectorView, ConnectorsValue } from '@deepseek-ai/dsh-market-connectors/types'
 import type { InstalledSkillsValue } from '@deepseek-ai/dsh-market-skills/types'
 import { expect, it, vi } from 'vitest'
 import { createMarketStore, type MarketRemote } from '../src/client/market-store.ts'
 
 function snapshot(patch: Partial<MarketSnapshot> = {}): MarketSnapshot {
-  return { revision: 1, source: 'remote', categories: [], featured: [], items: [], kinds: ['skill'], installing: [], ...patch }
+  return { revision: 1, source: 'remote', categories: [], featured: [], items: [], kinds: ['skill'], installing: [], progress: [], ...patch }
 }
 
 const installed: InstalledSkillsValue = {
@@ -25,9 +26,116 @@ function remote(frames: MarketSnapshot[], patch: Partial<MarketRemote> = {}): Ma
     uninstallPersonal: vi.fn(() => Promise.resolve({ ok: true as const, value: { complete: true, skills: [] } })),
     canReveal: vi.fn(() => Promise.resolve({ ok: true as const, value: true })),
     reveal: vi.fn(() => Promise.resolve({ ok: true as const, value: { opened: true } })),
+    async *watchConnectors() { /* no connector kind */ },
+    connectorList: vi.fn(() => Promise.resolve({ ok: true as const, value: { revision: 1, connectors: [] } })),
+    setConnectorEnabled: vi.fn(() => Promise.resolve({ ok: true as const, value: { revision: 1, connectors: [] } })),
+    retryConnector: vi.fn(() => Promise.resolve({ ok: true as const, value: { revision: 1, connectors: [] } })),
+    parseCustomConnectors: vi.fn(() => Promise.resolve({ ok: true as const, value: { entries: [] } })),
+    saveCustomConnector: vi.fn(() => Promise.resolve({ ok: true as const, value: { revision: 1, connectors: [] } })),
+    removeCustomConnector: vi.fn(() => Promise.resolve({ ok: true as const, value: { revision: 1, connectors: [] } })),
+    saveConnectorSettings: vi.fn(() => Promise.resolve({ ok: true as const, value: { revision: 1, connectors: [] } })),
     ...patch,
   }
 }
+
+const echoLab: ConnectorView = { id: 'echo-lab', origin: 'market', enabled: true, confirmed: true, state: 'connected', launch: { command: 'server.cmd', args: [] } }
+
+it('follows the connector stream and keeps a connector busy only while its switch is written', async () => {
+  let release!: () => void
+  const pending = new Promise<void>((resolve) => { release = resolve })
+  const setConnectorEnabled = vi.fn(async () => {
+    await pending
+    return { ok: true as const, value: { revision: 1, connectors: [echoLab] } }
+  })
+  const store = createMarketStore(remote([], {
+    async *watchConnectors() { yield { value: { revision: 1, connectors: [{ ...echoLab, enabled: false, state: 'off' as const }] }, accept: () => {} } },
+    setConnectorEnabled,
+  }))
+  await vi.waitFor(() => { expect(store.state.getSnapshot().connectors?.connectors[0]?.state).toBe('off') })
+  const write = store.setConnectorEnabled('echo-lab', true, true, 'Echo')
+  expect(store.state.getSnapshot().connectorBusy).toEqual(['echo-lab'])
+  release()
+  expect(await write).toBe(true)
+  expect(setConnectorEnabled).toHaveBeenCalledWith({ id: 'echo-lab', enabled: true, confirmed: true })
+  expect(store.state.getSnapshot()).toMatchObject({ connectorBusy: [], connectors: { revision: 1, connectors: [echoLab] } })
+})
+
+it('reports a connector switch the Host refused and leaves acceptance out of a plain switch', async () => {
+  const setConnectorEnabled = vi.fn(() => Promise.resolve({ ok: false as const, error: { message: 'connector echo-lab runs a program the user has not accepted' } }))
+  const store = createMarketStore(remote([], { setConnectorEnabled }))
+  expect(await store.setConnectorEnabled('echo-lab', true, false, 'Echo')).toBe(false)
+  expect(setConnectorEnabled).toHaveBeenCalledWith({ id: 'echo-lab', enabled: true })
+  expect(store.state.getSnapshot().notice).toMatchObject({ kind: 'connect-failed', name: 'Echo' })
+})
+
+it('keeps a newer stream frame over a retry result that arrives late, and takes every frame after a Host restart', async () => {
+  const failed: ConnectorView = { ...echoLab, state: 'failed', error: 'connection refused' }
+  const frames: { readonly value: ConnectorsValue; accept(): void }[] = []
+  let wake: (() => void) | undefined
+  const push = (value: ConnectorsValue): void => { frames.push({ value, accept: () => {} }); wake?.() }
+  let answer!: (value: ConnectorsValue) => void
+  const retryConnector = vi.fn(() => new Promise<{ ok: true; value: ConnectorsValue }>((resolve) => {
+    answer = (value) => { resolve({ ok: true, value }) }
+  }))
+  const store = createMarketStore(remote([], {
+    async *watchConnectors() {
+      for (;;) {
+        const frame = frames.shift()
+        if (frame === undefined) await new Promise<void>((resolve) => { wake = resolve })
+        else yield frame
+      }
+    },
+    retryConnector,
+  }))
+  push({ revision: 3, connectors: [failed] })
+  await vi.waitFor(() => { expect(store.state.getSnapshot().connectors?.revision).toBe(3) })
+  const retry = store.retryConnector('echo-lab', 'Echo')
+  // The retry began at revision 4 and failed again at 5; the stream reports 5 before the call returns.
+  push({ revision: 5, connectors: [failed] })
+  await vi.waitFor(() => { expect(store.state.getSnapshot().connectors?.revision).toBe(5) })
+  answer({ revision: 4, connectors: [{ ...echoLab, state: 'starting' }] })
+  await retry
+  expect(store.state.getSnapshot().connectors).toEqual({ revision: 5, connectors: [failed] })
+
+  // A restarted Host counts from the start again; its stream frames still apply.
+  push({ revision: 1, connectors: [echoLab] })
+  await vi.waitFor(() => { expect(store.state.getSnapshot().connectors).toEqual({ revision: 1, connectors: [echoLab] }) })
+})
+
+it('saves a custom connector, returns a refusal to the form, and reports a deletion', async () => {
+  const custom: ConnectorView = {
+    id: 'custom-time', origin: 'custom', enabled: true, confirmed: true, state: 'starting', launch: { command: 'uvx', args: ['mcp-server-time'] },
+    custom: { name: 'time', transport: 'stdio', command: 'uvx', args: ['mcp-server-time'], env: {} },
+  }
+  const refusal = { code: 'market-connectors/name-taken', message: 'a custom connector is already named time', details: { name: 'time' } }
+  const saveCustomConnector = vi.fn()
+    .mockResolvedValueOnce({ ok: true as const, value: { revision: 1, connectors: [custom] } })
+    .mockResolvedValueOnce({ ok: false as const, error: refusal })
+  const removeCustomConnector = vi.fn()
+    .mockResolvedValueOnce({ ok: true as const, value: { revision: 1, connectors: [] } })
+    .mockResolvedValueOnce({ ok: false as const, error: { message: 'storage is read-only' } })
+  const store = createMarketStore(remote([], { saveCustomConnector, removeCustomConnector }))
+  const config = custom.custom as NonNullable<ConnectorView['custom']>
+  expect(await store.saveCustomConnector({ config })).toEqual({ ok: true, value: { revision: 1, connectors: [custom] } })
+  expect(store.state.getSnapshot().connectors).toEqual({ revision: 1, connectors: [custom] })
+  expect(await store.saveCustomConnector({ config })).toEqual({ ok: false, error: refusal })
+  // A refusal belongs to the form; it is not a toast.
+  expect(store.state.getSnapshot().notice).toBeNull()
+
+  expect(await store.removeCustomConnector('time')).toBe(true)
+  expect(store.state.getSnapshot()).toMatchObject({ connectors: { revision: 1, connectors: [] }, notice: { kind: 'removed', name: 'time' } })
+  expect(await store.removeCustomConnector('time')).toBe(false)
+  expect(store.state.getSnapshot().notice).toMatchObject({ kind: 'remove-failed', name: 'time', reason: 'storage is read-only' })
+  expect(removeCustomConnector).toHaveBeenCalledWith({ name: 'time' })
+})
+
+it('reads the connector list on demand', async () => {
+  const store = createMarketStore(remote([], {
+    connectorList: vi.fn(() => Promise.resolve({ ok: true as const, value: { revision: 1, connectors: [echoLab] } })),
+  }))
+  expect(await store.refreshConnectors()).toEqual({ revision: 1, connectors: [echoLab] })
+  expect(store.state.getSnapshot().connectors).toEqual({ revision: 1, connectors: [echoLab] })
+})
 
 it('reads once whether the Host can show a folder, and treats a failed read as no', async () => {
   const able = createMarketStore(remote([]))
@@ -132,4 +240,18 @@ it('rereads the installed list when an install changes the installed set', async
   push(after)
   await vi.waitFor(() => { expect(installedSkills).toHaveBeenCalledTimes(2) })
   store.dispose()
+})
+
+it('saves connector settings, shows the result, and leaves a refusal to the form', async () => {
+  const withKey: ConnectorView = { ...echoLab, settings: [{ env: 'LAB_API_KEY', label: { zh: 'API key' }, secret: true, required: false, configured: true }] }
+  const refusal = { code: 'market-connectors/invalid-setting', message: 'too long' }
+  const saveConnectorSettings = vi.fn()
+    .mockResolvedValueOnce({ ok: true as const, value: { revision: 2, connectors: [withKey] } })
+    .mockResolvedValueOnce({ ok: false as const, error: refusal })
+  const store = createMarketStore(remote([], { saveConnectorSettings }))
+  expect(await store.saveConnectorSettings('echo-lab', { LAB_API_KEY: 'k' })).toEqual({ ok: true, value: { revision: 2, connectors: [withKey] } })
+  expect(saveConnectorSettings).toHaveBeenCalledWith({ id: 'echo-lab', values: { LAB_API_KEY: 'k' } })
+  expect(store.state.getSnapshot()).toMatchObject({ connectors: { revision: 2, connectors: [withKey] }, connectorBusy: [] })
+  expect(await store.saveConnectorSettings('echo-lab', { LAB_API_KEY: null })).toEqual({ ok: false, error: refusal })
+  expect(store.state.getSnapshot().notice).toBeNull()
 })

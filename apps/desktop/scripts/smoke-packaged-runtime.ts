@@ -1,4 +1,5 @@
 /** Validate the assembled application, including native Office conversion outside ASAR. */
+import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { parseArgs } from 'node:util'
 import { desktopArtifactOutput, packagedApplicationEntry, resolveDesktopBuildTarget, resolveDesktopTargetBuildPaths } from './desktop-build-paths.mjs'
@@ -7,6 +8,10 @@ import { verifyWindowsCode } from './windows-runtime-signature.mjs'
 import { smokePreparedRuntime } from './smoke-prepared-runtime.ts'
 import { smokeScraplingRuntime } from './smoke-scrapling-runtime.ts'
 import { smokeCuaDriverRuntime } from './smoke-cua-driver-runtime.ts'
+import { smokePdfSkill } from './smoke-pdf-skill.ts'
+import { PDF_SKILL } from './prepare-pdf-skill.ts'
+import { BUNDLED_CONTENT_DIRECTORY, BUNDLED_SKILL_DIRECTORY } from './bundled-content.mjs'
+import { parsePrimaryRuntime, workspaceDependencyPaths } from '../../../packages/skill/tool-workspace-dependencies/src/index.ts'
 import { resolveDesktopPackageTarget } from './package-target.ts'
 
 /**
@@ -49,3 +54,8 @@ if (windows && !values.unsigned) await verifyWindowsCode(application)
 await smokePreparedRuntime(join(resources, 'app.asar', 'dsh'), executable, join(resources, 'runtime'), descriptor)
 if (windows) await smokeScraplingRuntime(join(resources, 'runtime', 'scrapling'))
 if (windows) await smokeCuaDriverRuntime(join(resources, 'runtime', 'cua-driver'))
+if (windows) {
+  const primary = join(resources, 'runtime', 'primary-runtime')
+  const { python } = workspaceDependencyPaths(primary, parsePrimaryRuntime(JSON.parse(readFileSync(join(primary, 'runtime.json'), 'utf8'))))
+  smokePdfSkill(join(resources, 'runtime', BUNDLED_CONTENT_DIRECTORY, BUNDLED_SKILL_DIRECTORY, PDF_SKILL), python)
+}

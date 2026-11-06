@@ -105,6 +105,25 @@ export interface MarketSnapshot {
   readonly kinds: readonly MarketKindName[]
   /** Items installing right now, as `<kind>:<id>`. */
   readonly installing: readonly string[]
+  /** How far each running install has come; an item in `installing` has no entry until its download starts. */
+  readonly progress: readonly MarketInstallProgress[]
+}
+
+/**
+ * Step of one install that reports progress: `download` counts the package bytes received,
+ * `unpack` counts the package files written.
+ */
+export type MarketInstallPhase = 'download' | 'unpack'
+
+/** How far one running install has come. */
+export interface MarketInstallProgress {
+  /** The item, as `<kind>:<id>` in `installing`. */
+  readonly key: string
+  readonly phase: MarketInstallPhase
+  /** Bytes received or files written so far. */
+  readonly done: number
+  /** Package size in bytes, or the number of files in the package. */
+  readonly total: number
 }
 
 /** Install or uninstall target. */

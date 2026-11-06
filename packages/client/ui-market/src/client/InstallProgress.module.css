@@ -1,0 +1,40 @@
+/* Install progress: a step label over a thin bar; the compact form is the bar alone inside a card's bottom padding. */
+
+.progress {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+}
+
+.compact {
+  position: absolute;
+  inset-inline: 16px;
+  bottom: 6px;
+  width: auto;
+}
+
+.label {
+  font-size: 12px;
+  line-height: 18px;
+  font-variant-numeric: tabular-nums;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.track {
+  height: 3px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--dsw-alias-brand-primary-new-colorprimary-new-color) 14%, transparent);
+}
+
+.bar {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--dsw-alias-brand-primary-new-colorprimary-new-color);
+  transition: width 200ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bar { transition: none; }
+}

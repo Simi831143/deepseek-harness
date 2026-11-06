@@ -499,6 +499,7 @@
     { "path": "./packages/bundle/account-feishu" },
     { "path": "./packages/market/market" },
     { "path": "./packages/market/market-skills" },
+    { "path": "./packages/market/market-connectors" },
     { "path": "./packages/bundle/market" },
     { "path": "./packages/bundle/base" },
     { "path": "./packages/bundle/headless" },

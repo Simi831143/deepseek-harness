@@ -91,8 +91,8 @@
     - id: agent-default-model
       name: '@deepseek-ai/dsh-agent-default-model'
       config:
-        provider: longcheer
-        model: qwen3.8-plus
+        provider: lct-anthropic
+        model: qwen3.6-max
 
     - id: jobs
       name: '@deepseek-ai/dsh-jobs-local'
@@ -133,28 +133,68 @@
     # Supplying those profiles is exactly what the web Models page does. Which
     # adapters exist is composition; which providers run is the user's settings
     # document.
-    # This deployment seeds one route below so a fresh installation arrives with
-    # its own gateway already selectable. The composition layer is the settings
-    # `base`; a user section still replaces it, provider by provider.
+    # This deployment seeds two routes below, one per protocol of its own
+    # gateway, so a fresh installation arrives with that gateway already
+    # selectable. Both routes share the gateway key. The composition layer is the
+    # settings `base`; a user section still replaces it, provider by provider.
+    # Each route exposes its configured models as its complete catalog. The
+    # gateway rejects a request carrying more than 16 images; offloading the
+    # oldest 8 at a time rewrites earlier history once per 8 new images. The
+    # gateway rejects a request whose input plus `maxTokens` exceeds the
+    # 262,144-token window, and compaction reserves `maxTokens` of that window,
+    # so the output cap stays well below it.
     - id: llm-pi-ai
       name: '@deepseek-ai/dsh-llm-pi-ai'
       config:
         providers:
-          longcheer:
-            displayName: longcheer
+          lct-openai:
+            displayName: lct-openai
+            api: openai-responses
+            baseURL: 'http://172.16.92.211:23323/v1'
+            apiKeyEnv: LONGCHEER_API_KEY
+            maxRequestImages: 16
+            imageOffloadCountQuantum: 8
+            models:
+              - id: qwen3.8-plus-openai
+                name: qwen3.8-plus-openai
+                contextWindow: 262144
+                maxTokens: 65536
+                input:
+                  - text
+                  - image
+              - id: DeepSeek-V4.1-Flash-openai
+                name: DeepSeek-V4.1-Flash-openai
+                contextWindow: 262144
+                maxTokens: 65536
+                input:
+                  - text
+                  - image
+          lct-anthropic:
+            displayName: lct-anthropic
             api: anthropic-messages
             baseURL: 'http://172.16.92.211:23323'
             apiKeyEnv: LONGCHEER_API_KEY
-            # The gateway rejects a request carrying more than 16 images; offloading
-            # the oldest 8 at a time rewrites earlier history once per 8 new images.
             maxRequestImages: 16
             imageOffloadCountQuantum: 8
-            # This deployment exposes the configured model as its complete catalog.
             models:
+              - id: qwen3.6-max
+                name: qwen3.6-max
+                contextWindow: 262144
+                maxTokens: 65536
+                input:
+                  - text
+                  - image
+              - id: DeepSeek-V4.1-Flash
+                name: DeepSeek-V4.1-Flash
+                contextWindow: 262144
+                maxTokens: 65536
+                input:
+                  - text
+                  - image
               - id: qwen3.8-plus
                 name: qwen3.8-plus
-                contextWindow: 1000000
-                maxTokens: 256000
+                contextWindow: 262144
+                maxTokens: 65536
                 input:
                   - text
                   - image

@@ -2299,7 +2299,7 @@ export interface LspLocalServerConfig {
 ## `@deepseek-ai/dsh-market`
 
 - `inject`: `storageDomain` · `typert`
-- `source`: [`packages/market/market/src/index.ts:66`](../packages/market/market/src/index.ts)
+- `source`: [`packages/market/market/src/index.ts:74`](../packages/market/market/src/index.ts)
 
 ```ts config-catalog
 /** Market core configuration. */
@@ -4880,6 +4880,7 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 | `@deepseek-ai/dsh-host-plugin-inventory` | `loader` | [`packages/host/plugin-inventory/src/index.ts`](../packages/host/plugin-inventory/src/index.ts) |
 | `@deepseek-ai/dsh-llm` | — | [`packages/llm/llm/src/index.ts`](../packages/llm/llm/src/index.ts) |
 | `@deepseek-ai/dsh-lsp` | — | [`packages/lsp/lsp/src/index.ts`](../packages/lsp/lsp/src/index.ts) |
+| `@deepseek-ai/dsh-market-connectors` | `market` · `storageDomain` · `skills` · `tools` · `typert` | [`packages/market/market-connectors/src/index.ts`](../packages/market/market-connectors/src/index.ts) |
 | `@deepseek-ai/dsh-mcp-resources` | `tools` | [`packages/mcp/mcp-resources/src/index.ts`](../packages/mcp/mcp-resources/src/index.ts) |
 | `@deepseek-ai/dsh-message-quotes` | — | [`packages/session/message-quotes/src/index.ts`](../packages/session/message-quotes/src/index.ts) |
 | `@deepseek-ai/dsh-otel` | — | [`packages/telemetry/otel/src/index.ts`](../packages/telemetry/otel/src/index.ts) |

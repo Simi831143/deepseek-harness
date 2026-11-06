@@ -1,4 +1,4 @@
-/** The market page: section tabs, the skill catalog, and the installed-skill manager. */
+/** The market page: section tabs, the skill catalog, the installed-skill manager, and the connector section. */
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import clsx from 'clsx'
 import type { MarketItemView, MarketKindName, MarketSnapshot, MarketText } from '@deepseek-ai/dsh-market/types'
@@ -9,7 +9,9 @@ import {
   Switch, Tag, Tooltip,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
+import { ConnectorCatalog } from './Connectors.tsx'
 import type { MarketFace } from './index.ts'
+import { InstallProgress } from './InstallProgress.tsx'
 import { ItemIcon } from './ItemIcon.tsx'
 import type { createMarketNavigation } from './navigation-store.ts'
 import { SkillDetail } from './SkillDetail.tsx'
@@ -59,7 +61,9 @@ export function MarketPage(props: MarketPageProps): ReactNode {
           ? <InstalledSkills {...props} text={text} />
           : tab === 'skill'
             ? <SkillCatalog {...props} market={state.market} text={text} />
-            : <p className={css.empty}>{t('comingSoon')}</p>}
+            : tab === 'connector' && state.market?.kinds.includes('connector') === true
+              ? <ConnectorCatalog {...props} market={state.market} text={text} />
+              : <p className={css.empty}>{t('comingSoon')}</p>}
       </section>
     </div>
   )
@@ -147,6 +151,7 @@ function SkillCard(props: MarketPageProps & {
 }): ReactNode {
   const { item, text, t, onOpen } = props
   const installing = props.useMarket(state => state.market?.installing.includes(`${item.kind}:${item.id}`) ?? false)
+  const progress = props.useMarket(state => state.market?.progress.find(entry => entry.key === `${item.kind}:${item.id}`))
   const name = text(item.name)
   const ref = { kind: item.kind, id: item.id }
   const upToDate = item.installedVersion !== undefined && item.installedVersion === item.version
@@ -175,6 +180,7 @@ function SkillCard(props: MarketPageProps & {
             )}
       </div>
       <p className={css.cardDescription}>{text(item.description)}</p>
+      {progress !== undefined && <InstallProgress progress={progress} t={t} compact />}
     </li>
   )
 }

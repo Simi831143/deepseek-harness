@@ -18,6 +18,7 @@ import {
   IconFlatListOutlineRegular, IconFolderOpenOutlineRegular, IconInfoOutlineRegular, IconLoadingOutlineRegular, IconNewChatOutlineRegular,
   IconSkillOutlineRegular, IconSparkleRegular, IconTrashOutlineRegular, Menu, MenuItemButton, Modal, Switch,
 } from '@deepseek-ai/dsh-client-ui-primitives'
+import { InstallProgress } from './InstallProgress.tsx'
 import { ItemIcon } from './ItemIcon.tsx'
 import type { MarketPageProps } from './MarketPage.tsx'
 import { SkillOverview } from './SkillOverview.tsx'
@@ -43,6 +44,7 @@ export function SkillDetail(props: SkillDetailProps): ReactNode {
   const item = props.useMarket(state => state.market?.items.find(entry => entry.kind === 'skill' && entry.id === skill))
   const installed = props.useMarket(state => state.installedSkills?.skills.find(entry => entry.name === skill))
   const installing = props.useMarket(state => state.market?.installing.includes(`skill:${skill}`) ?? false)
+  const progress = props.useMarket(state => state.market?.progress.find(entry => entry.key === `skill:${skill}`))
   const switching = props.useMarket(state => state.switching.includes(skill))
   const canReveal = props.useMarket(state => state.canReveal)
   const [installingForTry, setInstallingForTry] = useState(false)
@@ -121,6 +123,7 @@ export function SkillDetail(props: SkillDetailProps): ReactNode {
               <MoreMenu {...props} onEdit={edit} onReveal={reveal} onUninstall={() => { setConfirming(true) }} />
             )}
           </div>
+          {progress !== undefined && <InstallProgress progress={progress} t={t} />}
         </div>
       </div>
       <div className={css.body}>

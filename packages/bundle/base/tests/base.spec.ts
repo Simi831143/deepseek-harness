@@ -46,18 +46,30 @@ describe('dsh-base bundle', () => {
     expect(rows.find(row => row.id === 'tool-web')?.config).toMatchObject({ fetch: true })
     expect(rows.find(row => row.id === 'llm-pi-ai')?.config).toMatchObject({
       providers: {
-        longcheer: {
+        'lct-openai': {
+          api: 'openai-responses',
+          baseURL: 'http://172.16.92.211:23323/v1',
+          apiKeyEnv: 'LONGCHEER_API_KEY',
+          models: [
+            { id: 'qwen3.8-plus-openai', contextWindow: 262_144, maxTokens: 65_536, input: ['text', 'image'] },
+            { id: 'DeepSeek-V4.1-Flash-openai', contextWindow: 262_144, maxTokens: 65_536, input: ['text', 'image'] },
+          ],
+        },
+        'lct-anthropic': {
           api: 'anthropic-messages',
           baseURL: 'http://172.16.92.211:23323',
-          models: [{
-            id: 'qwen3.8-plus',
-            name: 'qwen3.8-plus',
-            contextWindow: 1_000_000,
-            maxTokens: 256_000,
-            input: ['text', 'image'],
-          }],
+          apiKeyEnv: 'LONGCHEER_API_KEY',
+          models: [
+            { id: 'qwen3.6-max', contextWindow: 262_144, maxTokens: 65_536, input: ['text', 'image'] },
+            { id: 'DeepSeek-V4.1-Flash', contextWindow: 262_144, maxTokens: 65_536, input: ['text', 'image'] },
+            { id: 'qwen3.8-plus', contextWindow: 262_144, maxTokens: 65_536, input: ['text', 'image'] },
+          ],
         },
       },
+    })
+    expect(rows.find(row => row.id === 'agent-default-model')?.config).toEqual({
+      provider: 'lct-anthropic',
+      model: 'qwen3.6-max',
     })
     expect(manifest.dependencies).not.toHaveProperty('@deepseek-ai/dsh-subagent-codex')
     expect(manifest.dependencies).not.toHaveProperty('@deepseek-ai/dsh-subagent-claude-code')

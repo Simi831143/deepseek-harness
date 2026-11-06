@@ -25,7 +25,7 @@ This bundle replaces the DeepSeek Platform account with a Feishu account that on
 <a id="use-this-package"></a>
 ## Use this package
 
-Sign in from the sidebar account launcher or the Settings **Account** page by scanning the Feishu QR code; the same places switch accounts and sign out. Desktop supplies `FEISHU_APP_SECRET` and `LONGCHEER_API_KEY` from its deployment environment; neither value is written to the profile. A Web deployment must provide the same variables to the Host process before starting the profile. The base composition keeps `longcheer/qwen3.8-plus` as the default model.
+Sign in from the sidebar account launcher or the Settings **Account** page by scanning the Feishu QR code; the same places switch accounts and sign out. Desktop supplies `FEISHU_APP_SECRET` and `LONGCHEER_API_KEY` from its deployment environment; neither value is written to the profile. A Web deployment must provide the same variables to the Host process before starting the profile. The base composition uses `lct-anthropic/qwen3.6-max` as the default model; both bundled gateway routes, `lct-openai` and `lct-anthropic`, read `LONGCHEER_API_KEY`.
 
 For a Windows package, place both values in the repository-root `.secrets.env` file and run `pnpm run package:desktop:win:x64:unsigned` with the Electron mirror configured. The packager copies only these two names to `deployment-env.json`; the Desktop main process injects them into the Host on every launch.
 
@@ -85,7 +85,7 @@ None; this package neither assembles nor sends model requests.
 <a id="known-limitations-and-deferred-work"></a>
 
 - **The Feishu issuer must be reachable during sign-in.** Existing sessions continue to use the stored grant until it needs refreshing.
-- **Deployment secrets remain deployment-sensitive.** Missing `FEISHU_APP_SECRET` makes sign-in fail before any QR code appears, and the account UI reports that this build cannot sign in; missing `LONGCHEER_API_KEY` makes the default Longcheer model request fail. The Host still starts, and neither secret is copied into profile `.env`.
+- **Deployment secrets remain deployment-sensitive.** Missing `FEISHU_APP_SECRET` makes sign-in fail before any QR code appears, and the account UI reports that this build cannot sign in; missing `LONGCHEER_API_KEY` makes every bundled gateway model request fail. The Host still starts, and neither secret is copied into profile `.env`.
 - **The provider is not a model credential provider.** `resolveToken()` intentionally returns no inference token.
 
 <a id="dev-note"></a>

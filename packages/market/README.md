@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-The `market/` group owns the catalog and installation services used by the optional market bundle. The core package manages catalog data and verified archives; the skill package connects installed archives to the shared skill registry and exposes management operations.
+The `market/` group owns the catalog and installation services used by the optional market bundle. The core package manages catalog data and verified archives; the skill package connects installed archives to the shared skill registry and exposes management operations; the connector package starts installed MCP programs the user switched on.
 
 ## Table of Contents
 
@@ -26,6 +26,7 @@ The `market/` group owns the catalog and installation services used by the optio
 |---|---|---|
 | [`market`](market/README.md) | Catalog, package verification, installation, and removal | `ctx.market` |
 | [`market-skills`](market-skills/README.md) | Installed skill provider and management Remote | `ctx.marketSkills` |
+| [`market-connectors`](market-connectors/README.md) | Local MCP connector programs, switches and their skills | `ctx.marketConnectors` |
 
 <a id="related-documentation"></a>
 ## Related documentation

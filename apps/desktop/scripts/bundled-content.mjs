@@ -29,8 +29,10 @@ export const BUNDLED_CONTENT_DIRECTORY = 'bundled'
 /** File inside the content directory recording what preparation copied and where each item came from. */
 export const BUNDLED_CONTENT_MANIFEST = 'manifest.json'
 
-/** Content subdirectories; the Host reads `skills`, the shell reads `plugins`. */
-const SKILL_DIRECTORY = 'skills'
+/** Content subdirectory holding one directory per skill; must agree with `BUNDLED_SKILL_DIRECTORY` in `apps/desktop-host/src/bundled-skills.ts`. */
+export const BUNDLED_SKILL_DIRECTORY = 'skills'
+
+/** Content subdirectories the shell reads plugins from and licenses are copied to. */
 const PLUGIN_DIRECTORY = 'plugins'
 const LICENSE_DIRECTORY = 'licenses'
 
@@ -122,7 +124,7 @@ export function prepareBundledContent(runtimeDir, env = process.env, sources = B
     }
     for (const name of source.skills.names) {
       const path = posix.join(source.skills.root, name)
-      copySkill(join(checkout, path), join(content, SKILL_DIRECTORY, name), name)
+      copySkill(join(checkout, path), join(content, BUNDLED_SKILL_DIRECTORY, name), name)
       skills.push({ name, path, ...origin(path) })
     }
   }
@@ -147,7 +149,7 @@ export function verifyBundledContent(runtimeDir) {
     }
   }
   for (const { name } of skills) {
-    const file = join(content, SKILL_DIRECTORY, name, 'SKILL.md')
+    const file = join(content, BUNDLED_SKILL_DIRECTORY, name, 'SKILL.md')
     if (!existsSync(file)) throw new Error(`bundled content: packaged resources lack skill ${name}; expected ${file}`)
   }
   for (const { name, digest } of plugins) {
@@ -155,6 +157,24 @@ export function verifyBundledContent(runtimeDir) {
     if (!existsSync(join(directory, 'package.json'))) throw new Error(`bundled content: packaged resources lack plugin ${name}; expected ${directory}`)
     if (digestTree(directory) !== digest) throw new Error(`bundled content: packaged plugin ${name} differs from the copy preparation recorded`)
   }
+}
+
+/**
+ * Record a skill that a later preparation step wrote to `skills/<name>/`, so packaging checks it like a listed one.
+ * @param {string} runtimeDir - Desktop runtime resource directory that `prepareBundledContent` prepared.
+ * @param {{ name: string } & Record<string, unknown>} record - Manifest entry; `name` is the skill directory name.
+ * @throws when preparation has not run, the skill's `SKILL.md` does not declare its name and a description, or
+ *   the name is already recorded.
+ */
+export function recordBundledSkill(runtimeDir, record) {
+  const content = join(runtimeDir, BUNDLED_CONTENT_DIRECTORY)
+  const file = join(content, BUNDLED_CONTENT_MANIFEST)
+  if (!existsSync(file)) throw new Error(`bundled content: ${file} is missing; run prepareBundledContent before recording skill ${record.name}`)
+  const manifest = JSON.parse(readFileSync(file, 'utf8'))
+  if (manifest.skills.some(skill => skill.name === record.name)) throw new Error(`bundled content: skill "${record.name}" is recorded more than once`)
+  checkSkillFile(join(content, BUNDLED_SKILL_DIRECTORY, record.name, 'SKILL.md'), record.name)
+  manifest.skills.push(record)
+  writeFileSync(file, `${JSON.stringify(manifest, undefined, 2)}\n`)
 }
 
 /**
@@ -234,7 +254,16 @@ function copyLicense(content, checkout, source) {
  * @param {string} name - Listed skill name.
  */
 function copySkill(source, destination, name) {
-  const file = join(source, 'SKILL.md')
+  checkSkillFile(join(source, 'SKILL.md'), name)
+  cpSync(source, destination, { recursive: true, dereference: true, filter: entry => isDistributable(relative(source, entry)) })
+}
+
+/**
+ * Require a `SKILL.md` that declares the listed name and a description.
+ * @param {string} file - `SKILL.md` path.
+ * @param {string} name - Listed skill name.
+ */
+function checkSkillFile(file, name) {
   if (statSync(file, { throwIfNoEntry: false })?.isFile() !== true) throw new Error(`bundled content: ${file} is missing`)
   const frontmatter = FRONTMATTER.exec(readFileSync(file, 'utf8'))?.[1]
   let metadata
@@ -245,7 +274,6 @@ function copySkill(source, destination, name) {
   if (metadata?.name !== name || typeof metadata.description !== 'string' || metadata.description.trim() === '') {
     throw new Error(`bundled content: ${file} must declare name "${name}" and a description in its YAML frontmatter`)
   }
-  cpSync(source, destination, { recursive: true, dereference: true, filter: entry => isDistributable(relative(source, entry)) })
 }
 
 /**

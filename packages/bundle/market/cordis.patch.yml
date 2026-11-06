@@ -6,6 +6,8 @@
 # 我安装的 lists market downloads and the user's personal skill folders only;
 # skills the application, its composition or the project ships stay off it.
 # Its switches write the `disabled` setting of the `skill` row.
+# Connectors are local MCP programs carried in their packages; a connector the
+# user switched on and accepted runs for every Agent until it is switched off.
 
 - insert:
     - id: market
@@ -17,6 +19,9 @@
       name: '@deepseek-ai/dsh-market-skills'
       config:
         registryEntry: skill
+
+    - id: market-connectors
+      name: '@deepseek-ai/dsh-market-connectors'
 
     - id: ui-market
       name: '@deepseek-ai/dsh-client-ui-market'

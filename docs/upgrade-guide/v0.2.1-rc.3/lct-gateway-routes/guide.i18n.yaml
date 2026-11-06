@@ -1,0 +1,16 @@
+# Bilingual-pair consistency record for guide.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write docs/upgrade-guide/v0.2.1-rc.3/lct-gateway-routes/guide.md
+/:
+  en: f41b1de6f2daa165
+  zh: bc65a670a8a1a8eb
+/the-bundled-gateway-routes-are-now-lct-openai-and-lct-anthropic:
+  en: 24b0225103efee8f
+  zh: 7e7b7d455d52cecc
+/the-bundled-gateway-routes-are-now-lct-openai-and-lct-anthropic/change:
+  en: 39daedc094101e56
+  zh: 779eaccf60c961c0
+/the-bundled-gateway-routes-are-now-lct-openai-and-lct-anthropic/migration:
+  en: 0d429ad15a8817cf
+  zh: dcff124542074482

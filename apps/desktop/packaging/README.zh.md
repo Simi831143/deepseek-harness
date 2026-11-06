@@ -25,6 +25,7 @@ description: "在本地或 Windows／macOS Actions 中生成 Desktop 安装包�
 - [运行时文件筛选与安装检查](#runtime-file-selection)
 - [内置 Scrapling MCP](#bundled-scrapling-mcp)
 - [内置 Cua Driver MCP](#bundled-cua-driver-mcp)
+- [内置 PDF 技能](#bundled-pdf-skill)
 - [Desktop 运行时准备](#desktop-runtime-preparation)
 - [安装与发布验收](#verification)
 
@@ -300,6 +301,18 @@ Windows 流水线在 `prepare:scrapling` 后运行[`prepare-cua-driver-runtime.t
 [`smoke-cua-driver-runtime.ts`](../scripts/smoke-cua-driver-runtime.ts) 从重定位后的资源启动真实 stdio 服务器，然后检查锁定的服务器版本、计算机操作流程所需工具的发现结果，以及一次不操作任何窗口的权限探测。[`smoke-packaged-runtime.ts`](../scripts/smoke-packaged-runtime.ts) 会针对最终 Windows 应用资源再次执行这项检查。这些检查不需要 LLM key。
 
 驱动与用户操作同一个桌面，所有 Desktop 会话共用它。后台输入经由无障碍接口和投递消息；Chromium 和 Electron 窗口会拒绝部分后台输入，需要前台重试，重试时会短暂激活目标窗口。如果 profile 也定义了名为 `cua-driver` 的 MCP 服务器，会与此注册冲突，因此安装内置驱动的构建前需要删除该条目。
+
+<a id="bundled-pdf-skill"></a>
+
+## 内置 PDF 技能
+
+Windows 构建会在 `resources/runtime/bundled/skills/pdf` 中包含 `pdf` 技能。它的说明、脚本、pdfcpu 设置和许可证文本位于[`skills/pdf`](../skills/pdf)。准备阶段向其中加入 LiteParse 2.16.0 和 pypdf 6.20.1 两个 wheel（解压到 `vendor/`），以及 pdfcpu 0.16.2 的 Windows x64 可执行文件（放在 `bin/win-x64/`）；LiteParse 自带 PDFium 库。解压后的技能约占 46 MB。技能用内置 Python 运行这些组件，从不运行 OCR，也不发起网络请求。
+
+`preparePrimaryRuntime` 在随包内容准备之后立即运行[`prepare-pdf-skill.ts`](../scripts/prepare-pdf-skill.ts)，因为随包内容准备会替换 `runtime/bundled`。它下载锁定的文件，校验每个 SHA-256 摘要，将完整暂存目录替换到 `runtime/bundled/skills/pdf`，并把该技能加入 `runtime/bundled/manifest.json`，因此打包产物缺少它时打包失败。准备阶段不执行任何解压出的文件。签名构建会与其他运行时载荷一起为该技能的原生文件签名。锁定数据位于[`pdf-skill-lock.json`](../scripts/pdf-skill-lock.json)；升级某个组件需要替换其版本、URL 和摘要，pdfcpu 还需替换压缩包目录。
+
+[`smoke-pdf-skill.ts`](../scripts/smoke-pdf-skill.ts) 用内置 Python 运行技能脚本：用 pypdf 写出一个空白页，通过 pdfcpu 包装脚本在页上加盖文字，用 `pdf_read.py` 读回这段文字，用 `lit.py` 渲染该页，并在任何脚本向技能目录写入字节码时失败。[`smoke-packaged-runtime.ts`](../scripts/smoke-packaged-runtime.ts) 会针对最终 Windows 应用资源运行这项检查。该检查不需要网络访问，也不需要 LLM key。
+
+pdfcpu 会写入自己的配置目录，因此包装脚本把该目录放在 `TEMP` 下（Desktop 沙箱把 `TEMP` 指向会话的私有目录），首次使用时把技能的设置复制过去。中文加盖文字使用等线（DengXian）或黑体（SimHei），命令首次用到其中一种时，包装脚本从 `%WINDIR%\Fonts` 把它安装到该目录；构建不分发这些微软字体文件，未安装中文补充字体的 Windows 无法使用它们。只读会话无法写入 `TEMP`，因此 pdfcpu 在那里使用内置默认设置，中文加盖会停止并给出提示。用户或项目技能目录中的 `pdf` 技能优先于随包技能。其他 Desktop 目标不包含这个 Windows 专用技能。
 
 <a id="desktop-runtime-preparation"></a>
 

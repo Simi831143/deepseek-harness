@@ -25,6 +25,7 @@ Build Desktop installers locally or through Windows or macOS Actions, choose dep
 - [Runtime file selection and installation checks](#runtime-file-selection)
 - [Bundled Scrapling MCP](#bundled-scrapling-mcp)
 - [Bundled Cua Driver MCP](#bundled-cua-driver-mcp)
+- [Bundled PDF skill](#bundled-pdf-skill)
 - [Desktop runtime preparation](#desktop-runtime-preparation)
 - [Installation and release verification](#verification)
 
@@ -300,6 +301,18 @@ The Windows pipeline runs [`prepare-cua-driver-runtime.ts`](../scripts/prepare-c
 [`smoke-cua-driver-runtime.ts`](../scripts/smoke-cua-driver-runtime.ts) starts the real stdio server from a relocated resource, then checks the locked server version, the discovery of the tools the computer-use workflow needs, and a permission probe that drives no window. [`smoke-packaged-runtime.ts`](../scripts/smoke-packaged-runtime.ts) repeats that check against the final Windows application resources. These checks do not require an LLM key.
 
 The driver operates the same desktop as the user, and every Desktop Session shares it. Background input routes through accessibility and posted messages; Chromium and Electron windows refuse some background input and need a foreground retry, which briefly activates the target window. A profile that also defines an MCP server named `cua-driver` conflicts with this registration, so remove that entry before installing a build that bundles the driver.
+
+<a id="bundled-pdf-skill"></a>
+
+## Bundled PDF skill
+
+Windows builds include the `pdf` skill under `resources/runtime/bundled/skills/pdf`. Its instructions, scripts, pdfcpu settings and license texts live in [`skills/pdf`](../skills/pdf). Preparation adds the LiteParse 2.16.0 and pypdf 6.20.1 wheels, unpacked into `vendor/`, and the pdfcpu 0.16.2 Windows x64 executable under `bin/win-x64/`; LiteParse carries its own PDFium library. The unpacked skill takes about 46 MB. The skill runs these components with the bundled Python, never runs OCR, and makes no network requests.
+
+`preparePrimaryRuntime` runs [`prepare-pdf-skill.ts`](../scripts/prepare-pdf-skill.ts) directly after bundled-content preparation, which replaces `runtime/bundled`. It downloads the locked files, verifies each SHA-256 digest, swaps a complete staged directory into `runtime/bundled/skills/pdf`, and adds the skill to `runtime/bundled/manifest.json`, so packaging fails when the packaged resources lack it. Preparation executes none of the unpacked files. Signed builds sign the skill's native files together with the other runtime payloads. The lock data is in [`pdf-skill-lock.json`](../scripts/pdf-skill-lock.json); upgrading a component means replacing its version, URL and digest, and for pdfcpu also the archive directory.
+
+[`smoke-pdf-skill.ts`](../scripts/smoke-pdf-skill.ts) runs the skill's scripts with the bundled Python: it writes a blank page with pypdf, stamps text on it through the pdfcpu wrapper, reads the text back with `pdf_read.py`, renders the page with `lit.py`, and fails if a script wrote bytecode into the skill directory. [`smoke-packaged-runtime.ts`](../scripts/smoke-packaged-runtime.ts) runs it against the final Windows application resources. The check needs no network access or LLM key.
+
+pdfcpu writes into its configuration directory, so the wrapper keeps that directory under `TEMP`, which the Desktop sandbox points at the session's private folder, and copies the skill's settings there on first use. Chinese stamps use DengXian or SimHei, which the wrapper installs from `%WINDIR%\Fonts` into that directory the first time a command names them; the build does not redistribute these Microsoft font files, and a Windows installation without the Chinese supplemental fonts cannot use them. A read-only session cannot write `TEMP`, so pdfcpu runs on its built-in defaults there and a Chinese stamp stops with a message. A `pdf` skill in the user's or the project's skill folder takes precedence over the bundled one. Other Desktop targets do not include this Windows-only skill.
 
 <a id="desktop-runtime-preparation"></a>
 

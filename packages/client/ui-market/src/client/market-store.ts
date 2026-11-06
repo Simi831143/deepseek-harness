@@ -5,14 +5,18 @@
  */
 import type { MarketItemRef, MarketSnapshot } from '@deepseek-ai/dsh-market/types'
 import type {
+  ConnectorIdRequest, ConnectorSettingsRequest, ConnectorsValue, ConnectorSwitchRequest, CustomNameRequest, ParseCustomRequest,
+  ParsedCustomConnectors, SaveCustomRequest,
+} from '@deepseek-ai/dsh-market-connectors/types'
+import type {
   InstalledSkillsValue, SkillDocumentValue, SkillNameRequest, SkillSwitchRequest,
 } from '@deepseek-ai/dsh-market-skills/types'
 import type { HostObservable } from '@deepseek-ai/dsh-client-ui-slots'
 
 /** One transient outcome the page reports in a toast. */
 export type MarketNotice =
-  | { readonly seq: number; readonly kind: 'installed' | 'uninstalled'; readonly name: string }
-  | { readonly seq: number; readonly kind: 'install-failed' | 'uninstall-failed'; readonly name: string; readonly reason: string }
+  | { readonly seq: number; readonly kind: 'installed' | 'uninstalled' | 'removed'; readonly name: string }
+  | { readonly seq: number; readonly kind: 'install-failed' | 'uninstall-failed' | 'connect-failed' | 'remove-failed'; readonly name: string; readonly reason: string }
   | { readonly seq: number; readonly kind: 'reveal-failed'; readonly name: string }
   | { readonly seq: number; readonly kind: 'switch-failed' | 'load-failed'; readonly reason: string }
 
@@ -29,6 +33,10 @@ export interface MarketState {
   readonly switching: readonly string[]
   /** Whether the Host can show a path in its file manager; false until the Host answers or after a failed read. */
   readonly canReveal: boolean
+  /** Installed connectors from the connector stream; absent until it answers, or when the Host has no connector kind. */
+  readonly connectors: ConnectorsValue | undefined
+  /** Connector ids whose switch or retry is being written. */
+  readonly connectorBusy: readonly string[]
   readonly notice: MarketNotice | null
 }
 
@@ -49,6 +57,15 @@ export interface MarketRemote {
   canReveal(): Promise<MarketResult<boolean>>
   /** Show one Host path selected in the Host's file manager. */
   reveal(path: string): Promise<MarketResult<unknown>>
+  /** @returns the reconnecting connector stream; each item must be accepted after it is read. */
+  watchConnectors(): AsyncIterable<{ readonly value: ConnectorsValue; accept(): void }>
+  connectorList(): Promise<MarketResult<ConnectorsValue>>
+  setConnectorEnabled(request: ConnectorSwitchRequest): Promise<MarketResult<ConnectorsValue>>
+  retryConnector(request: ConnectorIdRequest): Promise<MarketResult<ConnectorsValue>>
+  parseCustomConnectors(request: ParseCustomRequest): Promise<MarketResult<ParsedCustomConnectors>>
+  saveCustomConnector(request: SaveCustomRequest): Promise<MarketResult<ConnectorsValue>>
+  removeCustomConnector(request: CustomNameRequest): Promise<MarketResult<ConnectorsValue>>
+  saveConnectorSettings(request: ConnectorSettingsRequest): Promise<MarketResult<ConnectorsValue>>
 }
 
 /** Store operations injected into the views. */
@@ -79,6 +96,48 @@ export interface MarketActions {
    * @returns the Markdown body and declared version, or the failure.
    */
   readSkillDocument(skill: string): Promise<MarketResult<SkillDocumentValue>>
+  /**
+   * Switch one installed connector on or off.
+   * @param id - connector id.
+   * @param enabled - target state.
+   * @param confirmed - whether the user just accepted the program the connector runs.
+   * @param name - display name for the failure notice.
+   * @returns whether the switch was saved; a failure is reported as a notice.
+   */
+  setConnectorEnabled(id: string, enabled: boolean, confirmed: boolean, name: string): Promise<boolean>
+  /**
+   * Start a connector whose start failed.
+   * @param id - connector id.
+   * @param name - display name for the failure notice.
+   */
+  retryConnector(id: string, name: string): Promise<void>
+  /** @returns the installed connectors read now, such as right after an install; undefined when the read failed. */
+  refreshConnectors(): Promise<ConnectorsValue | undefined>
+  /**
+   * Read the MCP servers in pasted text; nothing is saved.
+   * @param text - pasted JSON.
+   * @returns each server with its configuration or why it cannot be added, or the failed call.
+   */
+  parseCustomConnectors(text: string): Promise<MarketResult<ParsedCustomConnectors>>
+  /**
+   * Add or change a custom connector. The caller shows a refusal next to the form.
+   * @param request - configuration, the name it replaces, and its switch.
+   * @returns the connectors after the change, or the refusal.
+   */
+  saveCustomConnector(request: SaveCustomRequest): Promise<MarketResult<ConnectorsValue>>
+  /**
+   * Stop a custom connector and delete its configuration.
+   * @param name - connector name.
+   * @returns whether it was deleted; the outcome is reported as a notice.
+   */
+  removeCustomConnector(name: string): Promise<boolean>
+  /**
+   * Save or clear a market connector's settings. The caller shows a refusal next to the form.
+   * @param id - connector id.
+   * @param values - new values by environment variable name; `null` clears one.
+   * @returns the connectors after the change, or the refusal.
+   */
+  saveConnectorSettings(id: string, values: Readonly<Record<string, string | null>>): Promise<MarketResult<ConnectorsValue>>
   dismissNotice(): void
 }
 
@@ -97,7 +156,7 @@ export interface MarketStore extends MarketActions {
 export function createMarketStore(remote: MarketRemote): MarketStore {
   let state: MarketState = {
     market: undefined, streamFailed: false, installedSkills: undefined, installedLoading: false, switching: [],
-    canReveal: false, notice: null,
+    canReveal: false, connectors: undefined, connectorBusy: [], notice: null,
   }
   let disposed = false
   let seq = 0
@@ -132,6 +191,29 @@ export function createMarketStore(remote: MarketRemote): MarketStore {
       if (state.installedSkills !== undefined && installedSetChanged(previous, frame.value)) void loadInstalledSkills()
     }
   })().catch(() => { publish({ streamFailed: true }) })
+  void (async () => {
+    for await (const frame of remote.watchConnectors()) {
+      frame.accept()
+      publish({ connectors: frame.value })
+    }
+  })().catch(() => {
+    // A Host without the connector kind never answers; its tab stays hidden because the
+    // market snapshot does not list the kind, so there is nothing to report here.
+  })
+  const busy = async <T>(id: string, call: () => Promise<MarketResult<T>>): Promise<MarketResult<T>> => {
+    publish({ connectorBusy: [...new Set([...state.connectorBusy, id])] })
+    const result = await call()
+    publish({ connectorBusy: state.connectorBusy.filter(entry => entry !== id) })
+    return result
+  }
+  /**
+   * Show the connectors a call returned, unless a newer stream frame already arrived: calls and
+   * the stream use different channels, and a stale "starting" would otherwise stay on screen.
+   */
+  const callResult = (value: ConnectorsValue): void => {
+    if (state.connectors !== undefined && value.revision < state.connectors.revision) return
+    publish({ connectors: value })
+  }
   // A Host without a desktop, or one that did not answer, offers no file-manager action.
   void remote.canReveal().then((result) => { publish({ canReveal: result.ok && result.value }) })
 
@@ -176,6 +258,40 @@ export function createMarketStore(remote: MarketRemote): MarketStore {
       return result.ok
     },
     readSkillDocument: skill => remote.skillDocument({ name: skill }),
+    async setConnectorEnabled(id, enabled, confirmed, name) {
+      const result = await busy(id, () => remote.setConnectorEnabled({ id, enabled, ...confirmed ? { confirmed } : {} }))
+      if (result.ok) callResult(result.value)
+      else notify({ kind: 'connect-failed', name, reason: reasonOf(result.error) })
+      return result.ok
+    },
+    async retryConnector(id, name) {
+      const result = await busy(id, () => remote.retryConnector({ id }))
+      if (result.ok) callResult(result.value)
+      else notify({ kind: 'connect-failed', name, reason: reasonOf(result.error) })
+    },
+    async refreshConnectors() {
+      const result = await remote.connectorList()
+      if (!result.ok) return undefined
+      callResult(result.value)
+      return result.value
+    },
+    parseCustomConnectors: text => remote.parseCustomConnectors({ text }),
+    async saveCustomConnector(request) {
+      const result = await remote.saveCustomConnector(request)
+      if (result.ok) callResult(result.value)
+      return result
+    },
+    async removeCustomConnector(name) {
+      const result = await remote.removeCustomConnector({ name })
+      if (result.ok) { callResult(result.value); notify({ kind: 'removed', name }) }
+      else notify({ kind: 'remove-failed', name, reason: reasonOf(result.error) })
+      return result.ok
+    },
+    async saveConnectorSettings(id, values) {
+      const result = await busy(id, () => remote.saveConnectorSettings({ id, values }))
+      if (result.ok) callResult(result.value)
+      return result
+    },
     dismissNotice() { publish({ notice: null }) },
     dispose() { disposed = true; listeners.clear() },
   }

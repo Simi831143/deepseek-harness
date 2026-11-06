@@ -3,8 +3,9 @@
  * The skill detail dialog joins the catalog entry with the installed state:
  * display fields, install, the success-toned switch, one more-actions menu
  * (edit, open folder, uninstall) for market and personal skills alike, the
- * overview of the skill's instructions with its search, and an example
- * turning into a conversation that opens with the skill.
+ * overview of the skill's instructions with its search, an example
+ * turning into a conversation that opens with the skill, and the progress of
+ * a running install.
  */
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
@@ -31,10 +32,10 @@ const cameraLog: InstalledSkillView = {
 
 function stateOf(items: readonly MarketItemView[], installed: readonly InstalledSkillView[] | undefined, canReveal = true): MarketState {
   return {
-    market: { revision: 1, source: 'remote', categories: [], featured: [], items: [...items], kinds: ['skill'], installing: [] },
+    market: { revision: 1, source: 'remote', categories: [], featured: [], items: [...items], kinds: ['skill'], installing: [], progress: [] },
     streamFailed: false,
     installedSkills: installed === undefined ? undefined : { complete: true, skills: [...installed] },
-    installedLoading: false, switching: [], canReveal, notice: null,
+    installedLoading: false, switching: [], canReveal, connectors: undefined, connectorBusy: [], notice: null,
   }
 }
 
@@ -73,6 +74,15 @@ function show(skill: string, state: MarketState, patch: {
 // jsdom has no scrollIntoView; the overview scrolls the current match into view.
 beforeEach(() => { Element.prototype.scrollIntoView = vi.fn() })
 afterEach(() => { cleanup() })
+
+it('shows how far a running install has come', () => {
+  const state = stateOf([lark], [])
+  if (state.market === undefined) throw new Error('stateOf always builds a market snapshot')
+  const progress = { key: 'skill:lark-unified', phase: 'unpack', done: 3, total: 4 } as const
+  show('lark-unified', { ...state, market: { ...state.market, installing: [progress.key], progress: [progress] } })
+  expect(screen.getByRole('button', { name: zh.installing })).toBeTruthy()
+  expect(screen.getByRole('progressbar', { name: '正在解压 3 / 4 个文件' }).getAttribute('aria-valuenow')).toBe('75')
+})
 
 it('shows the display name, description, examples and version of a catalog skill not yet installed', () => {
   const props = show('lark-unified', stateOf([lark], []))

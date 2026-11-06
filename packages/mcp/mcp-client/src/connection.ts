@@ -12,6 +12,9 @@
  * restarting forever. Exhaustion unregisters the server's tools and stops;
  * disposal (including HMR) is the only way back from that state.
  *
+ * A stdio server's stderr is read line by line into the Host log, and its last
+ * lines are kept for the startup outcome.
+ *
  * @module
  */
 
@@ -21,6 +24,7 @@ import { assertNever, type JsonValue } from '@deepseek-ai/dsh-util-values'
 import type { ServerContext } from './server-context.ts'
 import { MAX_TIMER_DELAY_MS } from '@deepseek-ai/dsh-timeout'
 import { createTransport } from './transport.ts'
+import { StderrTail } from './stderr.ts'
 import { syncTools } from './tools.ts'
 import type { ToolBridgeOptions, ToolDisposers } from './tools.ts'
 import type { Config } from './index.ts'
@@ -108,6 +112,13 @@ export interface ConnectionHandle extends ServerContext {
    */
   ready: Promise<ConnectionOutcome>
   /**
+   * The last lines a stdio server wrote to stderr, oldest first; empty for
+   * Streamable HTTP. When `ready` reports a failed first attempt, they are that
+   * attempt's lines: the attempt awaited its process exit before settling, and
+   * a retry waits for a timer.
+   */
+  stderr(): string[]
+  /**
    * Stop reconnection, close the negotiating transport or live client, wait
    * for the in-flight attempt and queued tool syncs to quiesce, then
    * unregister every tool this server still owns.
@@ -140,6 +151,14 @@ export function startConnection(ctx: Context, config: Config, policy: ResolvedRe
     : opts
 
   let disposed = false
+  const stderrTail = config.transport === 'stdio' ? new StderrTail() : undefined
+  const onStderrLine = stderrTail === undefined
+    ? undefined
+    : (line: string): void => {
+      stderrTail.add(line)
+      // Server text goes in as an argument, never as the format string.
+      ctx.logger.info('%s stderr: %s', label, line)
+    }
   const maxInstructionBytes = config.maxInstructionBytes ?? DEFAULT_MAX_INSTRUCTION_BYTES
   let serverInstructions = ''
   /** Current generation: the connecting or connected client; undefined during backoff waits and after final failure. */
@@ -304,7 +323,7 @@ export function startConnection(ctx: Context, config: Config, policy: ResolvedRe
     }
     let instructions: string
     try {
-      transport = createTransport(config)
+      transport = createTransport(config, onStderrLine)
       await generation.connect(transport)
       if (hasClosed()) {
         attemptSettled = true
@@ -363,6 +382,7 @@ export function startConnection(ctx: Context, config: Config, policy: ResolvedRe
   return {
     ready,
     instructions: () => serverInstructions,
+    stderr: () => stderrTail?.lines() ?? [],
     resources: {
       async request(request, exec): Promise<JsonValue> {
         const generation = client

@@ -1,0 +1,46 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/market/market-connectors/README.md
+/:
+  en: 4b9b7093945563b4
+  zh: 113c6d303fd72796
+/deepseek-ai-dsh-market-connectors:
+  en: c2ba72c57ab297af
+  zh: 7207df4305e81310
+/deepseek-ai-dsh-market-connectors/summary:
+  en: 98cc3c201fc96d1a
+  zh: 8e2d3156fb57be9c
+/deepseek-ai-dsh-market-connectors/table-of-contents:
+  en: 122f0d41696980b1
+  zh: a626a37cb5e869f8
+/deepseek-ai-dsh-market-connectors/use-this-package:
+  en: 9e90c7f8cb672aa3
+  zh: b6a32be6b3f6d1c2
+/deepseek-ai-dsh-market-connectors/understand-the-implementation:
+  en: ab129440e2916113
+  zh: 0259864688ca1f08
+/deepseek-ai-dsh-market-connectors/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/deepseek-ai-dsh-market-connectors/model-experience/connected-connector-tools:
+  en: decbd56dccd45c62
+  zh: 71fbae9e932931ec
+/deepseek-ai-dsh-market-connectors/model-experience/connected-connector-tools/what-the-model-sees:
+  en: f01146157c3bf120
+  zh: db420d0b4479d701
+/deepseek-ai-dsh-market-connectors/model-experience/connected-connector-tools/what-the-model-sees/market-connector-settings-section:
+  en: a5375de8525637c4
+  zh: ee7027c32f75e013
+/deepseek-ai-dsh-market-connectors/model-experience/connected-connector-tools/token-effect:
+  en: a40b988273af194d
+  zh: d246eabd65d1b7e7
+/deepseek-ai-dsh-market-connectors/model-experience/connected-connector-tools/kv-cache-effect:
+  en: a27551d1d611c02e
+  zh: 46cf1bdb6558e9f2
+/deepseek-ai-dsh-market-connectors/known-limitations-and-deferred-work:
+  en: 7cb1302d1c902303
+  zh: 083360a151822ea1
+/deepseek-ai-dsh-market-connectors/known-limitations-and-deferred-work/dev-note:
+  en: 7972e4b2005ec9a4
+  zh: 754c49ec538c164c

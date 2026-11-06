@@ -27,7 +27,7 @@ Mount `Market` with a catalog URL and a writable market home. Register each supp
 <a id="understand-the-implementation"></a>
 ## Understand the implementation
 
-The service downloads JSON over HTTP(S), keeps the last valid catalog on disk, verifies package metadata and SHA-256 content, extracts into a staging directory, and atomically promotes the completed package. Installed records are stored through the storage-domain service and catalog changes are delivered by `watch()`.
+The service downloads JSON over HTTP(S), keeps the last valid catalog on disk, reads the catalog again (with its ETag) before every install so a page opened before a publish installs the package now listed, verifies package metadata and SHA-256 content, extracts into a staging directory, and atomically promotes the completed package. Installed records are stored through the storage-domain service and catalog changes are delivered by `watch()`. While a package downloads and unpacks, the snapshot's `progress` reports the bytes received and the files written, and `watch()` sends a new snapshot each time the whole percent changes. The copy that an update replaces is deleted after the install returns; a deletion cut short by exit finishes when the next start empties the staging directory.
 
 <a id="model-experience"></a>
 ## Model Experience

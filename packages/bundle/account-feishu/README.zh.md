@@ -25,7 +25,7 @@ kind: "package-bundle"
 <a id="use-this-package"></a>
 ## 使用本包
 
-在侧边栏账号入口或设置的**账号**页扫飞书二维码登录；同样的位置也可以切换账号和退出登录。桌面部署从部署环境提供 `FEISHU_APP_SECRET` 和 `LONGCHEER_API_KEY`；两个值都不会写入 profile。Web 部署需要在启动 profile 前为 Host 进程提供这两个变量。base 组合仍将 `longcheer/qwen3.8-plus` 作为默认模型。
+在侧边栏账号入口或设置的**账号**页扫飞书二维码登录；同样的位置也可以切换账号和退出登录。桌面部署从部署环境提供 `FEISHU_APP_SECRET` 和 `LONGCHEER_API_KEY`；两个值都不会写入 profile。Web 部署需要在启动 profile 前为 Host 进程提供这两个变量。base 组合使用 `lct-anthropic/qwen3.6-max` 作为默认模型；内置的两个网关路由 `lct-openai` 和 `lct-anthropic` 都读取 `LONGCHEER_API_KEY`。
 
 Windows 打包时，将两个值写入仓库根目录 `.secrets.env`，设置 Electron 镜像后执行 `pnpm run package:desktop:win:x64:unsigned`。打包器只会将这两个名称写入 `deployment-env.json`，Desktop 主进程每次启动时再注入 Host。
 
@@ -85,7 +85,7 @@ Windows 打包时，将两个值写入仓库根目录 `.secrets.env`，设置 El
 <a id="known-limitations-and-deferred-work"></a>
 
 - **登录时必须能访问飞书签发方。** 已有会话在需要刷新前使用已存 grant。
-- **部署密钥仍属于部署配置。** 缺少 `FEISHU_APP_SECRET` 时，登录会在显示二维码前失败，账号界面提示当前版本无法登录；缺少 `LONGCHEER_API_KEY` 会使默认 Longcheer 模型请求失败。Host 仍会启动，两个密钥都不会复制到 profile `.env`。
+- **部署密钥仍属于部署配置。** 缺少 `FEISHU_APP_SECRET` 时，登录会在显示二维码前失败，账号界面提示当前版本无法登录；缺少 `LONGCHEER_API_KEY` 会使所有内置网关模型请求失败。Host 仍会启动，两个密钥都不会复制到 profile `.env`。
 - **提供方不是模型凭据提供方。** `resolveToken()` 按设计返回空值。
 
 <a id="dev-note"></a>

@@ -24,6 +24,7 @@ import { registerServerContext } from './server-context.ts'
 import type {} from '@deepseek-ai/dsh-tools'
 
 export { createMcpToolDefinition } from './tools.ts'
+export { decodeStderrLine, STDERR_TAIL_CHARS, STDERR_TAIL_LINES } from './stderr.ts'
 export type { McpResult, McpToolDefinitionOptions } from './tools.ts'
 export type { ReconnectConfig, ResolvedReconnectPolicy } from './connection.ts'
 
@@ -141,6 +142,36 @@ export const Config = z.union([
   }),
 ]) as z<ConfigInput, Config>
 
+// ---- Startup failure ----
+
+/**
+ * Activation failure of an instance configured with `failOnStartupError`: the
+ * initial connection or tool synchronization failed. `cause` holds the
+ * underlying error.
+ */
+export class McpStartupError extends Error {
+  override name = 'McpStartupError'
+  /** The instance's `serverName`. */
+  readonly serverName: string
+  /**
+   * The last lines a stdio server wrote to stderr before the failure, oldest
+   * first, at most {@link STDERR_TAIL_LINES} lines and {@link STDERR_TAIL_CHARS}
+   * characters. Empty for Streamable HTTP.
+   */
+  readonly stderr: readonly string[]
+
+  /**
+   * @param serverName - the failed instance's `serverName`.
+   * @param cause - the underlying connection or synchronization error.
+   * @param stderr - the server's last stderr lines.
+   */
+  constructor(serverName: string, cause: unknown, stderr: readonly string[]) {
+    super(`mcp-client(${serverName}): initial connection or tool synchronization failed`, { cause })
+    this.serverName = serverName
+    this.stderr = stderr
+  }
+}
+
 // ---- Plugin apply ----
 
 /**
@@ -194,10 +225,11 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
   // Block plugin activation on the initial connection + tool discovery so
   // Cordis consumers observe the tools immediately after the fiber activates.
   // When failOnStartupError is true, a failed initial attempt rejects the
-  // fiber (Cordis rolls it back); otherwise the error is logged and the
-  // supervisor enters its reconnect loop.
+  // fiber (Cordis rolls it back) with a McpStartupError carrying the server's
+  // last stderr lines; otherwise the error is logged and the supervisor enters
+  // its reconnect loop.
   const outcome = await connection.ready
   if (outcome.error !== undefined && config.failOnStartupError) {
-    throw new Error(`mcp-client(${config.serverName}): initial connection or tool synchronization failed`, { cause: outcome.error })
+    throw new McpStartupError(config.serverName, outcome.error, connection.stderr())
   }
 }

@@ -13,6 +13,7 @@ import { resolveDesktopBuildTarget, resolveDesktopTargetBuildPaths } from './des
 import { smokePrimaryRuntime } from './prepare-primary-runtime.ts'
 import { verifyDesktopRuntime, writeDesktopRuntimeAsync, type DesktopRuntimeDescriptor } from '../src/runtime-tree.ts'
 import { smokePreparedRuntime } from './smoke-prepared-runtime.ts'
+import { BUNDLED_CONTENT_DIRECTORY, BUNDLED_SKILL_DIRECTORY } from './bundled-content.mjs'
 
 /**
  * Sign the bundled interpreters before their smoke checks.
@@ -82,6 +83,8 @@ async function main(): Promise<void> {
           await signWindowsPrimaryRuntime(join(paths.runtime, 'primary-runtime'), { ...options, smoke: smokePrimaryRuntime })
           await signWindowsCode(join(paths.runtime, 'scrapling'), options)
           await signWindowsCode(join(paths.runtime, 'cua-driver'), options)
+          // Skills are not digest-checked like bundled plugins, so signing their native files changes no record.
+          await signWindowsCode(join(paths.runtime, BUNDLED_CONTENT_DIRECTORY, BUNDLED_SKILL_DIRECTORY), options)
         }
       } finally {
         const summary = cachedSign.summary()

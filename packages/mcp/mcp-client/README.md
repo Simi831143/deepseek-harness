@@ -92,6 +92,8 @@ The server's tools appear before the harness starts its first turn. When the ser
 
 When a server connection drops — for example a local server process crashes — the plugin reconnects automatically with delays that double from 500 ms up to 30 s and then refreshes the tool set; reconnect progress is visible in the logs. During an outage the last known tools stay listed but calls to them fail until the server recovers. After ten consecutive failed attempts the server's tools are removed and reconnection stops until you reload the configuration or restart the harness; a server that stays connected for a while resets that counter. Set `reconnect.enabled: false` to disable automatic reconnection — tools then stay listed but fail until you reload. Editing the configuration entry reloads the server connection in place, and unchanged names stay unchanged.
 
+A local server's stderr goes to the harness log one line at a time, tagged `mcp-client(<serverName>) stderr:`. Lines that are not valid UTF-8 are read as GBK, the code page `cmd.exe` and many Windows programs write on a Chinese system. With `failOnStartupError: true`, a failed initial connection rejects with a `McpStartupError` whose `stderr` field holds the server's last 50 lines, at most 8 KB, so a caller can show why a server did not start. Streamable HTTP servers have no stderr; the field is empty for them.
+
 -----
 
 <a id="understand-the-implementation"></a>
@@ -118,7 +120,8 @@ This section explains the design decisions behind the bridge and points at the c
 | [`src/connection.ts`](src/connection.ts) | Connection supervisor: client generations, reconnect policy, attempt budget, disposal |
 | [`src/server-context.ts`](src/server-context.ts) | Resource-provider registration and literal server instructions |
 | [`src/tools.ts`](src/tools.ts) | Tool bridge: discovery, naming, registration swap, execution, image projection |
-| [`src/transport.ts`](src/transport.ts) | Transport factory: stdio spawn with scrubbed env, Streamable HTTP |
+| [`src/transport.ts`](src/transport.ts) | Transport factory: stdio spawn with scrubbed env and piped stderr, Streamable HTTP |
+| [`src/stderr.ts`](src/stderr.ts) | Stderr line splitting, UTF-8 then GBK decoding, and the bounded tail |
 
 The exported `createMcpToolDefinition(ctx, options)` adapts an upstream tool schema and raw-result callback to the same canonical values, errors, and durable image projection. Each callback receives the exact `ToolExecution`, including its Agent and cancellation signal; SDK spec-type validation checks its result before projection. Callers own registration, cancellation deadlines, and provider teardown. The native Cua Driver provider uses this adapter without opening an MCP transport.
 
@@ -135,6 +138,8 @@ A tool call uses the SDK with the raw name, complete tool definition, JSON argum
 ### Environment scrubbing (stdio)
 
 The child environment starts from the subprocess seam's `scrubbedParentEnv()` — ambient names matching `/KEY|PASSWORD|SECRET|TOKEN/i` and ambient `DSH_*` names are dropped — and the configured `env` merges on top, so explicit overrides survive. The MCP SDK owns the actual spawn; this package shares the scrub definition, not the spawn path.
+
+The supervisor asks for a piped stderr and attaches its reader before `start()`, so the earliest output is read too. The pipe is read for the child's whole life, because a server writing to an unread pipe blocks once the pipe buffer fills. The reader splits on newline bytes, cuts a run longer than 4 KB without one, and decodes each line with strict UTF-8 before falling back to GBK. The SDK's version-negotiation probe runs on a sibling process whose stderr it discards, so only the session process is read. The tail is captured after the failed first attempt has awaited its process exit, and before any retry timer fires.
 
 </details>
 

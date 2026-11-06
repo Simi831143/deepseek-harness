@@ -28,8 +28,11 @@ function noticeText(notice: MarketNotice, t: MarketToastProps['t']): string {
   switch (notice.kind) {
     case 'installed': return t('installDone', { name: notice.name })
     case 'uninstalled': return t('uninstallDone', { name: notice.name })
+    case 'removed': return t('removeDone', { name: notice.name })
     case 'install-failed': return t('installFailed', { name: notice.name, reason: notice.reason })
     case 'uninstall-failed': return t('uninstallFailed', { name: notice.name, reason: notice.reason })
+    case 'remove-failed': return t('removeFailed', { name: notice.name, reason: notice.reason })
+    case 'connect-failed': return t('connectFailed', { name: notice.name, reason: notice.reason })
     case 'reveal-failed': return t('revealFailed', { name: notice.name })
     case 'switch-failed': return t('switchFailed', { reason: notice.reason })
     case 'load-failed': return t('loadFailed', { reason: notice.reason })

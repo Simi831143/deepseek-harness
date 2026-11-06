@@ -48,6 +48,9 @@
       "path": "../../market/market-skills"
     },
     {
+      "path": "../../market/market-connectors"
+    },
+    {
       "path": "../../test-support/client-runtime"
     },
     {

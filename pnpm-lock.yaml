@@ -2759,6 +2759,9 @@ importers:
       '@deepseek-ai/dsh-market':
         specifier: workspace:*
         version: link:../../market/market
+      '@deepseek-ai/dsh-market-connectors':
+        specifier: workspace:*
+        version: link:../../market/market-connectors
       '@deepseek-ai/dsh-market-skills':
         specifier: workspace:*
         version: link:../../market/market-skills
@@ -4767,6 +4770,9 @@ importers:
       '@deepseek-ai/dsh-market':
         specifier: workspace:*
         version: link:../../market/market
+      '@deepseek-ai/dsh-market-connectors':
+        specifier: workspace:*
+        version: link:../../market/market-connectors
       '@deepseek-ai/dsh-market-skills':
         specifier: workspace:*
         version: link:../../market/market-skills
@@ -12954,6 +12960,55 @@ importers:
       '@deepseek-ai/dsh-typert-protocol':
         specifier: workspace:*
         version: link:../../typert/protocol
+
+  packages/market/market-connectors:
+    dependencies:
+      '@deepseek-ai/dsh-mcp-client':
+        specifier: workspace:*
+        version: link:../../mcp/mcp-client
+      '@deepseek-ai/dsh-timeout':
+        specifier: workspace:*
+        version: link:../../util/timeout
+      zod:
+        specifier: 4.4.3
+        version: 4.4.3
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:~
+        version: link:../../../vendor/cordis
+      '@deepseek-ai/dsh-credentials':
+        specifier: workspace:*
+        version: link:../../credentials/credentials
+      '@deepseek-ai/dsh-market':
+        specifier: workspace:*
+        version: link:../market
+      '@deepseek-ai/dsh-skill':
+        specifier: workspace:*
+        version: link:../../skill/skill
+      '@deepseek-ai/dsh-skill-filesystem':
+        specifier: workspace:*
+        version: link:../../skill/skill-filesystem
+      '@deepseek-ai/dsh-storage':
+        specifier: workspace:*
+        version: link:../../storage/storage
+      '@deepseek-ai/dsh-storage-domain':
+        specifier: workspace:*
+        version: link:../../storage/storage-domain
+      '@deepseek-ai/dsh-system-prompt':
+        specifier: workspace:*
+        version: link:../../core/system-prompt
+      '@deepseek-ai/dsh-tool-executor-native':
+        specifier: workspace:*
+        version: link:../../core/tool-executor-native
+      '@deepseek-ai/dsh-tools':
+        specifier: workspace:*
+        version: link:../../core/tools
+      '@deepseek-ai/dsh-typert-protocol':
+        specifier: workspace:*
+        version: link:../../typert/protocol
+      fflate:
+        specifier: ^0.8.3
+        version: 0.8.3
 
   packages/market/market-skills:
     dependencies:

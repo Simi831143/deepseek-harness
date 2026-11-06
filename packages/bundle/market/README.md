@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-This bundle adds the market catalog, verified skill installation, installed-skill switches, and the browser Market page to a profile. It is an optional product layer and does not change the base profile when it is absent.
+This bundle adds the market catalog, verified skill installation, installed-skill switches, local MCP connectors, and the browser Market page to a profile. It is an optional product layer and does not change the base profile when it is absent.
 
 ## Table of Contents
 
@@ -22,12 +22,12 @@ This bundle adds the market catalog, verified skill installation, installed-skil
 <a id="use-this-package"></a>
 ## Use this package
 
-Add the bundle to a `dsh` profile through the profile composer. The bundle patch mounts `dsh-market`, `dsh-market-skills`, and `dsh-client-ui-market` together so the Host and browser use the same catalog and installed records.
+Add the bundle to a `dsh` profile through the profile composer. The bundle patch mounts `dsh-market`, `dsh-market-skills`, `dsh-market-connectors`, and `dsh-client-ui-market` together so the Host and browser use the same catalog and installed records.
 
 <a id="understand-the-implementation"></a>
 ## Understand the implementation
 
-`cordis.patch.yml` contributes the Host services and browser plugin. The bundle owns composition only; catalog fetching and archive verification live in `dsh-market`, while skill records and enablement live in `dsh-market-skills`.
+`cordis.patch.yml` contributes the Host services and browser plugin. The bundle owns composition only; catalog fetching and archive verification live in `dsh-market`, skill records and enablement live in `dsh-market-skills`, and connector programs and their switches live in `dsh-market-connectors`.
 
 <a id="model-experience"></a>
 ## Model Experience
@@ -36,11 +36,11 @@ Add the bundle to a `dsh` profile through the profile composer. The bundle patch
 
 #### What the model sees
 
-Nothing from the bundle itself. Installed skills become model-visible through `ctx.skills` when the profile also includes skill discovery and loading.
+Nothing from the bundle itself. Installed skills become model-visible through `ctx.skills` when the profile also includes skill discovery and loading, and connected connectors add their MCP tools through `ctx.tools`.
 
 #### Token effect
 
-None from the bundle layer. The installed skill consumer accounts for any loaded instruction body.
+None from the bundle layer. The installed skill consumer accounts for any loaded instruction body, and `dsh-market-connectors` documents the tool schemas a connected connector adds.
 
 #### KV Cache effect
 

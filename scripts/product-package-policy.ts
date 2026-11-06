@@ -55,5 +55,6 @@ export const PRODUCT_PACKAGE_POLICY: Readonly<Record<string, ProductPackagePolic
   'packages/bundle/market': { category: 'optional', reason: 'LC Camera Agent Desktop adds this bundle to its own profile.' },
   'packages/market/market': { category: 'optional', reason: 'Mounted by the LC Camera Agent Desktop market bundle.' },
   'packages/market/market-skills': { category: 'optional', reason: 'Mounted by the LC Camera Agent Desktop market bundle.' },
+  'packages/market/market-connectors': { category: 'optional', reason: 'Mounted by the LC Camera Agent Desktop market bundle.' },
   'packages/client/ui-market': { category: 'optional', reason: 'Mounted by the LC Camera Agent Desktop market bundle.' },
 }

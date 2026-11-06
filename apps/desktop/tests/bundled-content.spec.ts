@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -8,6 +8,7 @@ import {
   BUNDLED_CONTENT_MANIFEST,
   BUNDLED_SOURCES,
   prepareBundledContent,
+  recordBundledSkill,
   verifyBundledContent,
   type BundledSource,
 } from '../scripts/bundled-content.mjs'
@@ -292,5 +293,34 @@ describe('packaged bundled content verification', () => {
 
     writeSkill(content(runtime, 'skills', 'deck'))
     expect(verifying(runtime)).not.toThrow()
+  })
+})
+
+describe('skills recorded after preparation', () => {
+  it('adds a skill a later step wrote to the record packaging checks, once', () => {
+    const runtime = scratch()
+    const recording = (record: { name: string }) => () => { recordBundledSkill(runtime, record) }
+    expect(recording({ name: 'pdf' })).toThrow('run prepareBundledContent before recording skill pdf')
+    prepareBundledContent(runtime, {}, [])
+    expect(recording({ name: 'pdf' })).toThrow('SKILL.md is missing')
+    writeSkill(content(runtime, 'skills', 'pdf'), 'pdf', 'other')
+    expect(recording({ name: 'pdf' })).toThrow('must declare name "pdf"')
+
+    writeSkill(content(runtime, 'skills', 'pdf'))
+    recordBundledSkill(runtime, { name: 'pdf', path: 'apps/desktop/skills/pdf' })
+    expect(readManifest(runtime).skills).toEqual([{ name: 'pdf', path: 'apps/desktop/skills/pdf' }])
+    expect(verifying(runtime)).not.toThrow()
+    expect(recording({ name: 'pdf' })).toThrow('skill "pdf" is recorded more than once')
+
+    rmSync(content(runtime, 'skills', 'pdf'), { recursive: true })
+    expect(verifying(runtime)).toThrow('packaged resources lack skill pdf')
+  })
+
+  it('accepts the repository PDF skill source', () => {
+    const runtime = scratch()
+    prepareBundledContent(runtime, {}, [])
+    cpSync(join(import.meta.dirname, '..', 'skills', 'pdf'), content(runtime, 'skills', 'pdf'), { recursive: true })
+    recordBundledSkill(runtime, { name: 'pdf' })
+    expect(readManifest(runtime).skills).toEqual([{ name: 'pdf' }])
   })
 })

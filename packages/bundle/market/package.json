@@ -31,6 +31,7 @@
   "dependencies": {
     "@deepseek-ai/dsh-client-ui-market": "workspace:*",
     "@deepseek-ai/dsh-market": "workspace:*",
+    "@deepseek-ai/dsh-market-connectors": "workspace:*",
     "@deepseek-ai/dsh-market-skills": "workspace:*"
   },
   "peerDependencies": {

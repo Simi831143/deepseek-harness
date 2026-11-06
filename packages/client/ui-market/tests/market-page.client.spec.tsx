@@ -11,10 +11,10 @@ import { MarketPage, type MarketPageProps } from '../src/client/MarketPage.tsx'
 import type { MarketView } from '../src/client/navigation-store.ts'
 
 const state: MarketState = {
-  market: { revision: 1, source: 'remote', categories: [], featured: [], items: [], kinds: ['skill'], installing: [] },
+  market: { revision: 1, source: 'remote', categories: [], featured: [], items: [], kinds: ['skill'], installing: [], progress: [] },
   streamFailed: false,
   installedSkills: { complete: true, skills: [] },
-  installedLoading: false, switching: [], canReveal: false, notice: null,
+  installedLoading: false, switching: [], canReveal: false, connectors: undefined, connectorBusy: [], notice: null,
 }
 
 const t: MarketPageProps['t'] = (key, params) => {

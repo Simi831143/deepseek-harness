@@ -1,0 +1,175 @@
+/* Connector section: the card's connect button, the program line of the connect prompt, a
+   custom connector's configuration, and the failure block with the program's stderr. */
+
+/* Above the card-wide title button, like the skill card's install button. */
+.connect {
+  position: relative;
+  z-index: 1;
+  flex: none;
+}
+
+.program {
+  display: block;
+  padding: 8px 10px;
+  border-radius: var(--dsw-radius-sm);
+  overflow-wrap: anywhere;
+  font-family: var(--dsw-font-family-mono, ui-monospace, monospace);
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-secondary);
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+/* A custom connector's card shows its command or URL on one line. */
+.summary {
+  overflow: hidden;
+  font-family: var(--dsw-font-family-mono, ui-monospace, monospace);
+  font-size: 12px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.mono {
+  overflow-wrap: anywhere;
+  font-family: var(--dsw-font-family-mono, ui-monospace, monospace);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.config {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 8px 16px;
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: var(--dsw-radius-md);
+  font-size: 13px;
+  line-height: 20px;
+  background: var(--dsw-alias-bg-module-platform);
+}
+
+.config dt {
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.config dd {
+  min-width: 0;
+  margin: 0;
+}
+
+.pairs {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.pairList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.failure {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.failureHint {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 20px;
+  color: var(--dsw-alias-state-error-primary);
+}
+
+.failureHint > svg {
+  flex: none;
+  margin-top: 3px;
+}
+
+.failureReason {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.stderrBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.stderrTitle {
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.stderr {
+  max-height: 200px;
+  margin: 0;
+  overflow: auto;
+  padding: 8px 10px;
+  border-radius: var(--dsw-radius-md);
+  background: var(--dsw-alias-bg-module-platform);
+  font-family: var(--dsw-font-family-mono, ui-monospace, monospace);
+  font-size: 12px;
+  line-height: 18px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--dsw-alias-label-secondary);
+}
+
+/* Settings of a market connector: one field per declared value, then the save row. */
+.settings {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.settingLabelRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.settingInputRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.settingLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
+  color: var(--dsw-alias-link);
+  text-decoration: none;
+}
+
+.settingsActions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}

@@ -1,6 +1,6 @@
 /** Market core: catalog validation, safe unpacking, verified installs, and kind sync. */
 import { createHash } from 'node:crypto'
-import { mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises'
+import { mkdtemp, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { createServer, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { tmpdir } from 'node:os'
@@ -14,6 +14,8 @@ import { MemoryStorageBackend } from '../../../storage/storage-domain/tests/help
 import { extractArchive, MarketArchiveError } from '../src/archive.ts'
 import { MarketCatalogError, parseCatalog, resolveCatalogPath } from '../src/catalog.ts'
 import Market, { type InstalledItem, type MarketKind } from '../src/index.ts'
+import { installPackage } from '../src/installer.ts'
+import type { MarketCatalogItem } from '../src/types.ts'
 
 const cleanup: (() => Promise<void>)[] = []
 afterEach(async () => {
@@ -264,6 +266,104 @@ describe('Market', () => {
     server.setCatalog(catalogText([{ ...skillItem(skillZip), version: '1.0.1', examples: [{ zh: '把这份 PDF 转成文字' }] }]))
     const after = await ctx.market.refreshCatalog()
     expect(after.items[0]).toMatchObject({ version: '1.0.1', installedVersion: '1.0.1', examples: [{ zh: '把这份 PDF 转成文字' }] })
+  })
+
+  it('reads the catalog again before installing, so a stale catalog installs the package now published', async () => {
+    const server = await publish()
+    const v2 = zipSync({ 'pdf-cjk/SKILL.md': strToU8('---\nname: pdf-cjk\ndescription: d\n---\nversion two') })
+    server.setCatalog(catalogText([skillItem(skillZip)]))
+    const ctx = await mountMarket(server.url, await tempDir())
+    await vi.waitFor(() => { expect(ctx.market.catalogSnapshot().source).toBe('remote') })
+    ctx.effect(() => ctx.market.registerKind(recordingKind()))
+    // The publisher replaces 1.0.0 with 2.0.0 and removes the 1.0.0 package from the share.
+    server.setCatalog(catalogText([{ ...skillItem(v2), version: '2.0.0', package: { ...skillItem(v2).package, path: 'packages/skill/pdf-cjk-2.0.0.zip' } }]))
+    server.setPackage('packages/skill/pdf-cjk-2.0.0.zip', v2)
+    expect(ctx.market.catalogSnapshot().items[0]?.version).toBe('1.0.0')
+
+    const after = await ctx.market.installPackage({ kind: 'skill', id: 'pdf-cjk' }, new AbortController().signal)
+    expect(after.items[0]).toMatchObject({ version: '2.0.0', installedVersion: '2.0.0' })
+    expect(server.requests.filter(line => line.includes('.zip'))).toEqual(['GET /market/packages/skill/pdf-cjk-2.0.0.zip'])
+  })
+
+  it('releases an item after validation and before its directory is replaced, then syncs', async () => {
+    const server = await publish()
+    const v2 = zipSync({ 'pdf-cjk/SKILL.md': strToU8('---\nname: pdf-cjk\ndescription: d\n---\nversion two') })
+    server.setCatalog(catalogText([skillItem(skillZip)]))
+    server.setPackage('packages/skill/pdf-cjk-1.0.0.zip', skillZip)
+    const home = await tempDir()
+    const ctx = await mountMarket(server.url, home)
+    await vi.waitFor(() => { expect(ctx.market.catalogSnapshot().source).toBe('remote') })
+    const events: string[] = []
+    const kind = recordingKind(async () => { events.push('validate') })
+    kind.release = async (id) => {
+      events.push(`release ${id}: ${await readFile(join(home, 'packages', 'skill', id, 'SKILL.md'), 'utf8').catch(() => 'absent')}`)
+    }
+    const recorded = kind.synced
+    kind.sync = async (items) => { events.push('sync'); recorded.push([...items]) }
+    ctx.effect(() => ctx.market.registerKind(kind))
+    await ctx.market.installItem({ kind: 'skill', id: 'pdf-cjk' })
+    server.setCatalog(catalogText([{ ...skillItem(v2), version: '2.0.0', package: { ...skillItem(v2).package, path: 'packages/skill/pdf-cjk-2.0.0.zip' } }]))
+    server.setPackage('packages/skill/pdf-cjk-2.0.0.zip', v2)
+    await ctx.market.refreshCatalog()
+    events.length = 0
+    await ctx.market.installItem({ kind: 'skill', id: 'pdf-cjk' })
+    expect(events).toEqual(['validate', expect.stringMatching(/^release pdf-cjk: ---/), 'sync'])
+    expect(events[1]).not.toContain('version two')
+    expect(await readFile(join(home, 'packages', 'skill', 'pdf-cjk', 'SKILL.md'), 'utf8')).toContain('version two')
+    // The replaced copy is deleted after the install returns.
+    await vi.waitFor(async () => { expect(await readdir(join(home, 'tmp'))).toEqual([]) })
+  })
+
+  it('reports install progress once per whole percent and drops it afterwards', async () => {
+    const server = await publish()
+    const files = 500
+    const entries: Record<string, Uint8Array> = { 'pdf-cjk/SKILL.md': strToU8('---\nname: pdf-cjk\ndescription: d\n---\nbody') }
+    for (let index = 1; index < files; index += 1) entries[`pdf-cjk/scripts/${index}.py`] = strToU8('x')
+    const zip = zipSync(entries)
+    server.setCatalog(catalogText([skillItem(zip)]))
+    server.setPackage('packages/skill/pdf-cjk-1.0.0.zip', zip)
+    const ctx = await mountMarket(server.url, await tempDir())
+    await vi.waitFor(() => { expect(ctx.market.catalogSnapshot().source).toBe('remote') })
+    const seen: unknown[] = []
+    ctx.effect(() => ctx.market.registerKind(recordingKind(async () => { seen.push(ctx.market.catalogSnapshot().progress) })))
+    const before = ctx.market.catalogSnapshot().revision
+    const after = await ctx.market.installPackage({ kind: 'skill', id: 'pdf-cjk' }, new AbortController().signal)
+    expect(seen).toEqual([[{ key: 'skill:pdf-cjk', phase: 'unpack', done: files, total: files }]])
+    expect(after.progress).toEqual([])
+    expect(after.revision - before).toBeLessThan(files)
+  })
+
+  it('syncs the kind again when the install fails after releasing the item', async () => {
+    const server = await publish()
+    server.setCatalog(catalogText([skillItem(skillZip)]))
+    server.setPackage('packages/skill/pdf-cjk-1.0.0.zip', skillZip)
+    const ctx = await mountMarket(server.url, await tempDir())
+    await vi.waitFor(() => { expect(ctx.market.catalogSnapshot().source).toBe('remote') })
+    const kind = recordingKind()
+    kind.release = () => Promise.reject(new Error('the connector would not stop'))
+    ctx.effect(() => ctx.market.registerKind(kind))
+    await vi.waitFor(() => { expect(kind.synced).toHaveLength(1) })
+    await expect(ctx.market.installItem({ kind: 'skill', id: 'pdf-cjk' })).rejects.toMatchObject({
+      code: 'market/install-failed', details: { reason: 'the connector would not stop' },
+    })
+    expect(kind.synced).toHaveLength(2)
+    expect(kind.synced.at(-1)).toEqual([])
+  })
+
+  it('reports every downloaded chunk and every written file in order', async () => {
+    const server = await publish()
+    const zip = zipSync({ 'pdf-cjk/SKILL.md': strToU8('body'), 'pdf-cjk/scripts/a.py': strToU8('x') })
+    server.setPackage('packages/skill/pdf-cjk-1.0.0.zip', zip)
+    const home = await tempDir()
+    const progress = vi.fn()
+    const item: MarketCatalogItem = { ...skillItem(zip), kind: 'skill' }
+    const placed = await installPackage(server.url.replace('index.json', 'packages/skill/pdf-cjk-1.0.0.zip'), item, async () => {}, {
+      packagesRoot: join(home, 'packages'), stagingRoot: join(home, 'tmp'), downloadTimeoutMs: 10_000, renameRetryMs: 0,
+    }, new AbortController().signal, { release: async () => {}, progress })
+    expect(progress.mock.calls.at(0)?.[0]).toBe('download')
+    expect(progress.mock.calls.filter(([phase]) => phase === 'download').at(-1)).toEqual(['download', zip.byteLength, zip.byteLength])
+    expect(progress.mock.calls.filter(([phase]) => phase === 'unpack')).toEqual([['unpack', 1, 2], ['unpack', 2, 2]])
+    expect(placed).toEqual({ directory: join(home, 'packages', 'skill', 'pdf-cjk') })
   })
 
   it('rejects a non-http catalog URL at load', async () => {

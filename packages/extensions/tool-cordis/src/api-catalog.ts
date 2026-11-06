@@ -1758,6 +1758,58 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'marketConnectors',
+    summary: 'Host owner of the connector kind, the custom connectors and the `marketConnectors` Remote namespace.',
+    description: 'Host owner of the connector kind, the custom connectors and the `marketConnectors` Remote namespace.',
+    methods: [
+      {
+        signature: '@Remote connectorList(): ConnectorsValue',
+        description: 'List the connectors.',
+        parameters: [],
+        returns: 'every custom and installed market connector with its switch, acceptance, state and program.',
+      },
+      {
+        signature: '@Remote async setConnectorEnabled(request: ConnectorSwitchRequest): Promise<ConnectorsValue>',
+        description: 'Switch one connector on or off. On starts it in the background; follow `watch` for the outcome. Off stops it and keeps its files or configuration.',
+        parameters: [{ name: 'request', description: 'connector id, target state, and the user\'s acceptance of a market connector\'s program.' }],
+        returns: 'the connectors after the change.',
+        throws: ['RemoteError `market-connectors/not-installed`, `market-connectors/confirmation-required` when a market connector was never accepted and `confirmed` is not `true`, `market-connectors/invalid-manifest`, or `market-connectors/state-unavailable`.'],
+      },
+      {
+        signature: '@Remote async retryConnector(request: ConnectorIdRequest): Promise<ConnectorsValue>',
+        description: 'Start a connector whose first start failed; other states are left as they are.',
+        parameters: [{ name: 'request', description: 'connector id.' }],
+        returns: 'the connectors after the retry began.',
+      },
+      {
+        signature: '@Remote parseCustomConnectors(request: ParseCustomRequest): ParsedCustomConnectors',
+        description: 'Read the MCP servers in pasted text, without saving anything.',
+        parameters: [{ name: 'request', description: 'the pasted text.' }],
+        returns: 'each server found with the configuration it would be saved with, or why it cannot be added.',
+      },
+      {
+        signature: '@Remote async saveCustomConnector(request: SaveCustomRequest): Promise<ConnectorsValue>',
+        description: 'Add a custom connector, or change one. A connector that is switched on starts, or restarts when its configuration changed, in the background; saving a failed one unchanged retries it.',
+        parameters: [{ name: 'request', description: 'the configuration, the name it replaces when changing one, and its switch.' }],
+        returns: 'the connectors after the change.',
+        throws: ['RemoteError `market-connectors/invalid-custom` when the configuration breaks a rule, `market-connectors/name-taken`, `market-connectors/not-found` when `previousName` names no custom connector, or `market-connectors/state-unavailable`.'],
+      },
+      {
+        signature: '@Remote async removeCustomConnector(request: CustomNameRequest): Promise<ConnectorsValue>',
+        description: 'Stop a custom connector and delete its configuration.',
+        parameters: [{ name: 'request', description: 'connector name.' }],
+        returns: 'the connectors after the change.',
+        throws: ['RemoteError `market-connectors/not-found` or `market-connectors/state-unavailable`.'],
+      },
+      {
+        signature: '@Remote({ mode: \'stream\' }) async *watch(signal: AbortSignal): AsyncIterable<ConnectorsValue>',
+        description: 'Follow connector state for one browser.',
+        parameters: [{ name: 'signal', description: 'observation lifetime.' }],
+        returns: 'the current connectors, then the connectors after every change.',
+      },
+    ],
+  },
+  {
     key: 'marketSkills',
     summary: 'Host owner of the skill kind and the `marketSkills` Remote namespace.',
     description: 'Host owner of the skill kind and the `marketSkills` Remote namespace.',
@@ -5532,6 +5584,38 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface ConnectionTrustRequest {\n    readonly headers: Headers | Readonly<Record<string, string | readonly string[] | undefined>>;\n}',
   },
   {
+    name: 'ConnectorHint',
+    declaration: 'export type ConnectorHint = \'command-not-found\' | \'cwd-not-found\' | \'start-timeout\' | \'unauthorized\' | \'maybe-sse\' | \'unreachable\';',
+  },
+  {
+    name: 'ConnectorIdRequest',
+    declaration: 'export interface ConnectorIdRequest {\n    readonly id: string;\n}',
+  },
+  {
+    name: 'ConnectorLaunchView',
+    declaration: 'export interface ConnectorLaunchView {\n    readonly command: string;\n    readonly args: readonly string[];\n}',
+  },
+  {
+    name: 'ConnectorOrigin',
+    declaration: 'export type ConnectorOrigin = \'market\' | \'custom\';',
+  },
+  {
+    name: 'ConnectorState',
+    declaration: 'export type ConnectorState = \'off\' | \'starting\' | \'connected\' | \'failed\';',
+  },
+  {
+    name: 'ConnectorsValue',
+    declaration: 'export interface ConnectorsValue {\n    readonly revision: number;\n    readonly connectors: readonly ConnectorView[];\n}',
+  },
+  {
+    name: 'ConnectorSwitchRequest',
+    declaration: 'export interface ConnectorSwitchRequest {\n    readonly id: string;\n    readonly enabled: boolean;\n    readonly confirmed?: boolean;\n}',
+  },
+  {
+    name: 'ConnectorView',
+    declaration: 'export interface ConnectorView {\n    readonly id: string;\n    readonly origin: ConnectorOrigin;\n    readonly enabled: boolean;\n    readonly confirmed: boolean;\n    readonly state: ConnectorState;\n    readonly error?: string;\n    readonly hint?: ConnectorHint;\n    readonly stderr?: readonly string[];\n    readonly launch?: ConnectorLaunchView;\n    readonly custom?: CustomConnectorConfig;\n}',
+  },
+  {
     name: 'ContentBlockMap',
     declaration: 'export interface ContentBlockMap {\n    \'text\': TextBlock;\n    \'reasoning\': ReasoningBlock;\n    \'image\': ImageBlock;\n    \'file\': FileBlock;\n    \'tool-call\': ToolCallBlock;\n    \'tool-addition\': ToolAdditionBlock;\n    \'tool-removal\': ToolRemovalBlock;\n}',
   },
@@ -5710,6 +5794,26 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'CuaSystemPermissionState',
     declaration: 'export interface CuaSystemPermissionState {\n    accessibility: boolean;\n    screenRecording: boolean;\n    helper: CuaPermissionProcess;\n    parent: CuaPermissionProcess;\n    launchApplication?: {\n        name: string;\n        path: string;\n        icon?: string | undefined;\n    } | undefined;\n}',
+  },
+  {
+    name: 'CustomConnectorConfig',
+    declaration: 'export type CustomConnectorConfig = CustomStdioConfig | CustomHttpConfig;',
+  },
+  {
+    name: 'CustomHttpConfig',
+    declaration: 'export interface CustomHttpConfig {\n    readonly name: string;\n    readonly transport: \'streamable-http\';\n    readonly url: string;\n    readonly headers: Readonly<Record<string, string>>;\n    readonly toolCallTimeoutMs?: number;\n}',
+  },
+  {
+    name: 'CustomNameRequest',
+    declaration: 'export interface CustomNameRequest {\n    readonly name: string;\n}',
+  },
+  {
+    name: 'CustomProblem',
+    declaration: 'export type CustomProblem = \'not-json\' | \'no-servers\' | \'invalid-name\' | \'name-taken\' | \'sse\' | \'unknown-type\' | \'no-command-or-url\' | \'invalid-url\' | \'cwd-not-absolute\' | \'invalid-field\';',
+  },
+  {
+    name: 'CustomStdioConfig',
+    declaration: 'export interface CustomStdioConfig {\n    readonly name: string;\n    readonly transport: \'stdio\';\n    readonly command: string;\n    readonly args: readonly string[];\n    readonly env: Readonly<Record<string, string>>;\n    readonly cwd?: string;\n    readonly toolCallTimeoutMs?: number;\n}',
   },
   {
     name: 'DailyInput',
@@ -6512,6 +6616,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface MarketInstalledRecord {\n    readonly kind: MarketKindName;\n    readonly id: string;\n    readonly version: string;\n    readonly sha256: string;\n    readonly installedAt: string;\n}',
   },
   {
+    name: 'MarketInstallPhase',
+    declaration: 'export type MarketInstallPhase = \'download\' | \'unpack\';',
+  },
+  {
+    name: 'MarketInstallProgress',
+    declaration: 'export interface MarketInstallProgress {\n    readonly key: string;\n    readonly phase: MarketInstallPhase;\n    readonly done: number;\n    readonly total: number;\n}',
+  },
+  {
     name: 'MarketInstallTarget',
     declaration: 'export interface MarketInstallTarget {\n    readonly spec: string;\n    readonly registry?: string;\n}',
   },
@@ -6525,7 +6637,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'MarketKind',
-    declaration: 'export interface MarketKind {\n    readonly kind: MarketKindName;\n    validate(directory: string, item: MarketCatalogItem): Promise<void>;\n    sync(items: readonly InstalledItem[]): Promise<void>;\n}',
+    declaration: 'export interface MarketKind {\n    readonly kind: MarketKindName;\n    validate(directory: string, item: MarketCatalogItem): Promise<void>;\n    sync(items: readonly InstalledItem[]): Promise<void>;\n    release?(id: string): Promise<void>;\n}',
   },
   {
     name: 'MarketKindName',
@@ -6565,7 +6677,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'MarketSnapshot',
-    declaration: 'export interface MarketSnapshot {\n    readonly revision: number;\n    readonly source: MarketCatalogSource;\n    readonly fetchedAt?: string;\n    readonly fetchError?: string;\n    readonly categories: readonly MarketCategory[];\n    readonly featured: readonly MarketFeaturedRef[];\n    readonly items: readonly MarketItemView[];\n    readonly kinds: readonly MarketKindName[];\n    readonly installing: readonly string[];\n}',
+    declaration: 'export interface MarketSnapshot {\n    readonly revision: number;\n    readonly source: MarketCatalogSource;\n    readonly fetchedAt?: string;\n    readonly fetchError?: string;\n    readonly categories: readonly MarketCategory[];\n    readonly featured: readonly MarketFeaturedRef[];\n    readonly items: readonly MarketItemView[];\n    readonly kinds: readonly MarketKindName[];\n    readonly installing: readonly string[];\n    readonly progress: readonly MarketInstallProgress[];\n}',
   },
   {
     name: 'MarketSort',
@@ -6838,6 +6950,18 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'PaneOpenResult',
     declaration: 'export interface PaneOpenResult {\n    id: string;\n    isPlaced: boolean;\n    reason?: string;\n}',
+  },
+  {
+    name: 'ParseCustomRequest',
+    declaration: 'export interface ParseCustomRequest {\n    readonly text: string;\n}',
+  },
+  {
+    name: 'ParsedCustomConnectors',
+    declaration: 'export interface ParsedCustomConnectors {\n    readonly entries: readonly ParsedCustomEntry[];\n    readonly problem?: CustomProblem;\n    readonly detail?: string;\n}',
+  },
+  {
+    name: 'ParsedCustomEntry',
+    declaration: 'export interface ParsedCustomEntry {\n    readonly name: string;\n    readonly renamedFrom?: string;\n    readonly config?: CustomConnectorConfig;\n    readonly enabled: boolean;\n    readonly ignored: readonly string[];\n    readonly problem?: CustomProblem;\n    readonly detail?: string;\n}',
   },
   {
     name: 'PeerAdmission',
@@ -7390,6 +7514,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'SandboxPolicyRequest',
     declaration: 'export interface SandboxPolicyRequest {\n    session?: Session;\n    mode?: SandboxMode;\n}',
+  },
+  {
+    name: 'SaveCustomRequest',
+    declaration: 'export interface SaveCustomRequest {\n    readonly previousName?: string;\n    readonly config: CustomConnectorConfig;\n    readonly enabled?: boolean;\n}',
   },
   {
     name: 'SaveFileAttachment',

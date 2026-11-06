@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import { preparePrimaryRuntime as preparePayload, smokePrimaryRuntime as smokePayload } from '../../../scripts/primary-runtime/prepare.ts'
 import { parsePrimaryRuntime, workspaceDependencyPaths } from '../../../packages/skill/tool-workspace-dependencies/src/index.ts'
 import { prepareBundledContent } from './bundled-content.mjs'
+import { preparePdfSkill } from './prepare-pdf-skill.ts'
 import { resolveDesktopBuildTarget, resolveDesktopTargetBuildPaths } from './desktop-build-paths.mjs'
 import { scrubWindowsSigningEnvironment } from './windows-sign.mjs'
 
@@ -19,6 +20,7 @@ export async function preparePrimaryRuntime(options: { deferSmoke?: boolean } = 
   await preparePayload({ target: resolveDesktopBuildTarget(), output: paths.runtime, cache: paths.downloads, version })
   // Desktop-only skills and plugins; packaging's afterPack check fails a build that skipped this step.
   prepareBundledContent(paths.runtime)
+  await preparePdfSkill(paths.runtime, resolveDesktopBuildTarget(), paths.downloads)
   if (!options.deferSmoke) smokePrimaryRuntime(join(paths.runtime, 'primary-runtime'))
 }
 

@@ -119,6 +119,73 @@ interface McpResourceProvider {
 
 Generated from source by `scripts/gen-cordis-catalog.ts` (verified fresh by `pnpm run verify-cordis-catalog` in doc-sync; regenerate with `pnpm run gen-cordis-catalog`) — the language sides differ only in locale-specific paired document paths. Signature blocks use a `ts cordis-catalog` fence and keep the original source JSDoc; dispatch modes are defined in the [primer](../cordis-primer.zh.md#dispatch-modes), and the framework-inherited `ctx` API lives in [cordis-api/inherited.md](../cordis-api/inherited.md).
 
+<a id="ctxmarketconnectors--marketconnectors"></a>
+
+### `ctx.marketConnectors` — `MarketConnectors`
+
+Host owner of the connector kind, the custom connectors and the `marketConnectors` Remote namespace.
+
+```ts cordis-catalog
+/**
+ * List the connectors.
+ * @returns every custom and installed market connector with its switch, acceptance, state and program.
+ */
+@Remote connectorList(): ConnectorsValue
+
+/**
+ * Switch one connector on or off. On starts it in the background; follow `watch` for the
+ * outcome. Off stops it and keeps its files or configuration.
+ * @param request - connector id, target state, and the user's acceptance of a market connector's program.
+ * @returns the connectors after the change.
+ * @throws RemoteError `market-connectors/not-installed`, `market-connectors/confirmation-required`
+ *   when a market connector was never accepted and `confirmed` is not `true`,
+ *   `market-connectors/invalid-manifest`, or `market-connectors/state-unavailable`.
+ */
+@Remote async setConnectorEnabled(request: ConnectorSwitchRequest): Promise<ConnectorsValue>
+
+/**
+ * Start a connector whose first start failed; other states are left as they are.
+ * @param request - connector id.
+ * @returns the connectors after the retry began.
+ */
+@Remote async retryConnector(request: ConnectorIdRequest): Promise<ConnectorsValue>
+
+/**
+ * Read the MCP servers in pasted text, without saving anything.
+ * @param request - the pasted text.
+ * @returns each server found with the configuration it would be saved with, or why it cannot be added.
+ */
+@Remote parseCustomConnectors(request: ParseCustomRequest): ParsedCustomConnectors
+
+/**
+ * Add a custom connector, or change one. A connector that is switched on starts, or restarts
+ * when its configuration changed, in the background; saving a failed one unchanged retries it.
+ * @param request - the configuration, the name it replaces when changing one, and its switch.
+ * @returns the connectors after the change.
+ * @throws RemoteError `market-connectors/invalid-custom` when the configuration breaks a rule,
+ *   `market-connectors/name-taken`, `market-connectors/not-found` when `previousName` names no
+ *   custom connector, or `market-connectors/state-unavailable`.
+ */
+@Remote async saveCustomConnector(request: SaveCustomRequest): Promise<ConnectorsValue>
+
+/**
+ * Stop a custom connector and delete its configuration.
+ * @param request - connector name.
+ * @returns the connectors after the change.
+ * @throws RemoteError `market-connectors/not-found` or `market-connectors/state-unavailable`.
+ */
+@Remote async removeCustomConnector(request: CustomNameRequest): Promise<ConnectorsValue>
+
+/**
+ * Follow connector state for one browser.
+ * @param signal - observation lifetime.
+ * @returns the current connectors, then the connectors after every change.
+ */
+@Remote({ mode: 'stream' }) async *watch(signal: AbortSignal): AsyncIterable<ConnectorsValue>
+```
+
+Source: [`packages/market/market-connectors/src/index.ts`](../../packages/market/market-connectors/src/index.ts)
+
 <a id="ctxmcpresources--mcpresourceruntime"></a>
 
 ### `ctx.mcpResources` — `McpResourceRuntime`

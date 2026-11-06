@@ -3,7 +3,7 @@ import { createHash, randomUUID } from 'node:crypto'
 import { mkdir, rename, rm } from 'node:fs/promises'
 import { join } from 'node:path'
 import { extractArchive, MarketArchiveError, within } from './archive.ts'
-import type { MarketCatalogItem, MarketKindName } from './types.ts'
+import type { MarketCatalogItem, MarketInstallPhase, MarketKindName } from './types.ts'
 
 /** Locations and timing shared by every install. */
 export interface InstallerOptions {
@@ -20,6 +20,22 @@ export interface InstallerOptions {
 /** Checks the kind's domain package runs on the unpacked directory before it is placed. */
 export type ValidateUnpacked = (directory: string, item: MarketCatalogItem) => Promise<void>
 
+/** Callbacks one install runs between its steps. */
+export interface InstallSteps {
+  /**
+   * Runs after validation and before the installed directory is replaced, so the domain can stop
+   * processes that hold files in it; it does not run when validation fails.
+   */
+  release(): Promise<void>
+  /**
+   * Called after every downloaded chunk and every written file.
+   * @param phase - the running step.
+   * @param done - bytes received or files written so far.
+   * @param total - package size in bytes, or the number of files in the package.
+   */
+  progress(phase: MarketInstallPhase, done: number, total: number): void
+}
+
 /**
  * Directory that holds one installed item.
  * @param packagesRoot - `<market home>/packages`.
@@ -31,6 +47,14 @@ export function itemDirectory(packagesRoot: string, kind: MarketKindName, id: st
   return within(packagesRoot, kind, id)
 }
 
+/** A package that was moved into place. */
+export interface PlacedPackage {
+  /** The installed directory. */
+  readonly directory: string
+  /** The copy it replaced, moved under the staging root; the caller deletes it. */
+  readonly replaced?: string
+}
+
 /**
  * Download one package, verify size and SHA-256, unpack it, let the domain
  * package validate it, and swap it into place. A failure at any step leaves the
@@ -40,7 +64,8 @@ export function itemDirectory(packagesRoot: string, kind: MarketKindName, id: st
  * @param validate - domain check of the unpacked directory.
  * @param options - locations and timing.
  * @param signal - cancellation.
- * @returns the installed directory.
+ * @param steps - release before replacement and progress reports.
+ * @returns the installed directory and the copy it replaced.
  * @throws MarketArchiveError or a download error naming the failed step.
  */
 export async function installPackage(
@@ -49,19 +74,21 @@ export async function installPackage(
   validate: ValidateUnpacked,
   options: InstallerOptions,
   signal: AbortSignal,
-): Promise<string> {
+  steps: InstallSteps,
+): Promise<PlacedPackage> {
   const ref = item.package
   if (ref === undefined) throw new MarketArchiveError(`${item.kind}:${item.id} has no package to install`)
-  const data = await download(url, ref.size, options, signal)
+  const data = await download(url, ref.size, options, signal, (received) => { steps.progress('download', received, ref.size) })
   const digest = createHash('sha256').update(data).digest('hex')
   if (digest !== ref.sha256) throw new MarketArchiveError(`package SHA-256 ${digest} does not match the catalog`)
   await mkdir(options.stagingRoot, { recursive: true })
   const staging = join(options.stagingRoot, randomUUID())
   try {
-    await extractArchive(data, staging)
+    await extractArchive(data, staging, (done, total) => { steps.progress('unpack', done, total) })
     signal.throwIfAborted()
     await validate(staging, item)
     signal.throwIfAborted()
+    await steps.release()
     const target = itemDirectory(options.packagesRoot, item.kind, item.id)
     await mkdir(join(options.packagesRoot, item.kind), { recursive: true })
     const previous = `${staging}.previous`
@@ -78,8 +105,7 @@ export async function installPackage(
       if (moved) await renameWithRetry(previous, target, options.renameRetryMs)
       throw error
     }
-    if (moved) await rm(previous, { recursive: true, force: true })
-    return target
+    return { directory: target, ...moved ? { replaced: previous } : {} }
   } finally {
     await rm(staging, { recursive: true, force: true })
   }
@@ -95,22 +121,25 @@ export async function removePackage(packagesRoot: string, kind: MarketKindName, 
   await rm(itemDirectory(packagesRoot, kind, id), { recursive: true, force: true })
 }
 
-async function download(url: string, size: number, options: InstallerOptions, signal: AbortSignal): Promise<Uint8Array> {
+async function download(
+  url: string, size: number, options: InstallerOptions, signal: AbortSignal, received: (bytes: number) => void,
+): Promise<Uint8Array> {
   const response = await fetch(url, { signal: AbortSignal.any([signal, AbortSignal.timeout(options.downloadTimeoutMs)]), redirect: 'error' })
   if (!response.ok) throw new MarketArchiveError(`package download returned HTTP ${response.status}`)
   if (response.body === null) throw new MarketArchiveError('package download returned no body')
   const chunks: Uint8Array[] = []
-  let received = 0
+  let total = 0
   for await (const chunk of response.body) {
-    received += chunk.byteLength
-    if (received > size) {
+    total += chunk.byteLength
+    if (total > size) {
       await response.body.cancel().catch(() => undefined)
       throw new MarketArchiveError('package download is larger than the catalog says')
     }
     chunks.push(chunk)
+    received(total)
   }
-  if (received !== size) throw new MarketArchiveError(`package download is ${received} bytes; the catalog says ${size}`)
-  const data = new Uint8Array(received)
+  if (total !== size) throw new MarketArchiveError(`package download is ${total} bytes; the catalog says ${size}`)
+  const data = new Uint8Array(total)
   let offset = 0
   for (const chunk of chunks) {
     data.set(chunk, offset)

@@ -1,0 +1,22 @@
+{
+  "wheels": [
+    {
+      "name": "liteparse",
+      "version": "2.16.0",
+      "url": "https://files.pythonhosted.org/packages/dd/9d/bab011c345fc030e6af0e49601485ba7e75c8ccd50ff878f9a226b341930/liteparse-2.16.0-cp310-abi3-win_amd64.whl",
+      "sha256": "9612fd22ef807c2bae241fa4c3012571d89ba8a25168350f5f56ed6ca295fb52"
+    },
+    {
+      "name": "pypdf",
+      "version": "6.20.1",
+      "url": "https://files.pythonhosted.org/packages/71/f8/4cbd09988b4b158260b7e0df38bf16f19e998bf0e257a18661a8da04280e/pypdf-6.20.1-py3-none-any.whl",
+      "sha256": "aa5a55ddcffdc5e5ab291d5decb23f6383f4e56f8e3263dc39af41fff03885ad"
+    }
+  ],
+  "pdfcpu": {
+    "version": "0.16.2",
+    "url": "https://github.com/pdfcpu/pdfcpu/releases/download/v0.16.2/pdfcpu_0.16.2_Windows_x86_64.zip",
+    "sha256": "941ef71ea3b8b5385734627a8d60c199486042b66a4a675bd0074695ae11c26d",
+    "directory": "pdfcpu_0.16.2_Windows_x86_64"
+  }
+}

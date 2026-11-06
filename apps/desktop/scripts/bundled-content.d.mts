@@ -29,6 +29,9 @@ export const BUNDLED_CONTENT_DIRECTORY: string
 /** File inside the content directory recording what preparation copied and where each item came from. */
 export const BUNDLED_CONTENT_MANIFEST: string
 
+/** Content subdirectory holding one directory per skill. */
+export const BUNDLED_SKILL_DIRECTORY: string
+
 /** Sources this build carries, each a checkout beside this repository. */
 export const BUNDLED_SOURCES: readonly BundledSource[]
 
@@ -46,3 +49,10 @@ export function prepareBundledContent(runtimeDir: string, env?: NodeJS.ProcessEn
  * @param runtimeDir - Packaged `runtime` resources directory.
  */
 export function verifyBundledContent(runtimeDir: string): void
+
+/**
+ * Record a skill that a later preparation step wrote to `skills/<name>/`, so packaging checks it like a listed one.
+ * @param runtimeDir - Desktop runtime resource directory that `prepareBundledContent` prepared.
+ * @param record - Manifest entry; `name` is the skill directory name.
+ */
+export function recordBundledSkill(runtimeDir: string, record: { readonly name: string } & Readonly<Record<string, unknown>>): void

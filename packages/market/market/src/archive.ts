@@ -17,10 +17,13 @@ export class MarketArchiveError extends Error {
  * `name/SKILL.md` and `SKILL.md` produce the same layout.
  * @param data - archive bytes.
  * @param destination - empty directory that receives the files.
+ * @param written - called after each file is written with the count so far and the total.
  * @returns relative paths of the written files.
  * @throws MarketArchiveError when the archive is malformed, empty, or unsafe.
  */
-export async function extractArchive(data: Uint8Array, destination: string): Promise<string[]> {
+export async function extractArchive(
+  data: Uint8Array, destination: string, written: (done: number, total: number) => void = () => {},
+): Promise<string[]> {
   let entries: Record<string, Uint8Array>
   try {
     entries = unzipSync(data)
@@ -32,7 +35,7 @@ export async function extractArchive(data: Uint8Array, destination: string): Pro
   for (const [name] of files) assertSafeEntryName(name)
   const prefix = commonTopDirectory(files.map(([name]) => name))
   const root = resolve(destination)
-  const written: string[] = []
+  const paths: string[] = []
   for (const [name, content] of files) {
     const relativePath = name.slice(prefix.length)
     if (relativePath.length === 0) continue
@@ -40,9 +43,10 @@ export async function extractArchive(data: Uint8Array, destination: string): Pro
     if (target !== root && !target.startsWith(root + sep)) throw new MarketArchiveError(`package entry ${name} leaves the package directory`)
     await mkdir(dirname(target), { recursive: true })
     await writeFile(target, content)
-    written.push(relativePath)
+    paths.push(relativePath)
+    written(paths.length, files.length)
   }
-  return written
+  return paths
 }
 
 function assertSafeEntryName(name: string): void {
