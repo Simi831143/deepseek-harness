@@ -41,7 +41,7 @@ Host 在相对于应用根目录的 `inspector/devtools/devtools_app.html` 路�
 
 构建使用官方 `chrome-devtools-frontend@1.0.1638082` TypeScript 源码及根 workspace 固定的 [Vite 依赖](../../../package.json)。该 npm 快照是 Chromium 150 发布分支的祖先，不是其后续稳定版的逐字节副本。[源码配置](scripts/devtools/source.ts)与包清单共同固定版本。普通 npm 安装提供源码和工具链；构建不需要 appspot、下载或启动浏览器，也不需要提取 PAK。workspace 安装和发布包安装都不运行 DevTools 下载 hook。
 
-[分发构建](scripts/build-devtools.ts)将 ESM 入口、共享 chunk、显式 Worker、注入脚本与运行时资源输出到 `lib/devtools`，保留原始模块相对资源 URL，包括部署子路径。CSS 文本模块、图片变量和最小英文 locale 常量替代 GN 生成输入，不修改 npm 源码。前端直接使用上游模块内的英文 UIStrings，不包含翻译文件或词条生成器，其他语言偏好回退英文。所有上游面板均保留，包括 Lighthouse。Memory 带有解析 Worker，Performance 记录 Host CPU。发布包包含构建资源、完整性清单和 Chromium license，不包含构建用 npm 源码或 Vite 依赖。
+[分发构建](scripts/build-devtools.ts)将 ESM 入口、共享 chunk、显式 Worker、注入脚本与运行时资源输出到 `lib/devtools`。在 Windows 上，发布会在有限时间内重试短暂的目录句柄占用错误；错误持续存在时，构建仍会失败。构建保留原始模块相对资源 URL，包括部署子路径。CSS 文本模块、图片变量和最小英文 locale 常量替代 GN 生成输入，不修改 npm 源码。前端直接使用上游模块内的英文 UIStrings，不包含翻译文件或词条生成器，其他语言偏好回退英文。所有上游面板均保留，包括 Lighthouse。Memory 带有解析 Worker，Performance 记录 Host CPU。发布包包含构建资源、完整性清单和 Chromium license，不包含构建用 npm 源码或 Vite 依赖。
 
 前端在构建时选择浏览器运行时适配器、排除 Node 专用传输，不使用 import map。同源连接 bootstrap 先于应用入口执行。底部面板添加 `disableLocaleInfoBar=true`，bootstrap 设置 DevTools 自己的 `disable-locale-info-bar` 偏好，不改变语言。升级前端时，需要一起调整 npm 版本和源码配置，然后重跑面板和 Worker 检查；不兼容的源码变动会使构建失败。
 

@@ -1,10 +1,11 @@
 /** Compile the fixed npm DevTools sources locally and publish the complete static frontend. */
 import { createHash } from 'node:crypto'
-import { mkdir, mkdtemp, readFile, readdir, rename, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { buildFrontend } from './devtools/vite.ts'
 import { DEVTOOLS_NPM_VERSION, DEVTOOLS_SOURCE_REVISION } from './devtools/source.ts'
+import { publishFrontend } from './devtools/publish.ts'
 
 let pending: Promise<{ files: number; bytes: number }> | undefined
 
@@ -42,12 +43,11 @@ async function compile(): Promise<{ files: number; bytes: number }> {
       files: files.sort((left, right) => left.path.localeCompare(right.path)),
     }, null, 2)}\n`)
     const output = join(lib, 'devtools')
-    await rm(output, { recursive: true, force: true })
-    await rename(temporary, output)
+    await publishFrontend(temporary, output)
     console.log(`DevTools npm ${DEVTOOLS_NPM_VERSION}: ${files.length} files, ${bytes} bytes`)
     return { files: files.length, bytes }
   } finally {
-    await rm(temporary, { recursive: true, force: true })
+    await rm(temporary, { recursive: true, force: true, maxRetries: 8, retryDelay: 20 })
   }
 }
 
