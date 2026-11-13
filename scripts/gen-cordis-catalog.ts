@@ -920,6 +920,8 @@ export const TYPE_LINK_EXEMPTIONS: Readonly<Record<string, string>> = {
   SkillDocumentValue: 'installed-skill management payloads are owned by packages/market/market-skills/src/types.ts',
   SkillNameRequest: 'installed-skill management payloads are owned by packages/market/market-skills/src/types.ts',
   SkillSwitchRequest: 'installed-skill management payloads are owned by packages/market/market-skills/src/types.ts',
+  SkillImportRequest: 'skill upload requests are owned by packages/market/market-skills/src/types.ts',
+  SkillImportValue: 'skill upload results are owned by packages/market/market-skills/src/types.ts',
   ConnectorsValue: 'market connector payloads are owned by packages/market/market-connectors/src/types.ts',
   ConnectorSwitchRequest: 'market connector payloads are owned by packages/market/market-connectors/src/types.ts',
   ConnectorIdRequest: 'market connector payloads are owned by packages/market/market-connectors/src/types.ts',

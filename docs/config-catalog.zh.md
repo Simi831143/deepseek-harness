@@ -2326,7 +2326,7 @@ export interface Config {
 ## `@deepseek-ai/dsh-market-skills`
 
 - `inject`: `market` · `skills` · `workingDirectory` · `typert`
-- `source`: [`packages/market/market-skills/src/index.ts:49`](../packages/market/market-skills/src/index.ts)
+- `source`: [`packages/market/market-skills/src/index.ts:53`](../packages/market/market-skills/src/index.ts)
 
 ```ts config-catalog
 /** Configuration of the skill kind. */
@@ -2343,7 +2343,7 @@ export interface Config {
 ## `@deepseek-ai/dsh-mcp-client`
 
 - `inject`: `tools`
-- `source`: [`packages/mcp/mcp-client/src/index.ts:104`](../packages/mcp/mcp-client/src/index.ts)
+- `source`: [`packages/mcp/mcp-client/src/index.ts:105`](../packages/mcp/mcp-client/src/index.ts)
 
 ```ts config-catalog
 /** Configuration for one stdio or Streamable HTTP MCP server. */
@@ -4882,7 +4882,7 @@ export interface Config {
 | `@deepseek-ai/dsh-host-plugin-inventory` | `loader` | [`packages/host/plugin-inventory/src/index.ts`](../packages/host/plugin-inventory/src/index.ts) |
 | `@deepseek-ai/dsh-llm` | — | [`packages/llm/llm/src/index.ts`](../packages/llm/llm/src/index.ts) |
 | `@deepseek-ai/dsh-lsp` | — | [`packages/lsp/lsp/src/index.ts`](../packages/lsp/lsp/src/index.ts) |
-| `@deepseek-ai/dsh-market-connectors` | `market` · `storageDomain` · `skills` · `tools` · `typert` | [`packages/market/market-connectors/src/index.ts`](../packages/market/market-connectors/src/index.ts) |
+| `@deepseek-ai/dsh-market-connectors` | `market` · `storageDomain` · `skills` · `tools` · `typert` · `credentials` | [`packages/market/market-connectors/src/index.ts`](../packages/market/market-connectors/src/index.ts) |
 | `@deepseek-ai/dsh-mcp-resources` | `tools` | [`packages/mcp/mcp-resources/src/index.ts`](../packages/mcp/mcp-resources/src/index.ts) |
 | `@deepseek-ai/dsh-message-quotes` | — | [`packages/session/message-quotes/src/index.ts`](../packages/session/message-quotes/src/index.ts) |
 | `@deepseek-ai/dsh-otel` | — | [`packages/telemetry/otel/src/index.ts`](../packages/telemetry/otel/src/index.ts) |

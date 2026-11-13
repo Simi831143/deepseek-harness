@@ -151,6 +151,18 @@ Host owner of the connector kind, the custom connectors and the `marketConnector
 @Remote async retryConnector(request: ConnectorIdRequest): Promise<ConnectorsValue>
 
 /**
+ * Save or clear the values a market connector's `settings.json` asks for. The values go to the
+ * credential store; a running connector restarts with them in the background.
+ * @param request - connector id and the changed values by environment variable name.
+ * @returns the connectors after the change.
+ * @throws RemoteError `market-connectors/not-installed`, `market-connectors/invalid-manifest`
+ *   when the package's manifest or settings were refused, `market-connectors/unknown-setting`,
+ *   `market-connectors/invalid-setting` for an empty or too long value, or
+ *   `market-connectors/settings-unavailable` when the credential store fails.
+ */
+@Remote async saveConnectorSettings(request: ConnectorSettingsRequest): Promise<ConnectorsValue>
+
+/**
  * Read the MCP servers in pasted text, without saving anything.
  * @param request - the pasted text.
  * @returns each server found with the configuration it would be saved with, or why it cannot be added.

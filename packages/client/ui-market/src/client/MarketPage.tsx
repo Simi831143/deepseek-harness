@@ -6,7 +6,7 @@ import type { InstalledSkillOrigin, InstalledSkillView } from '@deepseek-ai/dsh-
 import {
   Button, IconChevronDownOutlineRegular, IconChevronLeftOutlineRegular, IconLoadingOutlineRegular, IconPlusOutlineRegular,
   IconSearchOutlineRegular, IconSkillOutlineRegular, IconWarningOutlineRegular, Input, Menu, MenuItemButton, Pill, SegmentedTabs,
-  Switch, Tag, Tooltip,
+  Switch, Tag, Tooltip, IconFolderOpenOutlineRegular,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
 import { ConnectorCatalog } from './Connectors.tsx'
@@ -15,6 +15,7 @@ import { InstallProgress } from './InstallProgress.tsx'
 import { ItemIcon } from './ItemIcon.tsx'
 import type { createMarketNavigation } from './navigation-store.ts'
 import { SkillDetail } from './SkillDetail.tsx'
+import { UploadSkillDialog } from './UploadSkillDialog.tsx'
 import cardCss from './MarketCard.module.css'
 import css from './MarketPage.module.css'
 
@@ -196,22 +197,34 @@ function SearchInput({ label, value, onChange }: { label: string; value: string;
 export const SKILL_CREATOR = 'skill-creator'
 
 function AddSkillMenu(props: MarketPageProps): ReactNode {
-  const { t } = props
+  const { t, actions } = props
   const [open, setOpen] = useState(false)
+  const [upload, setUpload] = useState(false)
   const close = (): void => { setOpen(false) }
   return (
-    <Menu open={open} onClose={close} align="end" portal autoFocus listClassName={css.addMenu}
-      anchor={(
-        <Button variant="primary" size="sm" icon={<IconPlusOutlineRegular size={13} />} aria-haspopup="menu" aria-expanded={open}
-          onClick={() => { setOpen(value => !value) }}>
-          {t('addSkill')}<IconChevronDownOutlineRegular size={12} aria-hidden="true" />
-        </Button>
-      )}>
-      {/* 查找技能 joins this menu with the market_skill_search tool in phase 1b; without it the model cannot reach the catalog. */}
-      <MenuItemButton icon={<IconSkillOutlineRegular size={14} />} onSelect={() => { close(); props.trySkill(SKILL_CREATOR, t('promptCreate')) }}>
-        <span className={css.menuItem}><span>{t('addCreate')}</span><span className={css.menuDescription}>{t('addCreateDescription')}</span></span>
-      </MenuItemButton>
-    </Menu>
+    <>
+      <Menu open={open} onClose={close} align="end" portal autoFocus listClassName={css.addMenu}
+        anchor={(
+          <Button variant="primary" size="sm" icon={<IconPlusOutlineRegular size={13} />} aria-haspopup="menu" aria-expanded={open}
+            onClick={() => { setOpen(value => !value) }}>
+            {t('addSkill')}<IconChevronDownOutlineRegular size={12} aria-hidden="true" />
+          </Button>
+        )}>
+        <MenuItemButton icon={<IconSearchOutlineRegular size={14} />} onSelect={() => { close(); props.findSkills(t('promptFind')) }}>
+          <span className={css.menuItem}><span>{t('addFind')}</span><span className={css.menuDescription}>{t('addFindDescription')}</span></span>
+        </MenuItemButton>
+        <MenuItemButton icon={<IconFolderOpenOutlineRegular size={14} />} onSelect={() => {
+          close(); setUpload(true)
+        }}>
+          <span className={css.menuItem}><span>{t('addUpload')}</span><span className={css.menuDescription}>{t('addUploadDescription')}</span></span>
+        </MenuItemButton>
+        <MenuItemButton icon={<IconSkillOutlineRegular size={14} />} onSelect={() => { close(); props.trySkill(SKILL_CREATOR, t('promptCreate')) }}>
+          <span className={css.menuItem}><span>{t('addCreate')}</span><span className={css.menuDescription}>{t('addCreateDescription')}</span></span>
+        </MenuItemButton>
+      </Menu>
+      {upload && <UploadSkillDialog t={t} onClose={() => { setUpload(false) }}
+        onImport={props.importSkillFile} onInstalled={() => { setUpload(false); actions.setView({ kind: 'installed' }) }} />}
+    </>
   )
 }
 

@@ -58,6 +58,9 @@
     },
     {
       "path": "../ui-conversation/tsconfig.client.json"
+    },
+    {
+      "path": "../../util/crypto"
     }
   ]
 }

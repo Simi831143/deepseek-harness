@@ -4779,6 +4779,9 @@ importers:
       '@deepseek-ai/dsh-typert-registry':
         specifier: workspace:*
         version: link:../../typert/registry
+      '@deepseek-ai/dsh-util-crypto':
+        specifier: workspace:*
+        version: link:../../util/crypto
       '@testing-library/react':
         specifier: ^16.3.3
         version: 16.3.3(@testing-library/dom@10.4.2)(@types/react-dom@18.3.7(@types/react@18.3.31))(@types/react@18.3.31)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -13012,9 +13015,15 @@ importers:
 
   packages/market/market-skills:
     dependencies:
+      '@deepseek-ai/dsh-atomic-write':
+        specifier: workspace:*
+        version: link:../../util/atomic-write
       '@deepseek-ai/dsh-home-paths':
         specifier: workspace:*
         version: link:../../util/home-paths
+      yauzl:
+        specifier: ^3.2.0
+        version: 3.4.0
       zod:
         specifier: 4.4.3
         version: 4.4.3
@@ -13052,6 +13061,9 @@ importers:
       '@deepseek-ai/dsh-working-directory':
         specifier: workspace:*
         version: link:../../session/working-directory
+      '@types/yauzl':
+        specifier: ^2.10.3
+        version: 2.10.3
       fflate:
         specifier: ^0.8.3
         version: 0.8.3
@@ -28502,7 +28514,6 @@ snapshots:
   '@types/yauzl@2.10.3':
     dependencies:
       '@types/node': 22.20.1
-    optional: true
 
   '@typescript-eslint/types@8.61.0': {}
 

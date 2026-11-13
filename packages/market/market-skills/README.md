@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-market-skills` registers the market skill kind, exposes installed market and personal skills through `ctx.marketSkills`, and contributes installed market directories to the shared skill registry. One enablement setting applies across every skill source, and personal skills can be deleted from their folder.
+`dsh-market-skills` registers the market skill kind, imports personal skills from ZIP or Markdown, exposes installed market and personal skills through `ctx.marketSkills`, and contributes installed market directories to the shared skill registry. One enablement setting applies across every skill source, and personal skills can be deleted from their folder.
 
 ## Table of Contents
 
@@ -24,10 +24,14 @@ English | [中文](README.zh.md)
 
 Mount this package beside `dsh-market`, the skill registry, settings, and working-directory services. Use the `marketSkills` Remote to list installed skills, read a skill document, change enablement, or delete a personal skill. The market's `uninstallPackage` removes market downloads. `uninstallPersonal` deletes a personal skill's directory, or its Markdown file, from `<DSH home>/skills` or `~/.agents/skills`; it removes a linked skill's link and keeps the linked directory, and it refuses skills from any other source.
 
+`importSkill({ fileName, data }, signal)` accepts one `.zip` or `.md` file encoded as canonical base64 and installs it under `<DSH home>/skills/<name>`, using the `SKILL.md` frontmatter name. Markdown requires valid UTF-8, YAML frontmatter, name, description and invocation policy. ZIP accepts a root `SKILL.md` or one enclosing folder, retains resources, and rejects additional nested skills, unsafe paths, links and conflicting file names. Import never executes scripts or installs dependencies.
+
+Import applies no byte-size or ZIP entry-count limit. Validation failures return `market-skills/import-invalid`; an existing visible skill, disabled skill or personal destination path returns `market-skills/import-conflict` without replacing it. File failures before publication return `market-skills/import-failed`. Cancellation before publication cleans staging; a completed publication returns its name without a subsequent list read. Existing disabled-name settings remain in effect.
+
 <a id="understand-the-implementation"></a>
 ## Understand the implementation
 
-The provider watches the market kind directory and the user's skill directory, resolves the active preset, and registers one scoped provider with the shared registry. The management Remote returns stable installed views and writes the shared `disabled` setting for enablement changes.
+The market provider contributes recorded market downloads; personal directories are discovered by the existing filesystem skill provider. Management reads use the default preset's scope. Imports extract into a private directory outside skill roots, validate with the serving parser, check name conflicts under a cross-process lock shared with personal deletion, then publish the complete directory and invalidate the registry. Unload cancels and awaits admitted imports. The management Remote writes the shared `disabled` setting for enablement changes.
 
 <a id="model-experience"></a>
 ## Model Experience
@@ -50,7 +54,7 @@ Skill catalog changes append a replacement catalog through the existing consumer
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- The package depends on `dsh-market` for archive lifecycle and on the shared settings service for enablement persistence.
+- Market downloads depend on `dsh-market`; personal uploads use in-memory transport and do not support replacement or merging. Shared settings own enablement persistence.
 - A disabled skill remains installed and visible to management callers, but ordinary model and user lookups omit it.
 
 ### Dev Note

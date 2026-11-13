@@ -21,6 +21,7 @@ function remote(frames: MarketSnapshot[], patch: Partial<MarketRemote> = {}): Ma
     uninstall: vi.fn(() => Promise.resolve({ ok: true as const, value: snapshot({ revision: 3 }) })),
     refresh: vi.fn(() => Promise.resolve({ ok: true as const, value: snapshot() })),
     installedSkills: vi.fn(() => Promise.resolve({ ok: true as const, value: installed })),
+    importSkill: vi.fn(() => Promise.resolve({ ok: true as const, value: { name: 'uploaded-skill' } })),
     setSkillsEnabled: vi.fn(() => Promise.resolve({ ok: true as const, value: installed })),
     skillDocument: vi.fn(() => Promise.resolve({ ok: true as const, value: { name: 'office-docx', content: '# Word' } })),
     uninstallPersonal: vi.fn(() => Promise.resolve({ ok: true as const, value: { complete: true, skills: [] } })),
@@ -217,6 +218,33 @@ it('reads a skill document through the Remote by name', async () => {
   const store = createMarketStore(remote([], { skillDocument }))
   expect(await store.readSkillDocument('office-docx')).toEqual({ ok: true, value: { name: 'office-docx', content: '# Word' } })
   expect(skillDocument).toHaveBeenCalledWith({ name: 'office-docx' })
+})
+
+it('reports a committed upload without depending on a later installed-list read', async () => {
+  const installedSkills = vi.fn().mockResolvedValue({ ok: false, error: { message: 'list unavailable' } })
+  const importSkill = vi.fn().mockResolvedValue({ ok: true, value: { name: 'uploaded-skill' } })
+  const store = createMarketStore(remote([], { installedSkills, importSkill }))
+  const request = { fileName: 'instructions.md', data: 'YQ==' }
+  expect(await store.importSkill(request)).toEqual({ ok: true, value: { name: 'uploaded-skill' } })
+  expect(importSkill).toHaveBeenCalledExactlyOnceWith(request)
+  expect(installedSkills).not.toHaveBeenCalled()
+  expect(store.state.getSnapshot().notice).toMatchObject({ kind: 'installed', name: 'uploaded-skill' })
+  await store.loadInstalledSkills()
+  expect(store.state.getSnapshot().notice).toMatchObject({ kind: 'load-failed', reason: 'list unavailable' })
+  store.dispose()
+})
+
+it('keeps the installed list and leaves upload refusals and unknown outcomes with the form', async () => {
+  const conflict = { code: 'market-skills/import-conflict', details: { name: 'office-docx', source: 'user-dsh' } }
+  const disconnected = new Error('connection lost')
+  const importSkill = vi.fn().mockResolvedValueOnce({ ok: false, error: conflict }).mockRejectedValueOnce(disconnected)
+  const store = createMarketStore(remote([], { importSkill }))
+  await store.loadInstalledSkills()
+  const request = { fileName: 'office.md', data: 'YQ==' }
+  expect(await store.importSkill(request)).toEqual({ ok: false, error: conflict })
+  expect(await store.importSkill(request)).toEqual({ ok: false, error: disconnected })
+  expect(store.state.getSnapshot()).toMatchObject({ installedSkills: installed, notice: null })
+  store.dispose()
 })
 
 it('rereads the installed list when an install changes the installed set', async () => {

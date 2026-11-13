@@ -1,0 +1,20 @@
+- tabpanel "Skills":
+  - button "All skills"
+  - searchbox "Search installed skills"
+  - heading "Installed skills 3" [level=2]
+  - list:
+    - listitem:
+      - button "Show details of upload-e2e-anchor": upload-e2e-anchor
+      - text: Personal
+      - switch "Enable upload-e2e-anchor" [checked]
+      - paragraph: Existing personal skill
+    - listitem:
+      - button "Show details of upload-e2e-markdown": upload-e2e-markdown
+      - text: Personal
+      - switch "Enable upload-e2e-markdown" [checked]
+      - paragraph: Imported from Markdown
+    - listitem:
+      - button "Show details of upload-e2e-package": upload-e2e-package
+      - text: Personal
+      - switch "Enable upload-e2e-package" [checked]
+      - paragraph: Imported with its supporting files

@@ -286,6 +286,8 @@ installedItems(kind: MarketKindName): InstalledItem[]
 
 /**
  * Install an item for an in-process caller such as an expert installing its skills.
+ * The catalog is read again first, so a page opened before a publish installs the package the
+ * publisher now lists; a failed read installs from the last good catalog.
  * @param ref - kind and id.
  * @param signal - cancellation.
  * @returns after the item is installed and its kind synced; an installed item at the catalog version returns at once.
@@ -338,6 +340,20 @@ Host owner of the skill kind and the `marketSkills` Remote namespace.
 
 ```ts cordis-catalog
 /**
+ * Install one ZIP or Markdown upload as `<DSH home>/skills/<name>/SKILL.md`.
+ * Resources are preserved without executing them. Existing skills, paths and disabled settings
+ * remain unchanged. Cancellation before directory publication removes staging; after publication,
+ * success returns the committed name without a fallible list read. Disposal waits for all imports.
+ * @param request - one canonical base64 file whose skill frontmatter supplies its identity.
+ * @param signal - caller cancellation before publication.
+ * @returns the installed name, after registry invalidation.
+ * @throws RemoteError `market-skills/import-invalid` for invalid content,
+ *   `market-skills/import-conflict` for an existing name, or `market-skills/import-failed`
+ *   when pre-publication file work fails; existing skills are never replaced.
+ */
+@Remote async importSkill(request: SkillImportRequest, signal: AbortSignal): Promise<SkillImportValue>
+
+/**
  * List the skills the user installed that a new conversation in the default workspace sees, with their switches.
  * @param signal - caller cancellation.
  * @returns market downloads and personal skills, including disabled ones, sorted by name.
@@ -349,7 +365,7 @@ Host owner of the skill kind and the `marketSkills` Remote namespace.
  * when it sits in the folder itself. A symbolic link is removed, never its target. Market
  * downloads are removed by the market's `uninstallPackage`.
  * @param request - the skill name.
- * @param signal - caller cancellation for the list read that follows the deletion.
+ * @param signal - cancellation while waiting for the name lock and for the following list read.
  * @returns the list after the deletion.
  * @throws RemoteError `market-skills/not-found` when no skill of that name is visible, or
  *   `market-skills/remove-failed` when it is not a personal skill or its files cannot be deleted.

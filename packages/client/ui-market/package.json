@@ -74,6 +74,7 @@
     "@deepseek-ai/dsh-market": "workspace:*",
     "@deepseek-ai/dsh-market-connectors": "workspace:*",
     "@deepseek-ai/dsh-market-skills": "workspace:*",
+    "@deepseek-ai/dsh-util-crypto": "workspace:*",
     "@deepseek-ai/dsh-typert-registry": "workspace:*",
     "@testing-library/react": "^16.3.3",
     "clsx": "^2.1.1",

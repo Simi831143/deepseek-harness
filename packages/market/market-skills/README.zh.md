@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-`dsh-market-skills` 注册市场技能类型，通过 `ctx.marketSkills` 提供市场技能和个人技能，并将已安装的市场目录接入共享技能注册表。所有技能来源共用一个启用状态设置，个人技能可以从其所在文件夹删除。
+`dsh-market-skills` 注册市场技能类型，从 ZIP 或 Markdown 导入个人技能，通过 `ctx.marketSkills` 提供市场技能和个人技能，并将已安装的市场目录接入共享技能注册表。所有技能来源共用一个启用状态设置，个人技能可以从其所在文件夹删除。
 
 ## 目录
 
@@ -24,10 +24,14 @@ kind: "package-reference"
 
 将此包与 `dsh-market`、技能注册表、settings 和 working-directory 服务一起挂载。使用 `marketSkills` Remote 列出已安装技能、读取技能文档、修改启用状态或删除个人技能。市场下载由市场的 `uninstallPackage` 删除。`uninstallPersonal` 从 `<DSH home>/skills` 或 `~/.agents/skills` 删除个人技能的目录或其 Markdown 文件；对链接进来的技能只删除链接，保留被链接的目录；其他来源的技能一律拒绝删除。
 
+`importSkill({ fileName, data }, signal)` 接收一个编码为规范 base64 的 `.zip` 或 `.md` 文件，根据 `SKILL.md` frontmatter 中的名称安装到 `<DSH home>/skills/<name>`。Markdown 必须是有效 UTF-8，并包含有效的 YAML frontmatter、名称、描述和调用策略。ZIP 接受根目录中的 `SKILL.md` 或一层外部文件夹，保留资源，拒绝额外嵌套的技能、不安全路径、链接和冲突的文件名。导入不会执行脚本或安装依赖。
+
+导入不设置字节大小或 ZIP 条目数量限制。校验失败返回 `market-skills/import-invalid`；已存在的可见技能、停用技能或个人目标路径返回 `market-skills/import-conflict`，保留原内容。发布前的文件操作失败返回 `market-skills/import-failed`。发布前取消会清理暂存目录；发布完成后直接返回名称，不再读取列表。已有的按名称停用设置继续生效。
+
 <a id="understand-the-implementation"></a>
 ## 实现说明
 
-提供方监听市场类型目录和用户技能目录，解析当前 preset，并向共享注册表注册一个有作用域的提供方。管理 Remote 返回稳定的已安装视图，并在切换启用状态时写入共享 `disabled` 设置。
+市场提供方只提供有安装记录的市场下载；个人目录由现有文件系统技能提供方发现。管理读取使用默认 preset 的作用域。导入在技能根目录外的私有目录中解压，使用提供服务时的解析器校验，在与个人技能删除共用的跨进程锁下检查同名冲突，再发布完整目录并使注册表缓存失效。卸载插件会取消并等待已经开始的导入。管理 Remote 在切换启用状态时写入共享 `disabled` 设置。
 
 <a id="model-experience"></a>
 ## 模型体验
@@ -50,7 +54,7 @@ kind: "package-reference"
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- 此包依赖 `dsh-market` 管理压缩包生命周期，并依赖共享 settings 服务保存启用状态。
+- 市场下载依赖 `dsh-market`；个人上传使用内存传输，不支持替换或合并。启用状态由共享 settings 服务保存。
 - 停用的技能仍会安装并对管理调用方可见，但普通模型和用户读取会将其过滤掉。
 
 ### 开发备注

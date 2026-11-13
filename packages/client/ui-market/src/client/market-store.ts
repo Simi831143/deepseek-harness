@@ -9,7 +9,7 @@ import type {
   ParsedCustomConnectors, SaveCustomRequest,
 } from '@deepseek-ai/dsh-market-connectors/types'
 import type {
-  InstalledSkillsValue, SkillDocumentValue, SkillNameRequest, SkillSwitchRequest,
+  InstalledSkillsValue, SkillDocumentValue, SkillImportRequest, SkillImportValue, SkillNameRequest, SkillSwitchRequest,
 } from '@deepseek-ai/dsh-market-skills/types'
 import type { HostObservable } from '@deepseek-ai/dsh-client-ui-slots'
 
@@ -51,6 +51,7 @@ export interface MarketRemote {
   uninstall(ref: MarketItemRef): Promise<MarketResult<MarketSnapshot>>
   refresh(): Promise<MarketResult<MarketSnapshot>>
   installedSkills(): Promise<MarketResult<InstalledSkillsValue>>
+  importSkill(request: SkillImportRequest): Promise<MarketResult<SkillImportValue>>
   setSkillsEnabled(request: SkillSwitchRequest): Promise<MarketResult<InstalledSkillsValue>>
   skillDocument(request: SkillNameRequest): Promise<MarketResult<SkillDocumentValue>>
   uninstallPersonal(request: SkillNameRequest): Promise<MarketResult<InstalledSkillsValue>>
@@ -88,6 +89,12 @@ export interface MarketActions {
   revealSkill(path: string, name: string): Promise<void>
   refresh(): Promise<void>
   loadInstalledSkills(): Promise<void>
+  /**
+   * Import one encoded local skill. Refusals stay with the caller's form; success reports an installation.
+   * @param request - selected filename and canonical base64 bytes.
+   * @returns committed skill name, or the refusal or transport failure.
+   */
+  importSkill(request: SkillImportRequest): Promise<MarketResult<SkillImportValue>>
   /** @returns whether the switch was saved; a failure is reported as a notice. */
   setSkillsEnabled(names: readonly string[], enabled: boolean): Promise<boolean>
   /**
@@ -249,6 +256,19 @@ export function createMarketStore(remote: MarketRemote): MarketStore {
       else notify({ kind: 'load-failed', reason: reasonOf(result.error) })
     },
     loadInstalledSkills,
+    async importSkill(request) {
+      let result: MarketResult<SkillImportValue>
+      try {
+        result = await remote.importSkill(request)
+      } catch (error) {
+        return { ok: false, error }
+      }
+      if (result.ok) {
+        installedRead += 1
+        notify({ kind: 'installed', name: result.value.name })
+      }
+      return result
+    },
     async setSkillsEnabled(names, enabled) {
       publish({ switching: [...new Set([...state.switching, ...names])] })
       const result = await remote.setSkillsEnabled({ names, enabled })

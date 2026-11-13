@@ -24,6 +24,10 @@ The market client plugin presents catalog skills and connectors in a browser pag
 
 Mount the plugin with the Web client and the Host market bundle. Open the Market panel to browse skill categories, inspect a skill, install it, and manage the installed list. The page refreshes skill labels and slash-menu candidates after an install, switch, or deletion.
 
+In the Skills tab, **Add skill → Find skills** opens a new conversation, focuses the composer, and fills in a localized request to find and automatically install a skill. Describe the capability between `「」`, then send it. The request stays unsent until then; the assistant uses the capabilities available in that conversation to carry it out. **Create skill** opens a new conversation with the `skill-creator` chip and a request template, also unsent.
+
+**Add skill → Upload skill** imports one local `.md` or `.zip` as a personal skill without opening a conversation. Drag a file into the dashed area or click it to choose a file, review its name and size, then install it. The dialog lists the archive layout and YAML frontmatter requirements. Dropping several files or a folder shows an error and retains the previous selection. The Host validates the skill and archive before publishing it; [market-skills](../../market/market-skills/README.md) owns the accepted structure and installation directory. A same-name skill is rejected without replacement, including disabled skills. Errors remain in the dialog so the selected file can be retried or changed. If the connection loses the outcome, check the installed list before retrying. A successful upload opens the installed list and refreshes slash-menu candidates.
+
 Every installed skill's detail dialog has one More actions menu, whether the skill came from the market or a personal folder:
 
 - **Edit** opens a new conversation whose composer reads `/skill-creator 请帮我编辑 /<skill> 这个 skill`, with both names as skill chips, unsent.
@@ -48,7 +52,7 @@ The client keeps one observable store for catalog and installed-skill streams. U
 
 #### What the model sees
 
-The page adds no prompt text. Enabling a skill changes `ctx.skills`, so the existing skill catalog can expose it to the model according to its invocation policy.
+Browsing adds no prompt text. Find, create, edit, and connector diagnosis actions prepare editable drafts; only sending a draft adds its request to the conversation. Enabling a skill changes `ctx.skills`, so the existing skill catalog can expose it to the model according to its invocation policy.
 
 #### Token effect
 

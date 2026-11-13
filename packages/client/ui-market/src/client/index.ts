@@ -16,12 +16,14 @@ import type {} from '@deepseek-ai/dsh-client-ui-workspace/client'
 import type { DraftInput } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type { SkillLabels } from '@deepseek-ai/dsh-client-ui-skill/client'
 import type { HostObservable } from '@deepseek-ai/dsh-client-ui-slots'
+import type { SkillImportValue } from '@deepseek-ai/dsh-market-skills/types'
+import { bytesToBase64 } from '@deepseek-ai/dsh-util-crypto'
 import type { MarketItemView } from '@deepseek-ai/dsh-market/types'
 import marketRemote from '@deepseek-ai/dsh-market/remote'
 import marketConnectorsRemote from '@deepseek-ai/dsh-market-connectors/remote'
 import marketSkillsRemote from '@deepseek-ai/dsh-market-skills/remote'
 import { en, ja, es, fr, de, ru, pt, zh, type MarketLocaleKey } from './locales.ts'
-import { createMarketStore, type MarketActions, type MarketState } from './market-store.ts'
+import { createMarketStore, type MarketActions, type MarketResult, type MarketState } from './market-store.ts'
 import { MarketPage, SKILL_CREATOR } from './MarketPage.tsx'
 import { MarketPanelIcon } from './MarketPanelIcon.tsx'
 import { MarketToast } from './MarketToast.tsx'
@@ -46,6 +48,17 @@ export const inject = ['remote', 'remote.session', 'slots', 'locale', 'layout', 
 /** State and actions every market view receives. */
 export interface MarketFace extends MarketActions {
   hooks: { market: HostObservable<MarketState>; language: HostObservable<string> }
+  /**
+   * Open a new conversation whose composer holds a request to find and install skills, unsent.
+   * @param prompt - localized request template to edit before sending.
+   */
+  findSkills(prompt: string): void
+  /**
+   * Read and import one browser-selected skill file without creating a conversation.
+   * @param file - selected ZIP or Markdown file.
+   * @returns committed name, or the validation, conflict, or transport failure.
+   */
+  importSkillFile(file: File): Promise<MarketResult<SkillImportValue>>
   /**
    * Open a new conversation whose composer holds a chip for one skill followed by `text`, unsent.
    * @param skill - skill name; the chip shows its display title.
@@ -110,6 +123,7 @@ function registerUi(ctx: Context): void {
     uninstall: ref => afterSkillWrite(ctx.remote.market.uninstallPackage(ref)),
     refresh: () => ctx.remote.market.refreshCatalog(),
     installedSkills: () => ctx.remote.marketSkills.installed(),
+    importSkill: request => afterSkillWrite(ctx.remote.marketSkills.importSkill(request)),
     setSkillsEnabled: request => afterSkillWrite(ctx.remote.marketSkills.setEnabled(request)),
     skillDocument: request => ctx.remote.marketSkills.document(request),
     uninstallPersonal: request => afterSkillWrite(ctx.remote.marketSkills.uninstallPersonal(request)),
@@ -148,6 +162,16 @@ function registerUi(ctx: Context): void {
     revealSkill: (path, name) => store.revealSkill(path, name),
     refresh: () => store.refresh(),
     loadInstalledSkills: () => store.loadInstalledSkills(),
+    importSkill: request => store.importSkill(request),
+    importSkillFile: async (file) => {
+      let data: string
+      try {
+        data = bytesToBase64(new Uint8Array(await file.arrayBuffer()))
+      } catch (_fileReadFailure) {
+        return { ok: false, error: { code: 'client-market/file-read-failed' } }
+      }
+      return store.importSkill({ fileName: file.name, data })
+    },
     setSkillsEnabled: (names, enabled) => store.setSkillsEnabled(names, enabled),
     readSkillDocument: skill => store.readSkillDocument(skill),
     setConnectorEnabled: (id, enabled, confirmed, name) => store.setConnectorEnabled(id, enabled, confirmed, name),
@@ -158,6 +182,7 @@ function registerUi(ctx: Context): void {
     removeCustomConnector: name => store.removeCustomConnector(name),
     saveConnectorSettings: (id, values) => store.saveConnectorSettings(id, values),
     dismissNotice: () => { store.dismissNotice() },
+    findSkills: (prompt) => { startSession(prompt) },
     diagnose: (prompt) => { startSession(prompt) },
     trySkill: (skill, text) => {
       // Without the skill plugin the literal still loads the skill host-side; it just shows as text.

@@ -1,0 +1,5 @@
+- listbox "Trigger suggestions":
+  - text: Skills
+  - option "upload-e2e-anchor Existing personal skill" [selected]
+  - option "upload-e2e-markdown Imported from Markdown"
+  - option "upload-e2e-package Imported with its supporting files"

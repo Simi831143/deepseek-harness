@@ -1720,7 +1720,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       },
       {
         signature: 'async installItem(ref: MarketItemRef, signal: AbortSignal = this.lifetime.signal): Promise<void>',
-        description: 'Install an item for an in-process caller such as an expert installing its skills.',
+        description: 'Install an item for an in-process caller such as an expert installing its skills. The catalog is read again first, so a page opened before a publish installs the package the publisher now lists; a failed read installs from the last good catalog.',
         parameters: [{ name: 'ref', description: 'kind and id.' }, { name: 'signal', description: 'cancellation.' }],
         returns: 'after the item is installed and its kind synced; an installed item at the catalog version returns at once.',
       },
@@ -1782,6 +1782,13 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'the connectors after the retry began.',
       },
       {
+        signature: '@Remote async saveConnectorSettings(request: ConnectorSettingsRequest): Promise<ConnectorsValue>',
+        description: 'Save or clear the values a market connector\'s `settings.json` asks for. The values go to the credential store; a running connector restarts with them in the background.',
+        parameters: [{ name: 'request', description: 'connector id and the changed values by environment variable name.' }],
+        returns: 'the connectors after the change.',
+        throws: ['RemoteError `market-connectors/not-installed`, `market-connectors/invalid-manifest` when the package\'s manifest or settings were refused, `market-connectors/unknown-setting`, `market-connectors/invalid-setting` for an empty or too long value, or `market-connectors/settings-unavailable` when the credential store fails.'],
+      },
+      {
         signature: '@Remote parseCustomConnectors(request: ParseCustomRequest): ParsedCustomConnectors',
         description: 'Read the MCP servers in pasted text, without saving anything.',
         parameters: [{ name: 'request', description: 'the pasted text.' }],
@@ -1815,6 +1822,13 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     description: 'Host owner of the skill kind and the `marketSkills` Remote namespace.',
     methods: [
       {
+        signature: '@Remote async importSkill(request: SkillImportRequest, signal: AbortSignal): Promise<SkillImportValue>',
+        description: 'Install one ZIP or Markdown upload as `<DSH home>/skills/<name>/SKILL.md`. Resources are preserved without executing them. Existing skills, paths and disabled settings remain unchanged. Cancellation before directory publication removes staging; after publication, success returns the committed name without a fallible list read. Disposal waits for all imports.',
+        parameters: [{ name: 'request', description: 'one canonical base64 file whose skill frontmatter supplies its identity.' }, { name: 'signal', description: 'caller cancellation before publication.' }],
+        returns: 'the installed name, after registry invalidation.',
+        throws: ['RemoteError `market-skills/import-invalid` for invalid content, `market-skills/import-conflict` for an existing name, or `market-skills/import-failed` when pre-publication file work fails; existing skills are never replaced.'],
+      },
+      {
         signature: '@Remote async installed(signal: AbortSignal): Promise<InstalledSkillsValue>',
         description: 'List the skills the user installed that a new conversation in the default workspace sees, with their switches.',
         parameters: [{ name: 'signal', description: 'caller cancellation.' }],
@@ -1823,7 +1837,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       {
         signature: '@Remote async uninstallPersonal(request: SkillNameRequest, signal: AbortSignal): Promise<InstalledSkillsValue>',
         description: 'Delete one personal skill: its directory under a personal skill folder, or its Markdown file when it sits in the folder itself. A symbolic link is removed, never its target. Market downloads are removed by the market\'s `uninstallPackage`.',
-        parameters: [{ name: 'request', description: 'the skill name.' }, { name: 'signal', description: 'caller cancellation for the list read that follows the deletion.' }],
+        parameters: [{ name: 'request', description: 'the skill name.' }, { name: 'signal', description: 'cancellation while waiting for the name lock and for the following list read.' }],
         returns: 'the list after the deletion.',
         throws: ['RemoteError `market-skills/not-found` when no skill of that name is visible, or `market-skills/remove-failed` when it is not a personal skill or its files cannot be deleted.'],
       },
@@ -5585,7 +5599,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'ConnectorHint',
-    declaration: 'export type ConnectorHint = \'command-not-found\' | \'cwd-not-found\' | \'start-timeout\' | \'unauthorized\' | \'maybe-sse\' | \'unreachable\';',
+    declaration: 'export type ConnectorHint = \'command-not-found\' | \'cwd-not-found\' | \'start-timeout\' | \'unauthorized\' | \'maybe-sse\' | \'unreachable\' | \'setting-required\';',
   },
   {
     name: 'ConnectorIdRequest',
@@ -5598,6 +5612,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'ConnectorOrigin',
     declaration: 'export type ConnectorOrigin = \'market\' | \'custom\';',
+  },
+  {
+    name: 'ConnectorSettingsRequest',
+    declaration: 'export interface ConnectorSettingsRequest {\n    readonly id: string;\n    readonly values: Readonly<Record<string, string | null>>;\n}',
+  },
+  {
+    name: 'ConnectorSettingView',
+    declaration: 'export interface ConnectorSettingView {\n    readonly env: string;\n    readonly label: {\n        readonly zh: string;\n        readonly en?: string;\n    };\n    readonly description?: {\n        readonly zh: string;\n        readonly en?: string;\n    };\n    readonly secret: boolean;\n    readonly required: boolean;\n    readonly url?: string;\n    readonly configured: boolean;\n}',
   },
   {
     name: 'ConnectorState',
@@ -5613,7 +5635,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'ConnectorView',
-    declaration: 'export interface ConnectorView {\n    readonly id: string;\n    readonly origin: ConnectorOrigin;\n    readonly enabled: boolean;\n    readonly confirmed: boolean;\n    readonly state: ConnectorState;\n    readonly error?: string;\n    readonly hint?: ConnectorHint;\n    readonly stderr?: readonly string[];\n    readonly launch?: ConnectorLaunchView;\n    readonly custom?: CustomConnectorConfig;\n}',
+    declaration: 'export interface ConnectorView {\n    readonly id: string;\n    readonly origin: ConnectorOrigin;\n    readonly enabled: boolean;\n    readonly confirmed: boolean;\n    readonly state: ConnectorState;\n    readonly error?: string;\n    readonly hint?: ConnectorHint;\n    readonly stderr?: readonly string[];\n    readonly launch?: ConnectorLaunchView;\n    readonly custom?: CustomConnectorConfig;\n    readonly settings?: readonly ConnectorSettingView[];\n}',
   },
   {
     name: 'ContentBlockMap',
@@ -8338,6 +8360,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'SkillEntry',
     declaration: 'export interface SkillEntry {\n    readonly path?: string;\n    readonly name: string;\n    readonly description: string;\n    readonly whenToUse?: string;\n    readonly modelInvocable: boolean;\n}',
+  },
+  {
+    name: 'SkillImportRequest',
+    declaration: 'export interface SkillImportRequest {\n    readonly fileName: string;\n    readonly data: string;\n}',
+  },
+  {
+    name: 'SkillImportValue',
+    declaration: 'export interface SkillImportValue {\n    readonly name: string;\n}',
   },
   {
     name: 'SkillInvocationPolicy',

@@ -1,0 +1,14 @@
+- dialog "Upload skill":
+  - heading "Upload skill" [level=2]
+  - button "Close"
+  - button "Change file": replacement.md 112B Drag a file here or click to upload
+  - region "File requirements":
+    - heading "File requirements" [level=3]
+    - list:
+      - listitem: .md or .zip files; ZIPs must contain SKILL.md at the root or inside one folder.
+      - listitem: Skill files need YAML frontmatter with name and description.
+    - paragraph: Installs to personal skills. Existing skills are kept.
+  - alert: A skill named upload-e2e-markdown already exists. Change the name in the uploaded skill or remove the existing skill first.
+  - button "Choose a ZIP or Markdown file"
+  - button "Cancel"
+  - button "Install"

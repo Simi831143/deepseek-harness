@@ -1,0 +1,14 @@
+- dialog "Upload skill":
+  - heading "Upload skill" [level=2]
+  - button "Close"
+  - button "Change file": invalid.md 23B Drag a file here or click to upload
+  - region "File requirements":
+    - heading "File requirements" [level=3]
+    - list:
+      - listitem: .md or .zip files; ZIPs must contain SKILL.md at the root or inside one folder.
+      - listitem: Skill files need YAML frontmatter with name and description.
+    - paragraph: Installs to personal skills. Existing skills are kept.
+  - alert: This file cannot be imported. Check the skill frontmatter and ZIP contents.
+  - button "Choose a ZIP or Markdown file"
+  - button "Cancel"
+  - button "Install"

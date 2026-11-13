@@ -9,7 +9,28 @@ declare module '@deepseek-ai/dsh-typert-protocol' {
     'market-skills/not-found': { readonly name: string }
     /** A personal skill's files lie outside the personal skill folders or could not be deleted. */
     'market-skills/remove-failed': { readonly name: string; readonly reason: string }
+    /** The uploaded file is invalid. */
+    'market-skills/import-invalid': { readonly reason: SkillImportProblem }
+    /** An existing skill or personal path already owns this name; nothing was replaced. */
+    'market-skills/import-conflict': { readonly name: string; readonly source: string }
+    /** Import stopped before publication and left existing skills unchanged. */
+    'market-skills/import-failed': { readonly reason: string }
   }
+}
+
+/** Stable validation failures for localized upload feedback. */
+export type SkillImportProblem = 'unsupported-file' | 'invalid-base64' | 'invalid-archive'
+  | 'unsafe-path' | 'invalid-skill'
+
+/** One ZIP or Markdown file, encoded as canonical RFC 4648 base64. */
+export interface SkillImportRequest {
+  readonly fileName: string
+  readonly data: string
+}
+
+/** Published personal skill; returned without a fallible post-publication list read. */
+export interface SkillImportValue {
+  readonly name: string
 }
 
 /**

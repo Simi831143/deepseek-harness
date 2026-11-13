@@ -1,0 +1,14 @@
+- dialog "upload-e2e-markdown":
+  - heading "upload-e2e-markdown" [level=2]
+  - switch "Enable upload-e2e-markdown" [checked]
+  - button "Close"
+  - button "Try it"
+  - button "More actions"
+  - paragraph: Imported from Markdown
+  - heading "Overview" [level=3]
+  - button "Search the overview"
+  - heading "upload-e2e-markdown" [level=1]
+  - paragraph: MARKDOWN_IMPORT_BODY
+  - heading "Details" [level=3]
+  - term: Source
+  - definition: Personal
