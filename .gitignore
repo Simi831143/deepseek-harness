@@ -47,5 +47,6 @@ apps/web/dist/
 .worktrees/
 worktrees/
 .agents/worktrees/
+undefined/temp/
 .typert-*/
 native/system/test/bin/
