@@ -1,0 +1,67 @@
+# Bilingual-pair consistency record for 2026-11-10-account-bound-shared-library.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/proposed/feature/2026-11-10-account-bound-shared-library.md
+/agent-note-account-bound-shared-library-proposal:
+  en: f4cac883f272a9ff
+  zh: eb2fc0daa4383b68
+/agent-note-account-bound-shared-library-proposal/problem:
+  en: c718bee130200ef7
+  zh: 6499e2cae4cdde53
+/agent-note-account-bound-shared-library-proposal/proposal:
+  en: 986dd8097aac4d3d
+  zh: 986dd8097aac4d3d
+/agent-note-account-bound-shared-library-proposal/proposal/summary:
+  en: 312b388dc40218b9
+  zh: e734ad7d54de8ece
+/agent-note-account-bound-shared-library-proposal/proposal/review-navigation:
+  en: 5b1e210d52f01492
+  zh: a2ad46f755e635be
+/agent-note-account-bound-shared-library-proposal/proposal/workbuddy-evidence:
+  en: 940ed6fad334bda4
+  zh: 746d0e53ff67577a
+/agent-note-account-bound-shared-library-proposal/proposal/feishu-sign-in-verification:
+  en: 2bd7626a1fab28c2
+  zh: 4b1ac22906438568
+/agent-note-account-bound-shared-library-proposal/proposal/included-features:
+  en: 00f936c43e2bab7a
+  zh: 0f77e9cef627e424
+/agent-note-account-bound-shared-library-proposal/proposal/accounts-and-permissions:
+  en: ee21261922771629
+  zh: bf86e86bea4851d2
+/agent-note-account-bound-shared-library-proposal/proposal/desktop-integration:
+  en: cf77f15a5a6791f6
+  zh: f24ba170d19498e6
+/agent-note-account-bound-shared-library-proposal/proposal/desktop-integration/library-entry:
+  en: f95974012834345b
+  zh: 29fcd4716c2c42e5
+/agent-note-account-bound-shared-library-proposal/proposal/desktop-integration/signing-in-only-once:
+  en: ed87bfec1b48fdec
+  zh: 31eca99d0938d9e6
+/agent-note-account-bound-shared-library-proposal/proposal/agent-integration:
+  en: 54cf08d3a3312cfa
+  zh: f9dca17c2c1b7085
+/agent-note-account-bound-shared-library-proposal/proposal/deployment-and-persistence:
+  en: 439199c17f369ff8
+  zh: 486154baa1c04376
+/agent-note-account-bound-shared-library-proposal/proposal/license:
+  en: 39d742e6aeb8e4c6
+  zh: a66af68448bbe8fc
+/agent-note-account-bound-shared-library-proposal/proposal/implementation-order:
+  en: 13c349895c5cdf0d
+  zh: a5f3895629e2a190
+/agent-note-account-bound-shared-library-proposal/proposal/review-items:
+  en: 0a5b73f4159c0bdf
+  zh: d0ebc06bb9d7d210
+/agent-note-account-bound-shared-library-proposal/alternatives-considered:
+  en: 13d09f7f1decc18d
+  zh: fac0bfdb1d121af3
+/agent-note-account-bound-shared-library-proposal/acceptance-criteria:
+  en: 94a87d4109bed9d0
+  zh: 2473b1785b970451
+/agent-note-account-bound-shared-library-proposal/risks:
+  en: a7392735939b9aea
+  zh: 196908aad0af9625
+/agent-note-account-bound-shared-library-proposal/risks/implementation-references:
+  en: 83c3445b5c6ff1ec
+  zh: 4eeeeb629684c066

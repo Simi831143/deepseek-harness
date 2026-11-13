@@ -1,0 +1,52 @@
+# Bilingual-pair consistency record for 2026-11-12-workbuddy-library-platform-selection.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/proposed/feature/2026-11-12-workbuddy-library-platform-selection.md
+/agent-note-open-source-platform-selection-for-the-workbuddy-shared-library:
+  en: a9b0a5d0297305ba
+  zh: bf6329b3e51708a9
+/agent-note-open-source-platform-selection-for-the-workbuddy-shared-library/problem:
+  en: 0a44c753a1de50ca
+  zh: f3c83aabc19181b6
+/agent-note-open-source-platform-selection-for-the-workbuddy-shared-library/proposal:
+  en: 986dd8097aac4d3d
+  zh: 986dd8097aac4d3d
+/agent-note-open-source-platform-selection-for-the-workbuddy-shared-library/proposal/conclusion-and-recommendation-order:
+  en: 890facaefbf95f19
+  zh: 78b6a71a278c94b1
+/agent-note-open-source-platform-selection-for-the-workbuddy-shared-library/proposal/workbuddy-reference-baseline:
+  en: bc3f07d43cb92ed9
+  zh: feff75d6753325c3
+/agent-note-open-source-platform-selection-for-the-workbuddy-shared-library/proposal/research-method-and-evidence-limits:
+  en: 8a9129886fd5aea8
+  zh: 78afa60c95194d0a
+/agent-note-open-source-platform-selection-for-the-workbuddy-shared-library/proposal/why-opencloud:
+  en: e32c10eb9444d045
+  zh: df76c0ba577a765e
+/agent-note-open-source-platform-selection-for-the-workbuddy-shared-library/proposal/trade-offs-among-the-three-finalists:
+  en: 1eda61a22ba401de
+  zh: 908cc5e5a46ef87f
+/agent-note-open-source-platform-selection-for-the-workbuddy-shared-library/proposal/harness-integration-work:
+  en: d3e53673d762f180
+  zh: 713c0d057e900a4c
+/agent-note-open-source-platform-selection-for-the-workbuddy-shared-library/proposal/deployment-recommendation-and-sequence:
+  en: 84220866881c310f
+  zh: 34fff5e897d0cc77
+/agent-note-open-source-platform-selection-for-the-workbuddy-shared-library/proposal/local-verification-record:
+  en: 9afdcb65c1f9f556
+  zh: 9638ecb370493856
+/agent-note-open-source-platform-selection-for-the-workbuddy-shared-library/alternatives-considered:
+  en: 6119e2aff3b6be5a
+  zh: 6119e2aff3b6be5a
+/agent-note-open-source-platform-selection-for-the-workbuddy-shared-library/alternatives-considered/full-screening:
+  en: 8da5d220687d8111
+  zh: e9d93c45c5a73837
+/agent-note-open-source-platform-selection-for-the-workbuddy-shared-library/acceptance-criteria:
+  en: b63ecf7635f98c75
+  zh: 160314dd389d2e94
+/agent-note-open-source-platform-selection-for-the-workbuddy-shared-library/risks:
+  en: b243d4794b51da43
+  zh: 5805a8ba742bd84e
+/agent-note-open-source-platform-selection-for-the-workbuddy-shared-library/risks/primary-official-sources:
+  en: d5d1d12984abcb83
+  zh: 55f55d76c6626157
