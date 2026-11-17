@@ -1,5 +1,5 @@
 /**
- * Plugin market index format 1: JSON validation, relative icon resolution, and install arguments.
+ * Plugin market index formats 1 and 2: JSON validation, relative asset resolution, and install arguments.
  * The format is defined by the plugin market index format Agent Note; readers and generators share this validator.
  * @module @deepseek-ai/dsh-plugin-market-index
  */
@@ -13,7 +13,7 @@ import type {
 
 export type * from './types.ts'
 
-/** An index that violates format 1; `path` is the JSON path of the offending value, such as `$.plugins[0].versions[1].version`. */
+/** An index that violates its declared format; `path` is the JSON path of the offending value. */
 export class MarketIndexError extends Error {
   /**
    * @param path - JSON path of the offending value.
@@ -188,7 +188,7 @@ function repository(value: unknown, path: string): MarketRepository {
   return { url, ...directory === undefined ? {} : { directory } }
 }
 
-function source(value: unknown, path: string): MarketSource {
+function source(value: unknown, path: string, indexUrl: URL): MarketSource {
   const object = objectAt(value, path)
   switch (object.type) {
     case 'npm': {
@@ -201,7 +201,23 @@ function source(value: unknown, path: string): MarketSource {
       const packageDir = optional(object, 'path', path, packagePath)
       return { type: 'git', url: gitUrl(object.url, `${path}.url`), commit, ...packageDir === undefined ? {} : { path: packageDir } }
     }
-    default: return fail(`${path}.type`, 'must be "npm" or "git"')
+    case 'tarball': {
+      const filePath = stringAt(object.path, `${path}.path`)
+      const segments = filePath.split('/')
+      if (segments.some(segment => segment === '.' || segment === '..' || !PATH_SEGMENT.test(segment)) || !filePath.endsWith('.tgz')) {
+        fail(`${path}.path`, 'must be a relative .tgz path of letters, digits, and ._@+- segments without . or ..')
+      }
+      const sha256 = stringAt(object.sha256, `${path}.sha256`)
+      if (!/^[0-9a-f]{64}$/u.test(sha256)) fail(`${path}.sha256`, 'must be a lowercase 64-hex-digit SHA-256 digest')
+      const size = object.size
+      if (typeof size !== 'number' || !Number.isSafeInteger(size) || size < 0) {
+        fail(`${path}.size`, 'must be a non-negative safe integer')
+      }
+      const resolved = new URL(filePath, indexUrl)
+      if (resolved.origin !== indexUrl.origin) fail(`${path}.path`, 'must resolve to the index origin')
+      return { type: 'tarball', path: filePath, url: resolved.href, sha256, size }
+    }
+    default: return fail(`${path}.type`, 'must be "npm", "git", or "tarball"')
   }
 }
 
@@ -237,27 +253,30 @@ function icon(value: unknown, path: string, indexUrl: URL): string {
   return resolved.href
 }
 
-function marketVersion(value: unknown, path: string): MarketVersion {
+function marketVersion(value: unknown, path: string, indexUrl: URL, allowTarball: boolean): MarketVersion {
   const object = objectAt(value, path)
   const version = stringAt(object.version, `${path}.version`)
   if (!SEMVER.test(version)) fail(`${path}.version`, 'must be an exact SemVer version')
+  if (!allowTarball && objectAt(object.source, `${path}.source`).type === 'tarball') {
+    fail(`${path}.source.type`, 'must be "npm" or "git" in format 1')
+  }
   const publishTimestamp = object.publishTimestamp
   if (typeof publishTimestamp !== 'number' || !Number.isInteger(publishTimestamp) || publishTimestamp < 0 || publishTimestamp >= MAX_PUBLISH_TIMESTAMP) {
     fail(`${path}.publishTimestamp`, 'must be an integer number of Unix seconds in [0, 10^11)')
   }
   return {
     version, publishTimestamp,
-    source: source(object.source, `${path}.source`),
+    source: source(object.source, `${path}.source`, indexUrl),
     engines: optional(object, 'engines', path, engines) ?? {},
   }
 }
 
-function versions(value: unknown, path: string): MarketVersion[] {
+function versions(value: unknown, path: string, indexUrl: URL, allowTarball: boolean): MarketVersion[] {
   if (!Array.isArray(value) || value.length === 0) fail(path, 'must be a non-empty array')
   const seen = new Set<string>()
   const parsed = value.map((member, position) => {
     const at = `${path}[${String(position)}]`
-    const entry = marketVersion(member, at)
+    const entry = marketVersion(member, at, indexUrl, allowTarball)
     if (seen.has(entry.version)) fail(`${at}.version`, `duplicates ${entry.version}`)
     seen.add(entry.version)
     return entry
@@ -265,7 +284,7 @@ function versions(value: unknown, path: string): MarketVersion[] {
   return parsed.sort((left, right) => semver.rcompare(left.version, right.version))
 }
 
-function plugin(value: unknown, path: string, index: MarketIndexMetadata, indexUrl: URL): MarketPlugin {
+function plugin(value: unknown, path: string, index: MarketIndexMetadata, indexUrl: URL, allowTarball: boolean): MarketPlugin {
   const object = objectAt(value, path)
   const name = stringAt(object.name, `${path}.name`)
   if (name.length > PACKAGE_NAME_MAX_LENGTH || !PACKAGE_NAME.test(name)) fail(`${path}.name`, 'must be a valid npm package name')
@@ -284,14 +303,14 @@ function plugin(value: unknown, path: string, index: MarketIndexMetadata, indexU
     ...homepage === undefined ? {} : { homepage },
     ...repo === undefined ? {} : { repository: repo },
     metadata: pluginMetadata(object.metadata, `${path}.metadata`, index),
-    versions: versions(object.versions, `${path}.versions`),
+    versions: versions(object.versions, `${path}.versions`, indexUrl, allowTarball),
   }
 }
 
 /**
- * Validate a parsed format-1 index. Members the format does not define are ignored and dropped.
+ * Validate a parsed format-1 or format-2 index. Members the format does not define are ignored and dropped.
  * @param value - the parsed JSON document.
- * @param indexUrl - absolute URL the index was read from; relative icon references resolve against it.
+ * @param indexUrl - absolute URL the index was read from; relative icon and tarball references resolve against it.
  * @returns the validated index with absent metadata groups and lists filled with empty values, and each plugin's
  *   versions in descending SemVer precedence.
  * @throws {MarketIndexError} for the first violated rule.
@@ -300,19 +319,20 @@ export function parseMarketIndex(value: unknown, indexUrl: string): MarketIndex 
   if (!URL.canParse(indexUrl)) fail('$', `index URL ${JSON.stringify(indexUrl)} must be an absolute URL`)
   const base = new URL(indexUrl)
   const object = objectAt(value, '$')
-  if (object.format !== 1) fail('$.format', 'must be 1')
+  if (object.format !== 1 && object.format !== 2) fail('$.format', 'must be 1 or 2')
+  const format = object.format
   const metadata = indexMetadata(object.metadata, '$.metadata')
   if (!Array.isArray(object.plugins)) fail('$.plugins', 'must be an array')
   const names = new Set<string>()
   const plugins = object.plugins.map((entry, position) => {
-    const parsed = plugin(entry, `$.plugins[${String(position)}]`, metadata, base)
+    const parsed = plugin(entry, `$.plugins[${String(position)}]`, metadata, base, format === 2)
     if (names.has(parsed.name)) fail(`$.plugins[${String(position)}].name`, `duplicates ${parsed.name}`)
     names.add(parsed.name)
     return parsed
   })
   const title = localizedText(object.title, '$.title')
   const description = optional(object, 'description', '$', localizedText)
-  return { format: 1, title, ...description === undefined ? {} : { description }, metadata, plugins }
+  return { format, title, ...description === undefined ? {} : { description }, metadata, plugins }
 }
 
 /**
@@ -325,6 +345,7 @@ export function parseMarketIndex(value: unknown, indexUrl: string): MarketIndex 
 export function marketInstallTarget(name: string, version: Pick<MarketVersion, 'version' | 'source'>): MarketInstallTarget {
   const { source: from } = version
   if (from.type === 'npm') return { spec: `${name}@${version.version}`, ...from.registry === undefined ? {} : { registry: from.registry } }
+  if (from.type === 'tarball') throw new TypeError('A tarball requires verified market installation')
   const repository = from.url.endsWith('.git') ? from.url : `${from.url}.git`
   return { spec: `git+${repository}#${from.commit}${from.path === undefined ? '' : `&path:/${from.path}`}` }
 }

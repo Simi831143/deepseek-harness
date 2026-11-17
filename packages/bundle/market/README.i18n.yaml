@@ -3,23 +3,23 @@
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/bundle/market/README.md
 /:
-  en: 8c538d89b92a67cc
-  zh: e0edaaa9a4baf7b0
+  en: 60853344c6f2fd33
+  zh: 7200e4f4d93b14cb
 /deepseek-ai-dsh-market-bundle:
   en: a68526300eac5ae7
   zh: 0da7edaa45f98c38
 /deepseek-ai-dsh-market-bundle/summary:
-  en: 3906c02a8cafee42
-  zh: 32ae0a97a31045b7
+  en: cfa05dcb731eafec
+  zh: 40cf2fef6adbc2e4
 /deepseek-ai-dsh-market-bundle/table-of-contents:
   en: 122f0d41696980b1
   zh: a626a37cb5e869f8
 /deepseek-ai-dsh-market-bundle/use-this-package:
-  en: ef6b42673868b066
-  zh: da6226dbaf4559e3
+  en: bc3039a3c5691692
+  zh: 6d1eee099da70665
 /deepseek-ai-dsh-market-bundle/understand-the-implementation:
-  en: 2b10c9bbd123629c
-  zh: 41b92f3706b59ac2
+  en: 6dc00d350431fd5f
+  zh: c5d796828645f60b
 /deepseek-ai-dsh-market-bundle/model-experience:
   en: 215e7ba838619b7b
   zh: a311da3843709f90

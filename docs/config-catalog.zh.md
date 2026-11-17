@@ -2301,7 +2301,7 @@ export interface LspLocalServerConfig {
 ## `@deepseek-ai/dsh-market`
 
 - `inject`: `storageDomain` · `typert`
-- `source`: [`packages/market/market/src/index.ts:74`](../packages/market/market/src/index.ts)
+- `source`: [`packages/market/market/src/index.ts:89`](../packages/market/market/src/index.ts)
 
 ```ts config-catalog
 /** Market core configuration. */
@@ -2319,6 +2319,23 @@ export interface Config {
 }
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-market -->
+
+<!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-market-plugins -->
+<a id="deepseek-aidsh-market-plugins"></a>
+
+## `@deepseek-ai/dsh-market-plugins`
+
+- `inject`: `market` · `pluginManager` · `profileContext`
+- `source`: [`packages/market/market-plugins/src/index.ts:25`](../packages/market/market-plugins/src/index.ts)
+
+```ts config-catalog
+/** Limits for reading a plugin's manifest before package installation. */
+export interface Config {
+  /** Largest accepted uncompressed package.json, in bytes. */
+  manifestMaxBytes: number
+}
+```
+<!-- END GENERATED config-catalog:@deepseek-ai/dsh-market-plugins -->
 
 <!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-market-skills -->
 <a id="deepseek-aidsh-market-skills"></a>

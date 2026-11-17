@@ -179,6 +179,8 @@ Tool results append to the transcript. Enabling or disabling other tools can cha
 
 Failures preserve completed steps and report the actual remaining state. Profile dependencies without valid bundle metadata remain visible and removable, with enablement unavailable.
 
+After a successful `pnpm remove`, the shared service and CLI package operation deletes previously referenced `.tgz` files directly under `<profile>/.plugin-market/tarballs` when no remaining dependency references them. It retains archives referenced by any dependency field, downloads not involved in the removal, and user-supplied files outside this directory. A linked market directory is not cleaned. Failed, cancelled, or timed-out removals retain the archives. If archive cleanup fails, the operation reports failure with the file path; completed dependency removals stay committed, and the remaining file can be deleted after fixing filesystem access.
+
 | Failed operation | Handling |
 |---|---|
 | Install: pnpm or bundle validation fails | Restore `package.json` and `pnpm-lock.yaml` as snapshotted before pnpm ran; files pnpm downloaded may remain. Report installation failure. |

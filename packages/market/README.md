@@ -1,5 +1,5 @@
 ---
-description: "Market catalog, verified package installation, and installed skill management."
+description: "Shared market catalog and package operations for skills, connectors, and plugins."
 kind: "package-group"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-The `market/` group owns the catalog and installation services used by the optional market bundle. The core package manages catalog data and verified archives; the skill package connects installed archives to the shared skill registry and exposes management operations; the connector package starts installed MCP programs the user switched on.
+The `market/` group owns the catalog and installation services used by the optional market bundle. The core package manages the shared catalog, verified downloads, and package operations. Domain packages connect installed content to the skill registry, start enabled MCP connectors, or install profile plugins through Plugin Manager.
 
 ## Table of Contents
 
@@ -27,6 +27,7 @@ The `market/` group owns the catalog and installation services used by the optio
 | [`market`](market/README.md) | Catalog, package verification, installation, and removal | `ctx.market` |
 | [`market-skills`](market-skills/README.md) | Installed skill provider and management Remote | `ctx.marketSkills` |
 | [`market-connectors`](market-connectors/README.md) | Local MCP connector programs, switches and their skills | `ctx.marketConnectors` |
+| [`market-plugins`](market-plugins/README.md) | Market plugin installation through the profile's Plugin Manager | `ctx.market` registration |
 
 <a id="related-documentation"></a>
 ## Related documentation

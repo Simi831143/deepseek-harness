@@ -1,0 +1,19 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`installs and removes a directory with the bundled pnpm when PATH contains no pnpm 1`] = `
+{
+  "installed": 0,
+  "removed": 0,
+  "source": "directory",
+  "sourceExists": true,
+}
+`;
+
+exports[`installs and removes a market tarball with the bundled pnpm when PATH contains no pnpm 1`] = `
+{
+  "installed": 0,
+  "removed": 0,
+  "source": "market tarball",
+  "sourceExists": false,
+}
+`;

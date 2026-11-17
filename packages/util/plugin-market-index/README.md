@@ -1,5 +1,5 @@
 ---
-description: "Plugin market index format 1 validation and install arguments for DSH readers and index generators."
+description: "Plugin market index validation, relative tarball resolution, and install arguments for DSH readers and index generators."
 kind: "package-library"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Validator without runtime dependencies for format 1 of the plugin market index, the single JSON file that lists installable DSH bundles with their display metadata. [The format Agent Note](../../../.agents/notes/implemented/feature/2026-10-02-plugin-market-index-format.md) defines the document; this package is its executable rule set. DSH's [`dsh-plugin-market`](../../boot/plugin-market/README.md) reads indexes with it, and index generators validate their output with it before publishing.
+Validator without runtime dependencies for formats 1 and 2 of the plugin market index, the single JSON file that lists installable DSH bundles with their display metadata. Format 1 accepts npm and Git sources; format 2 also accepts same-origin tarballs. [The format Agent Note](../../../.agents/notes/implemented/feature/2026-10-02-plugin-market-index-format.md) defines the document; this package is its executable rule set. DSH's [`dsh-plugin-market`](../../boot/plugin-market/README.md) reads indexes with it, and index generators validate their output with it before publishing.
 
 ## Table of Contents
 
@@ -26,7 +26,7 @@ Validator without runtime dependencies for format 1 of the plugin market index, 
 
 It is a library, not a service or plugin: no `ctx`, no registrations, no state, no I/O.
 
-Parse the fetched document as JSON, then pass the value and the URL it was read from to `parseMarketIndex`. The first violated rule throws `MarketIndexError` with the JSON path of the offending value. A successful result drops members the format does not define, fills absent `metadata` groups, `keywords`, `labels`, `sortKeys`, and `engines` with empty values, orders each plugin's `versions` by descending SemVer precedence, and replaces each relative `icon` reference with its absolute URL.
+Parse the fetched document as JSON, then pass the value and the URL it was read from to `parseMarketIndex`. The first violated rule throws `MarketIndexError` with the JSON path of the offending value. A successful result drops members the format does not define, fills absent `metadata` groups, `keywords`, `labels`, `sortKeys`, and `engines` with empty values, orders each plugin's `versions` by descending SemVer precedence, and replaces each relative `icon` or format-2 tarball `path` reference with its absolute URL. A tarball source carries its exact byte size and lowercase SHA-256 digest; `marketInstallTarget` rejects it because the Host must download and verify it before installation.
 
 Install one version with `marketInstallTarget(name, version)`: it returns the exact pnpm spec, `name@version` for npm and a commit-pinned `git+https` URL with an optional `path:` parameter for Git, and the registry to ask first when the version names one.
 

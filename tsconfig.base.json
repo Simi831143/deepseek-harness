@@ -471,6 +471,7 @@
       "@deepseek-ai/dsh-lsp-stdio": ["./packages/lsp/lsp-stdio/src"],
       "@deepseek-ai/dsh-market": ["./packages/market/market/src"],
       "@deepseek-ai/dsh-market-connectors": ["./packages/market/market-connectors/src"],
+      "@deepseek-ai/dsh-market-plugins": ["./packages/market/market-plugins/src"],
       "@deepseek-ai/dsh-market-skills": ["./packages/market/market-skills/src"],
       "@deepseek-ai/dsh-mcp-client": ["./packages/mcp/mcp-client/src"],
       "@deepseek-ai/dsh-mcp-resources": ["./packages/mcp/mcp-resources/src"],

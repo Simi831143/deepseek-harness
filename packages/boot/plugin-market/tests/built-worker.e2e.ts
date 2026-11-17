@@ -29,7 +29,7 @@ describe.skipIf(!built)('built index parsing (plain node)', () => {
 
       const bodies = {
         'https://m.example/valid.json': { format: 1, title: 'M', plugins: [{ name: 'p', versions: [{ version: '1.0.0', publishTimestamp: 1, source: { type: 'npm' } }] }] },
-        'https://m.example/invalid.json': { format: 2 },
+        'https://m.example/invalid.json': { format: 3 },
       }
       globalThis.fetch = async (url) => new Response(JSON.stringify(bodies[url]))
       class Manager extends Service {
@@ -52,7 +52,7 @@ describe.skipIf(!built)('built index parsing (plain node)', () => {
     expect(result).toEqual({
       entries: ['p'],
       code: 'plugin-market/invalid-index',
-      details: { url: 'https://m.example/invalid.json', path: '$.format', reason: 'must be 1' },
+      details: { url: 'https://m.example/invalid.json', path: '$.format', reason: 'must be 1 or 2' },
     })
   })
 

@@ -90,6 +90,7 @@ export interface SourceFact {
  */
 export function sourceFacts(name: string, version: MarketListingVersion): SourceFact[] {
   const { source } = version
+  if (source.type === 'tarball') return [{ kind: 'package', value: `${name}@${version.version}` }]
   if (source.type === 'npm') {
     return [
       { kind: 'package', value: `${name}@${version.version}` },

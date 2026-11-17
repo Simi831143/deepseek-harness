@@ -155,7 +155,7 @@ describe('parseMarketIndex', () => {
 
   it('rejects root violations with their JSON path', () => {
     expect(rejection([]).message).toBe('$ must be an object')
-    expect(rejection(document({ format: 2 })).path).toBe('$.format')
+    expect(rejection(document({ format: 3 })).path).toBe('$.format')
     expect(rejection(document({ title: '  ' })).message).toBe('$.title must be a string with a non-whitespace character')
     expect(rejection(document({ title: { zh: '市场' } })).message).toBe('$.title must contain en')
     expect(rejection(document({ title: { EN: 'Market' } })).message).toBe('$.title.EN must be keyed by a lowercase language id')
@@ -206,7 +206,7 @@ describe('parseMarketIndex', () => {
   it('rejects malformed sources', () => {
     const at = '$.plugins[0].versions[0].source'
     const npm = (fields: Record<string, unknown>): string => versionRejection({ source: { type: 'npm', ...fields } })
-    expect(versionRejection({ source: { type: 'tarball' } })).toBe(`${at}.type must be "npm" or "git"`)
+    expect(versionRejection({ source: { type: 'tarball' } })).toBe(`${at}.type must be "npm" or "git" in format 1`)
     expect(npm({ registry: 'not a url' })).toBe(`${at}.registry must be an absolute URL`)
     expect(npm({ registry: 'ftp://registry.example/' })).toBe(`${at}.registry must use https: or http:`)
     expect(npm({ registry: 'https://user:pw@registry.example/' })).toBe(`${at}.registry must not contain credentials`)
@@ -247,6 +247,35 @@ describe('parseMarketIndex', () => {
     expect(entryRejection({ metadata: { sortKeys: { downloads: Number.NaN } } })).toBe('$.plugins[0].metadata.sortKeys.downloads must be a finite number')
   })
 
+  it('accepts format-2 tarballs and resolves their same-origin URL', () => {
+    const parsed = parseMarketIndex(document({ format: 2, plugins: [entry({ versions: [npmVersion({
+      source: { type: 'tarball', path: 'packages/plugin/foo-1.2.3.tgz', sha256: 'a'.repeat(64), size: 123 },
+    })] })] }), INDEX_URL)
+    expect(parsed.format).toBe(2)
+    expect(parsed.plugins[0]?.versions[0]?.source).toEqual({
+      type: 'tarball', path: 'packages/plugin/foo-1.2.3.tgz', url: 'https://market.example/dsh/packages/plugin/foo-1.2.3.tgz', sha256: 'a'.repeat(64), size: 123,
+    })
+  })
+
+  it.each([
+    [{ path: '../foo.tgz', sha256: 'a'.repeat(64), size: 1 }, 'path', 'relative .tgz path'],
+    [{ path: '/foo.tgz', sha256: 'a'.repeat(64), size: 1 }, 'path', 'relative .tgz path'],
+    [{ path: 'https://other.example/foo.tgz', sha256: 'a'.repeat(64), size: 1 }, 'path', 'relative .tgz path'],
+    [{ path: 'C:/foo.tgz', sha256: 'a'.repeat(64), size: 1 }, 'path', 'relative .tgz path'],
+    [{ path: 'foo\\bar.tgz', sha256: 'a'.repeat(64), size: 1 }, 'path', 'relative .tgz path'],
+    [{ path: 'foo.tgz?x=1', sha256: 'a'.repeat(64), size: 1 }, 'path', 'relative .tgz path'],
+    [{ path: 'foo.tgz#x', sha256: 'a'.repeat(64), size: 1 }, 'path', 'relative .tgz path'],
+    [{ path: 'foo.zip', sha256: 'a'.repeat(64), size: 1 }, 'path', 'relative .tgz path'],
+    [{ path: 'foo.tgz', sha256: 'A'.repeat(64), size: 1 }, 'sha256', 'lowercase 64-hex-digit'],
+    [{ path: 'foo.tgz', sha256: 'abc', size: 1 }, 'sha256', 'lowercase 64-hex-digit'],
+    [{ path: 'foo.tgz', sha256: 'a'.repeat(64), size: -1 }, 'size', 'non-negative safe integer'],
+    [{ path: 'foo.tgz', sha256: 'a'.repeat(64), size: 1.5 }, 'size', 'non-negative safe integer'],
+    [{ path: 'foo.tgz', sha256: 'a'.repeat(64), size: Number.MAX_SAFE_INTEGER + 1 }, 'size', 'non-negative safe integer'],
+  ])('rejects malformed tarball source %j', (source, field, reason) => {
+    expect(rejection(document({ format: 2, plugins: [entry({ versions: [npmVersion({ source: { type: 'tarball', ...source } })] })] })).message)
+      .toContain(`.source.${field} must be a ${reason}`)
+  })
+
   it('refuses a relative index URL with its own error', () => {
     expect(() => parseMarketIndex({}, 'index.json')).toThrow(MarketIndexError)
   })
@@ -271,6 +300,12 @@ describe('marketInstallTarget', () => {
     expect(marketInstallTarget('dsh-foo', { version: '1.2.3', source: { type: 'npm' } })).toEqual({ spec: 'dsh-foo@1.2.3' })
     expect(marketInstallTarget('@s/dsh-foo', { version: '1.2.3', source: { type: 'npm', registry: 'https://r.example/' } }))
       .toEqual({ spec: '@s/dsh-foo@1.2.3', registry: 'https://r.example/' })
+  })
+
+  it('requires verified market installation for tarball versions', () => {
+    expect(() => marketInstallTarget('a', {
+      version: '1.0.0', source: { type: 'tarball', path: 'a.tgz', url: 'https://market.example/a.tgz', sha256: 'a'.repeat(64), size: 1 },
+    })).toThrow(TypeError)
   })
 
   it('pins Git versions to their commit and package directory', () => {

@@ -914,6 +914,7 @@ export const TYPE_LINK_EXEMPTIONS: Readonly<Record<string, string>> = {
   InstalledItem: 'market catalog and install records are owned by packages/market/market/src/types.ts',
   MarketItemRef: 'market catalog and install records are owned by packages/market/market/src/types.ts',
   MarketKind: 'market catalog and install records are owned by packages/market/market/src/types.ts',
+  MarketManagedKind: 'managed market installation is documented in packages/market/market/README.md',
   MarketKindName: 'market catalog and install records are owned by packages/market/market/src/types.ts',
   MarketSnapshot: 'market catalog and install records are owned by packages/market/market/src/types.ts',
   InstalledSkillsValue: 'installed-skill management payloads are owned by packages/market/market-skills/src/types.ts',

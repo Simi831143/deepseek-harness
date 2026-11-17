@@ -26,6 +26,8 @@ English | [中文](README.zh.md)
 
 The optional [custom plugin indexes bundle](../../experimental/plugin-market-bundle/README.md) mounts the service as the `plugin-market` row; shipped profiles leave the bundle off. Like `plugin-manager`, the row is disabled without a profile, and it waits for `pluginManager`. No index source is configured by default, so the Host sends no index request until a user adds one.
 
+Format-2 static tarballs remain readable, but their versions have no `install` target and no remotely read detail document. The `plugin_market` tool reports `install: null` for them. The [shared market](../../market/market/README.md) owns their verified downloads and installation; this index reader does not download packages.
+
 | Config | Default | Meaning |
 |---|---|---|
 | `indexes` | `[]` | Index URLs in display order. A usable URL is in canonical form and uses `http:` or `https:`, without credentials or fragment. The field is volatile: Discover, Settings, and `setIndexes` change it without remounting this service or `plugin-manager`. |
@@ -47,7 +49,7 @@ The Remote methods are:
 
 - `listIndexes()` returns each configured URL with the title and description of its last successful read and, when the last read failed, its error. It never fetches.
 - `setIndexes(urls)` normalizes and validates each URL not already configured, keeps configured ones as written, refuses a repeated URL, and writes it through `settings.update` to this service's profile entry. It fails with `plugin-market/settings-unavailable` without Settings or a profile entry. The committed list is announced by `plugin-market/changed`.
-- `search(url, query)` accepts only a configured URL, so the service never fetches an arbitrary address. It returns one page of the plugins that match `query`, with the index title, description, and declarations, the document's `fetchedAt`, the `total` number of matches, and the `nextOffset`; each plugin carries its `defaultVersion` and `installation`, and each version its `install` and `compatibility`.
+- `search(url, query)` accepts only a configured URL, so the service never fetches an arbitrary address. It returns one page of the plugins that match `query`, with the index title, description, and declarations, the document's `fetchedAt`, the `total` number of matches, and the `nextOffset`; each plugin carries its `defaultVersion` and `installation`, and each version its `compatibility` and, for npm and Git, `install`.
 - `readEntryDetail(url, name, version, language, { refresh?, npmFileSources? })` reads the long description of one listed version of a configured index's entry from that version's source: the npm file CDNs for a version without `registry` or with the npm or npmmirror registry, or its pinned Git commit and `path`. An npm version from another registry has no readable package files.
 
 The service method `entry(url, name)`, which is not a Remote method, returns one plugin of a configured index in the same form, or `undefined` when the index does not list it.
@@ -80,7 +82,7 @@ A source that exists but cannot be read fails with `plugin-market/detail-unavail
 
 Failures use `plugin-market/invalid-query`, `plugin-market/invalid-index-url`, `plugin-market/unknown-index`, `plugin-market/fetch-failed`, and `plugin-market/invalid-index`; the last carries the JSON path of the offending value.
 
-The `plugin_market` tool lists the configured indexes, pages the plugins of one index in index order or, with a `query`, by best match, or pages one plugin's versions. It requires no approval because it reads only the sources the user configured and changes nothing; each version it returns carries the `target` and `registry` to pass to `plugin_manager`'s `install_bundle`, which keeps its own approval. The tool cannot change index sources. Creator mode keeps its row beside `plugin_manager`, and the row registers the tool only while `pluginMarket` is mounted; other presets keep it disabled.
+The `plugin_market` tool lists the configured indexes, pages the plugins of one index in index order or, with a `query`, by best match, or pages one plugin's versions. It requires no approval because it reads only the sources the user configured and changes nothing; each npm or Git version it returns carries the `target` and `registry` to pass to `plugin_manager`'s `install_bundle`, which keeps its own approval. The tool cannot change index sources. Creator mode keeps its row beside `plugin_manager`, and the row registers the tool only while `pluginMarket` is mounted; other presets keep it disabled.
 
 -----
 

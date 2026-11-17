@@ -19,11 +19,14 @@ export function InstallProgress({ progress, t, compact = false }: {
 }): ReactNode {
   const label = stepLabel(progress, t)
   const percent = progress.total === 0 ? 100 : Math.min(100, Math.floor(progress.done * 100 / progress.total))
+  const indeterminate = progress.phase === 'install'
   return (
     <div className={clsx(css.progress, compact && css.compact)}>
       {!compact && <span className={css.label}>{label}</span>}
-      <div className={css.track} role="progressbar" aria-label={label} aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent}>
-        <div className={css.bar} style={{ width: `${String(percent)}%` }} />
+      <div className={css.track} role="progressbar" aria-label={label} aria-valuemin={0} aria-valuemax={100}
+        aria-valuenow={indeterminate ? undefined : percent}>
+        <div className={clsx(css.bar, indeterminate && css.indeterminate)}
+          style={indeterminate ? undefined : { width: `${String(percent)}%` }} />
       </div>
     </div>
   )
@@ -35,5 +38,7 @@ function stepLabel(progress: MarketInstallProgress, t: MarketPageProps['t']): st
       return t('installDownloading', { done: (progress.done / MEGABYTE).toFixed(1), total: (progress.total / MEGABYTE).toFixed(1) })
     case 'unpack':
       return t('installUnpacking', { done: progress.done, total: progress.total })
+    case 'install':
+      return t('installApplying')
   }
 }

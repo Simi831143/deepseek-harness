@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-market` owns the published market catalog, verified archive extraction, installed-item records, and the `ctx.market` Host service. Domain packages register item kinds and own the validation of their installed content.
+Browse experts, skills, connectors, and plugins through one catalog and install or remove them through the `market` Remote namespace. Each resource type supplies its content validation and runtime integration.
 
 ## Table of Contents
 
@@ -27,7 +27,11 @@ Mount `Market` with a catalog URL and a writable market home. Register each supp
 <a id="understand-the-implementation"></a>
 ## Understand the implementation
 
-The service downloads JSON over HTTP(S), keeps the last valid catalog on disk, reads the catalog again (with its ETag) before every install so a page opened before a publish installs the package now listed, verifies package metadata and SHA-256 content, extracts into a staging directory, and atomically promotes the completed package. Installed records are stored through the storage-domain service and catalog changes are delivered by `watch()`. While a package downloads and unpacks, the snapshot's `progress` reports the bytes received and the files written, and `watch()` sends a new snapshot each time the whole percent changes. The copy that an update replaces is deleted after the install returns; a deletion cut short by exit finishes when the next start empties the staging directory.
+The service reads one JSON catalog over HTTP(S), including its published plugin versions, and keeps the last valid catalog for browsing. Every installation revalidates that catalog with its ETag; an unsuccessful read stops installation with `market/catalog-unavailable`. A removed item or exact version is refused, and package downloads verify both size and SHA-256. Downloaded archives are never reused for another installation.
+
+Archive kinds validate a staging directory before replacing installed files, with installed records owned by the market. Managed kinds receive the same verified package bytes and supply their installation, removal, and authoritative installed state. The [plugin adapter](../market-plugins/README.md) delegates profile dependencies and runtime changes to Plugin Manager. `watch()` publishes all kinds through the same snapshot, including download, unpacking, and package-installation progress. Managed operations refresh their installed state after success or failure so a committed dependency removal is not presented as rolled back.
+
+Archive updates delete their replaced copy after installation returns; the next startup finishes interrupted staging cleanup. Archive removal withdraws runtime contributions before deleting the installed directory. Plugin archive retention and removal follow the [Plugin Manager cleanup rules](../../boot/plugin-manager/README.md#failure-behavior).
 
 <a id="model-experience"></a>
 ## Model Experience
@@ -51,7 +55,7 @@ None directly.
 <a id="known-limitations-and-deferred-work"></a>
 
 - The catalog URL is configured by the deployment and the service does not sign or mirror catalog data.
-- Archive installation is limited to the registered item kinds and their package validators.
+- Installation is limited to registered kinds. The shared plugin market accepts published tarballs; npm and Git installation remain available through Plugin Manager.
 
 ### Dev Note
 

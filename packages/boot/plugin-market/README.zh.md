@@ -26,6 +26,8 @@ kind: "package-reference"
 
 可选的[自定义插件索引组合包](../../experimental/plugin-market-bundle/README.zh.md)把该服务挂载为 `plugin-market` 行；随附的 profile 默认不启用该组合包。与 `plugin-manager` 一样，该行在没有 profile 时被禁用，并等待 `pluginManager`。默认不配置任何索引源，因此在用户添加索引源之前，Host 不发送任何索引请求。
 
+格式 2 的静态 tarball 仍可读取，但这些版本没有 `install` 目标，也不远程读取详细介绍。`plugin_market` 工具为其返回 `install: null`。[共享市场](../../market/market/README.zh.md)负责已验证的下载和安装；此索引读取服务不下载软件包。
+
 | 配置 | 默认值 | 含义 |
 |---|---|---|
 | `indexes` | `[]` | 按显示顺序排列的索引 URL。可用的 URL 采用规范形式，使用 `http:` 或 `https:`，不含凭据或片段。该字段是 volatile 字段：发现区、设置和 `setIndexes` 修改它时，不会重新挂载本服务或 `plugin-manager`。 |
@@ -47,7 +49,7 @@ Remote 方法如下：
 
 - `listIndexes()` 返回每个已配置 URL，以及其最近一次成功读取得到的标题和描述；最近一次读取失败时，还返回其错误。它从不发起获取。
 - `setIndexes(urls)` 规范化并校验每个尚未配置的 URL，已配置的 URL 保持原样，拒绝重复的 URL，并通过 `settings.update` 把列表写入本服务的 profile 条目。没有 Settings 或 profile 条目时，以 `plugin-market/settings-unavailable` 失败。提交后的列表通过 `plugin-market/changed` 通告。
-- `search(url, query)` 只接受已配置的 URL，因此服务从不获取任意地址。它返回匹配 `query` 的一页插件，并附带索引的标题、描述和声明、该文档的 `fetchedAt`、匹配总数 `total` 和 `nextOffset`；每个插件携带 `defaultVersion` 和 `installation`，每个版本携带 `install` 和 `compatibility`。
+- `search(url, query)` 只接受已配置的 URL，因此服务从不获取任意地址。它返回匹配 `query` 的一页插件，并附带索引的标题、描述和声明、该文档的 `fetchedAt`、匹配总数 `total` 和 `nextOffset`；每个插件携带 `defaultVersion` 和 `installation`，每个版本携带 `compatibility`，npm 和 Git 版本还携带 `install`。
 - `readEntryDetail(url, name, version, language, { refresh?, npmFileSources? })` 从已配置索引中某个条目的一个已列出版本的来源读取该版本的详细介绍：没有 `registry` 或使用 npm 或 npmmirror 注册表的版本从 npm 文件 CDN 读取，Git 版本从其固定的 Git 提交和 `path` 读取。来自其他注册表的 npm 版本没有可读取的包文件。
 
 服务方法 `entry(url, name)` 不是 Remote 方法，它以相同形式返回已配置索引中的一个插件；索引未列出该插件时返回 `undefined`。
@@ -81,7 +83,7 @@ Remote 方法如下：
 
 失败使用 `plugin-market/invalid-query`、`plugin-market/invalid-index-url`、`plugin-market/unknown-index`、`plugin-market/fetch-failed` 和 `plugin-market/invalid-index`；最后一种携带违规值的 JSON 路径。
 
-`plugin_market` 工具列出已配置的索引，按索引顺序分页列出某个索引的插件，或在给出 `query` 时按最佳匹配分页列出，或分页列出某个插件的版本。它不需要批准，因为它只读取用户配置的源且不做任何改动；它返回的每个版本都携带要传给 `plugin_manager` 的 `install_bundle` 的 `target` 和 `registry`，`install_bundle` 仍保留自己的批准要求。该工具不能修改索引源。Creator 模式在 `plugin_manager` 旁边保留它的行，该行只在 `pluginMarket` 已挂载时注册工具；其他预设保持禁用。
+`plugin_market` 工具列出已配置的索引，按索引顺序分页列出某个索引的插件，或在给出 `query` 时按最佳匹配分页列出，或分页列出某个插件的版本。它不需要批准，因为它只读取用户配置的源且不做任何改动；它返回的每个 npm 或 Git 版本都携带要传给 `plugin_manager` 的 `install_bundle` 的 `target` 和 `registry`，`install_bundle` 仍保留自己的批准要求。该工具不能修改索引源。Creator 模式在 `plugin_manager` 旁边保留它的行，该行只在 `pluginMarket` 已挂载时注册工具；其他预设保持禁用。
 
 -----
 

@@ -74,7 +74,9 @@ function reconcileProfileBundles(projectDir: string): void {
   const bundles = manifest.dsh?.profile?.bundles
   if (bundles === undefined) return
   const migrated = bundles.filter(bundle => bundle !== '@deepseek-ai/dsh-account-email'
-    && bundle !== '@deepseek-ai/dsh-account' && !OWN_BUNDLES.includes(bundle))
+    && bundle !== '@deepseek-ai/dsh-account'
+    && bundle !== '@deepseek-ai/dsh-experimental-plugin-market-bundle'
+    && !OWN_BUNDLES.includes(bundle))
   const firstExternalBundle = migrated.findIndex(bundle => !WEB_PROFILE.bundles.includes(bundle))
   migrated.splice(firstExternalBundle === -1 ? migrated.length : firstExternalBundle, 0, ...OWN_BUNDLES)
   if (migrated.length === bundles.length && migrated.every((bundle, index) => bundle === bundles[index])) return

@@ -1,9 +1,9 @@
 /**
  * Market core: one published catalog, package installation, and installed-item
- * records shared by the skill, expert and connector domain packages. The core
- * knows no domain: each kind's package registers a {@link MarketKind} that
- * validates unpacked content and brings its runtime in line with the installed
- * set. Browsers reach the core through the `market` Remote namespace.
+ * records shared by the skill, expert, connector and plugin domain packages.
+ * Archive kinds validate extracted content; managed kinds receive the same
+ * verified download and keep installed state in their own package manager.
+ * Browsers reach the core through the `market` Remote namespace.
  * @module @deepseek-ai/dsh-market
  */
 import { mkdir, readFile, rm } from 'node:fs/promises'
@@ -16,11 +16,11 @@ import { resolveDshHome } from '@deepseek-ai/dsh-home-paths'
 import { MAX_TIMER_DELAY_MS } from '@deepseek-ai/dsh-timeout'
 import { Remote, RemoteError, TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol'
 import { z as zod } from 'zod'
-import { findItem, itemKey, MarketCatalogError, parseCatalog, resolveCatalogPath } from './catalog.ts'
-import { installPackage, itemDirectory, removePackage, type InstallerOptions } from './installer.ts'
+import { findItem, itemKey, MarketCatalogError, parseCatalog, pluginItem, resolveCatalogPath } from './catalog.ts'
+import { downloadPackage, installPackage, itemDirectory, removePackage, type InstallerOptions } from './installer.ts'
 import type {
   MarketCatalog, MarketCatalogItem, MarketCatalogSource, MarketInstalledRecord, MarketInstallProgress, MarketItemRef, MarketItemView,
-  MarketKindName, MarketSnapshot,
+  MarketKindName, MarketManagedState, MarketSnapshot,
 } from './types.ts'
 
 export type * from './types.ts'
@@ -45,7 +45,8 @@ export interface InstalledItem {
 
 /** Domain behavior for one kind of item. */
 export interface MarketKind {
-  readonly kind: MarketKindName
+  readonly kind: Exclude<MarketKindName, 'plugin'>
+  readonly mode?: 'archive'
   /**
    * Check an unpacked package before it replaces any installed copy.
    * @param directory - staging directory holding the unpacked files.
@@ -68,6 +69,20 @@ export interface MarketKind {
    * @param id - item id about to be replaced.
    */
   release?(id: string): Promise<void>
+}
+
+/** Installation supplied by a domain service whose own records remain authoritative. */
+export interface MarketManagedKind {
+  readonly kind: MarketKindName
+  readonly mode: 'managed'
+  /** Refresh authoritative installed state before an operation or snapshot publication. */
+  refresh(): Promise<void>
+  /** @param item - current published version. @returns installed state and version admission. */
+  view(item: MarketCatalogItem): MarketManagedState
+  /** @param item - exact listed version. @param data - verified package bytes. @param signal - cancellation. */
+  install(item: MarketCatalogItem, data: Uint8Array, signal: AbortSignal): Promise<void>
+  /** @param id - domain package identity, also valid after delisting. @param signal - cancellation. */
+  uninstall(id: string, signal: AbortSignal): Promise<void>
 }
 
 /** Market core configuration. */
@@ -115,7 +130,7 @@ export class Market extends TypertRemoteService {
 
   private readonly home: string
   private readonly installer: InstallerOptions
-  private readonly kinds = new Map<MarketKindName, MarketKind>()
+  private readonly kinds = new Map<MarketKindName, MarketKind | MarketManagedKind>()
   private readonly listeners = new Set<() => void>()
   private readonly installing = new Set<string>()
   private readonly progress = new Map<string, MarketInstallProgress>()
@@ -157,7 +172,12 @@ export class Market extends TypertRemoteService {
   async [Service.init](): Promise<void> {
     const domain = await this.ctx.storageDomain.open(MARKET_DOMAIN)
     this.domain = domain
-    this.ctx.effect(() => () => domain.close(), 'market: installed records')
+    this.ctx.effect(() => async () => {
+      this.lifetime.abort(new Error('market disposed'))
+      for (const listener of this.listeners) listener()
+      await Promise.allSettled([this.queue, this.refreshing])
+      await domain.close()
+    }, 'market: installed records')
     await rm(this.installer.stagingRoot, { recursive: true, force: true })
     await this.readCache()
     if (this.config.catalogUrl !== '') void this.refresh().catch(() => undefined)
@@ -169,7 +189,7 @@ export class Market extends TypertRemoteService {
    * @returns disposer; register it with the domain plugin's effects.
    * @throws when another package already handles the kind.
    */
-  registerKind(kind: MarketKind): () => void {
+  registerKind(kind: MarketKind | MarketManagedKind): () => void {
     if (this.kinds.has(kind.kind)) throw new Error(`market: kind ${kind.kind} is already registered`)
     this.kinds.set(kind.kind, kind)
     this.changed()
@@ -181,6 +201,15 @@ export class Market extends TypertRemoteService {
       this.kinds.delete(kind.kind)
       this.changed()
     }
+  }
+
+  /**
+   * Refresh a kind after its owning manager changes outside the market.
+   * @param kind - registered kind whose installed state changed.
+   */
+  async invalidateKind(kind: MarketKindName): Promise<void> {
+    await this.syncKind(kind)
+    if (!this.lifetime.signal.aborted) this.changed()
   }
 
   /**
@@ -216,14 +245,23 @@ export class Market extends TypertRemoteService {
   /**
    * Install an item for an in-process caller such as an expert installing its skills.
    * The catalog is read again first, so a page opened before a publish installs the package the
-   * publisher now lists; a failed read installs from the last good catalog.
+   * publisher now lists; a failed read stops installation while retaining the displayed catalog.
    * @param ref - kind and id.
    * @param signal - cancellation.
    * @returns after the item is installed and its kind synced; an installed item at the catalog version returns at once.
    */
   async installItem(ref: MarketItemRef, signal: AbortSignal = this.lifetime.signal): Promise<void> {
-    await this.refresh()
-    await this.enqueue(() => this.runInstall(ref, signal))
+    const operationSignal = AbortSignal.any([signal, this.lifetime.signal])
+    await this.enqueue(async () => {
+      operationSignal.throwIfAborted()
+      await this.refresh()
+      operationSignal.throwIfAborted()
+      if (this.fetchError !== undefined || this.source !== 'remote') {
+        const reason = this.fetchError ?? 'No published market catalog is configured'
+        throw new RemoteError('market/catalog-unavailable', reason, { reason })
+      }
+      await this.runInstall(ref, operationSignal)
+    })
   }
 
   /**
@@ -250,7 +288,7 @@ export class Market extends TypertRemoteService {
    * @param ref - kind and id.
    * @param signal - caller cancellation.
    * @returns the state after the install.
-   * @throws RemoteError `market/not-found`, `market/kind-unavailable`, or `market/install-failed`.
+   * @throws RemoteError `market/catalog-unavailable`, `market/not-found`, `market/kind-unavailable`, or `market/install-failed`.
    */
   @Remote
   async installPackage(ref: MarketItemRef, signal: AbortSignal): Promise<MarketSnapshot> {
@@ -266,6 +304,20 @@ export class Market extends TypertRemoteService {
   @Remote
   async uninstallPackage(ref: MarketItemRef): Promise<MarketSnapshot> {
     await this.enqueue(async () => {
+      const handler = this.kinds.get(ref.kind)
+      if (handler?.mode === 'managed') {
+        try {
+          await handler.uninstall(ref.id, this.lifetime.signal)
+        } catch (error) {
+          if (error instanceof RemoteError) throw error
+          const reason = error instanceof Error ? error.message : String(error)
+          throw new RemoteError('market/uninstall-failed', reason, { kind: ref.kind, id: ref.id, reason }, { cause: error })
+        } finally {
+          await handler.refresh()
+          this.changed()
+        }
+        return
+      }
       const domain = this.requireDomain()
       if (!await domain.table('installed').delete(itemKey(ref))) return
       this.changed()
@@ -302,15 +354,19 @@ export class Market extends TypertRemoteService {
     const installed = new Map<string, MarketInstalledRecord>(this.domain === undefined ? [] : [...this.domain.table('installed').entries()])
     const catalog = this.catalog
     const items: MarketItemView[] = (catalog?.items ?? []).map((item) => {
+      const handler = this.kinds.get(item.kind)
+      const managed = handler?.mode === 'managed' ? handler.view(item) : undefined
       const record = installed.get(itemKey(item))
-      const iconUrl = item.icon === undefined ? undefined : this.safeResolve(item.icon)
+      const iconUrl = item.icon === undefined ? undefined : item.plugin !== undefined ? item.icon : this.safeResolve(item.icon)
       // Installed files identical to the catalog's package are that version, even when the
       // publisher only raised the number (display fields live outside the package).
-      const installedVersion = record === undefined ? undefined : record.sha256 === item.package?.sha256 ? item.version : record.version
+      const installedVersion = managed !== undefined ? managed.installedVersion
+        : record === undefined ? undefined : record.sha256 === item.package?.sha256 ? item.version : record.version
       return {
         ...item,
         ...iconUrl === undefined ? {} : { iconUrl },
         ...installedVersion === undefined ? {} : { installedVersion },
+        ...managed === undefined ? {} : { managed },
       }
     })
     return {
@@ -339,9 +395,19 @@ export class Market extends TypertRemoteService {
   private async runInstall(ref: MarketItemRef, signal: AbortSignal): Promise<void> {
     const kind = this.kinds.get(ref.kind)
     if (kind === undefined) throw new RemoteError('market/kind-unavailable', `no package handles ${ref.kind} items`, { kind: ref.kind })
-    const item = this.catalog === undefined ? undefined : findItem(this.catalog, ref.kind, ref.id)
+    let item = this.catalog === undefined ? undefined : findItem(this.catalog, ref.kind, ref.id)
+    if (item?.plugin !== undefined && ref.version !== undefined) {
+      const version = item.plugin.versions.find(candidate => candidate.version === ref.version)
+      item = version === undefined ? undefined : pluginItem(item.plugin, version)
+    } else if (ref.version !== undefined && item?.version !== ref.version) {
+      item = undefined
+    }
     if (item?.package === undefined) {
       throw new RemoteError('market/not-found', `${itemKey(ref)} is not in the catalog`, { kind: ref.kind, id: ref.id })
+    }
+    if (kind.mode === 'managed') {
+      await this.runManagedInstall(kind, item, signal)
+      return
     }
     const domain = this.requireDomain()
     const key = itemKey(item)
@@ -365,7 +431,7 @@ export class Market extends TypertRemoteService {
         })
       replaced = placed.replaced
       await domain.table('installed').put(key, {
-        kind: item.kind, id: item.id, version: item.version, sha256: item.package.sha256, installedAt: new Date().toISOString(),
+        kind: kind.kind, id: item.id, version: item.version, sha256: item.package.sha256, installedAt: new Date().toISOString(),
       })
     } catch (error) {
       // A failed replacement restored the previous files; the domain restarts what it released.
@@ -393,9 +459,42 @@ export class Market extends TypertRemoteService {
     await this.syncKind(item.kind)
   }
 
+  private async runManagedInstall(kind: MarketManagedKind, item: MarketCatalogItem, signal: AbortSignal): Promise<void> {
+    const key = itemKey(item)
+    this.installing.add(key)
+    this.changed()
+    try {
+      await kind.refresh()
+      const state = kind.view(item)
+      if (!state.compatible || state.provided === true) throw new Error(state.reason ?? `${item.id} cannot be installed`)
+      const ref = item.package
+      if (ref === undefined) throw new Error(`${item.id}@${item.version} has no package to download`)
+      const data = await downloadPackage(resolveCatalogPath(this.config.catalogUrl, ref.path), ref, this.installer, signal, (done) => {
+        const previous = this.progress.get(key)
+        this.progress.set(key, { key, phase: 'download', done, total: ref.size })
+        if (previous === undefined || percent(previous.done, previous.total) !== percent(done, ref.size)) this.changed()
+      })
+      signal.throwIfAborted()
+      this.progress.set(key, { key, phase: 'install', done: 0, total: 1 })
+      this.changed()
+      await kind.install(item, data, signal)
+    } catch (error) {
+      if (error instanceof RemoteError) throw error
+      signal.throwIfAborted()
+      const reason = error instanceof Error ? error.message : String(error)
+      throw new RemoteError('market/install-failed', reason, { kind: item.kind, id: item.id, reason })
+    } finally {
+      this.installing.delete(key)
+      this.progress.delete(key)
+      await kind.refresh()
+      this.changed()
+    }
+  }
+
   private async syncKind(kind: MarketKindName): Promise<void> {
     const handler = this.kinds.get(kind)
     if (handler === undefined || this.domain === undefined) return
+    if (handler.mode === 'managed') { await handler.refresh(); return }
     await handler.sync(this.installedItems(kind))
   }
 
@@ -410,7 +509,7 @@ export class Market extends TypertRemoteService {
     let unchanged = false
     try {
       const response = await fetch(this.config.catalogUrl, {
-        signal, redirect: 'error',
+        signal, redirect: 'error', cache: 'no-store',
         headers: this.etag === undefined || this.catalog === undefined ? {} : { 'if-none-match': this.etag },
       })
       if (response.status === 304) {
@@ -422,7 +521,7 @@ export class Market extends TypertRemoteService {
       } else {
         if (!response.ok) throw new Error(`catalog request returned HTTP ${response.status}`)
         const text = await response.text()
-        const catalog = parseCatalog(text)
+        const catalog = parseCatalog(text, this.config.catalogUrl)
         this.catalog = catalog
         this.etag = response.headers.get('etag') ?? undefined
         this.fetchedAt = new Date().toISOString()
@@ -433,6 +532,7 @@ export class Market extends TypertRemoteService {
     } catch (error) {
       if (this.lifetime.signal.aborted) return
       this.fetchError = error instanceof MarketCatalogError || error instanceof Error ? error.message : String(error)
+      this.source = this.catalog === undefined ? 'none' : 'cache'
       this.ctx.logger.warn(`market: catalog read failed: ${this.fetchError}`)
     }
     this.changed()
@@ -458,7 +558,7 @@ export class Market extends TypertRemoteService {
     try {
       const meta = cacheMetaSchema.parse(JSON.parse(metaText))
       if (meta.url !== this.config.catalogUrl) return
-      this.catalog = parseCatalog(text)
+      this.catalog = parseCatalog(text, this.config.catalogUrl)
       this.etag = meta.etag
       this.fetchedAt = meta.fetchedAt
       this.source = 'cache'

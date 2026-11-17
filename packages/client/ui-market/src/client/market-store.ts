@@ -221,6 +221,10 @@ export function createMarketStore(remote: MarketRemote): MarketStore {
     if (state.connectors !== undefined && value.revision < state.connectors.revision) return
     publish({ connectors: value })
   }
+  const marketResult = (value: MarketSnapshot): void => {
+    if (state.market !== undefined && value.revision < state.market.revision) return
+    publish({ market: value })
+  }
   // A Host without a desktop, or one that did not answer, offers no file-manager action.
   void remote.canReveal().then((result) => { publish({ canReveal: result.ok && result.value }) })
 
@@ -231,13 +235,13 @@ export function createMarketStore(remote: MarketRemote): MarketStore {
     },
     async install(ref, name) {
       const result = await remote.install(ref)
-      if (result.ok) { publish({ market: result.value }); notify({ kind: 'installed', name }) }
+      if (result.ok) { marketResult(result.value); notify({ kind: 'installed', name }) }
       else notify({ kind: 'install-failed', name, reason: reasonOf(result.error) })
       return result.ok
     },
     async uninstall(ref, name) {
       const result = await remote.uninstall(ref)
-      if (result.ok) { publish({ market: result.value }); notify({ kind: 'uninstalled', name }) }
+      if (result.ok) { marketResult(result.value); notify({ kind: 'uninstalled', name }) }
       else notify({ kind: 'uninstall-failed', name, reason: reasonOf(result.error) })
       if (state.installedSkills !== undefined) await loadInstalledSkills()
     },
@@ -252,7 +256,7 @@ export function createMarketStore(remote: MarketRemote): MarketStore {
     },
     async refresh() {
       const result = await remote.refresh()
-      if (result.ok) publish({ market: result.value })
+      if (result.ok) marketResult(result.value)
       else notify({ kind: 'load-failed', reason: reasonOf(result.error) })
     },
     loadInstalledSkills,

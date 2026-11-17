@@ -2762,6 +2762,9 @@ importers:
       '@deepseek-ai/dsh-market-connectors':
         specifier: workspace:*
         version: link:../../market/market-connectors
+      '@deepseek-ai/dsh-market-plugins':
+        specifier: workspace:*
+        version: link:../../market/market-plugins
       '@deepseek-ai/dsh-market-skills':
         specifier: workspace:*
         version: link:../../market/market-skills
@@ -2769,6 +2772,33 @@ importers:
       '@deepseek-ai/cordis':
         specifier: workspace:~
         version: link:../../../vendor/cordis
+      '@deepseek-ai/dsh-app-boot':
+        specifier: workspace:*
+        version: link:../../boot/app-boot
+      '@deepseek-ai/dsh-credentials':
+        specifier: workspace:*
+        version: link:../../credentials/credentials
+      '@deepseek-ai/dsh-plugin-manager':
+        specifier: workspace:*
+        version: link:../../boot/plugin-manager
+      '@deepseek-ai/dsh-skill':
+        specifier: workspace:*
+        version: link:../../skill/skill
+      '@deepseek-ai/dsh-storage':
+        specifier: workspace:*
+        version: link:../../storage/storage
+      '@deepseek-ai/dsh-storage-domain':
+        specifier: workspace:*
+        version: link:../../storage/storage-domain
+      '@deepseek-ai/dsh-system-prompt':
+        specifier: workspace:*
+        version: link:../../core/system-prompt
+      '@deepseek-ai/dsh-tools':
+        specifier: workspace:*
+        version: link:../../core/tools
+      fflate:
+        specifier: ^0.8.3
+        version: 0.8.3
 
   packages/bundle/sdk-app:
     dependencies:
@@ -12938,6 +12968,9 @@ importers:
       '@deepseek-ai/dsh-home-paths':
         specifier: workspace:*
         version: link:../../util/home-paths
+      '@deepseek-ai/dsh-plugin-market-index':
+        specifier: workspace:*
+        version: link:../../util/plugin-market-index
       '@deepseek-ai/dsh-timeout':
         specifier: workspace:*
         version: link:../../util/timeout
@@ -13012,6 +13045,46 @@ importers:
       fflate:
         specifier: ^0.8.3
         version: 0.8.3
+
+  packages/market/market-plugins:
+    dependencies:
+      '@deepseek-ai/dsh-app-boot':
+        specifier: workspace:*
+        version: link:../../boot/app-boot
+      '@deepseek-ai/dsh-brand':
+        specifier: workspace:*
+        version: link:../../util/brand
+      '@deepseek-ai/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
+      tar:
+        specifier: ^7.5.22
+        version: 7.5.22
+      zod:
+        specifier: 4.4.3
+        version: 4.4.3
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:~
+        version: link:../../../vendor/cordis
+      '@deepseek-ai/dsh-market':
+        specifier: workspace:*
+        version: link:../market
+      '@deepseek-ai/dsh-plugin-manager':
+        specifier: workspace:*
+        version: link:../../boot/plugin-manager
+      '@deepseek-ai/dsh-plugin-market-index':
+        specifier: workspace:*
+        version: link:../../util/plugin-market-index
+      '@deepseek-ai/dsh-storage':
+        specifier: workspace:*
+        version: link:../../storage/storage
+      '@deepseek-ai/dsh-storage-domain':
+        specifier: workspace:*
+        version: link:../../storage/storage-domain
+      '@deepseek-ai/dsh-typert-protocol':
+        specifier: workspace:*
+        version: link:../../typert/protocol
 
   packages/market/market-skills:
     dependencies:

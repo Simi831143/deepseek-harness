@@ -1,6 +1,6 @@
 {
   "name": "@deepseek-ai/dsh-market-bundle",
-  "description": "Bundle that adds the LC Camera Agent market: catalog, skill installation and switches, and the Market page",
+  "description": "Bundle that adds the LC Camera Agent market for experts, skills, connectors and plugins",
   "version": "0.2.1-rc.3",
   "publishConfig": {
     "access": "public"
@@ -32,13 +32,23 @@
     "@deepseek-ai/dsh-client-ui-market": "workspace:*",
     "@deepseek-ai/dsh-market": "workspace:*",
     "@deepseek-ai/dsh-market-connectors": "workspace:*",
+    "@deepseek-ai/dsh-market-plugins": "workspace:*",
     "@deepseek-ai/dsh-market-skills": "workspace:*"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "workspace:~"
   },
   "devDependencies": {
-    "@deepseek-ai/cordis": "workspace:~"
+    "@deepseek-ai/cordis": "workspace:~",
+    "@deepseek-ai/dsh-app-boot": "workspace:*",
+    "@deepseek-ai/dsh-credentials": "workspace:*",
+    "@deepseek-ai/dsh-plugin-manager": "workspace:*",
+    "@deepseek-ai/dsh-skill": "workspace:*",
+    "@deepseek-ai/dsh-storage": "workspace:*",
+    "@deepseek-ai/dsh-storage-domain": "workspace:*",
+    "@deepseek-ai/dsh-system-prompt": "workspace:*",
+    "@deepseek-ai/dsh-tools": "workspace:*",
+    "fflate": "^0.8.3"
   },
   "dsh": {
     "bundle": {

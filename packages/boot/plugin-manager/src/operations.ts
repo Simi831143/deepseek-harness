@@ -1,8 +1,8 @@
 /** Shared profile package operations used by dsh plugin and the running manager. */
 import { once } from 'node:events'
 import { existsSync, readFileSync } from 'node:fs'
-import { mkdir, mkdtemp, open, rm } from 'node:fs/promises'
-import { join, resolve } from 'node:path'
+import { mkdir, mkdtemp, open, realpath, rm, unlink } from 'node:fs/promises'
+import { basename, dirname, join, relative, resolve } from 'node:path'
 import { execa } from 'execa'
 import type { EntryOptions } from '@deepseek-ai/cordis-plugin-loader'
 import { withFileLock, writeFileAtomic } from '@deepseek-ai/dsh-atomic-write'
@@ -13,7 +13,7 @@ import {
 } from '@deepseek-ai/dsh-app-boot'
 import { PROFILE_TEMPLATES, DEFAULT_PROFILE_BUNDLES } from '@deepseek-ai/dsh-official-bundles'
 import { scrubbedParentEnv } from '@deepseek-ai/dsh-subprocess'
-import { parseInstallSpec } from './install-spec.ts'
+import { dependencySpec, parseInstallSpec } from './install-spec.ts'
 import { awaitTreeGone, leadsOwnGroup, treeAlive, type RunTree } from './run-tree.ts'
 import { incompatiblePlugin } from './failure.ts'
 import type { IncompatiblePlugin, PackageResult, Registry } from './types.ts'
@@ -142,6 +142,7 @@ async function drainWithin(collectors: readonly Promise<void>[], ms: number): Pr
 
 /** Install commands that take the packages to install as positionals. */
 const INSTALL_COMMANDS = new Set(['add', 'install', 'i'])
+const REMOVE_COMMANDS = new Set(['remove', 'rm', 'uninstall', 'un'])
 
 /** Bound on a pre-install registry lookup when the caller names none. */
 const LOOKUP_TIMEOUT_MS = 20_000
@@ -246,6 +247,36 @@ function directDependencies(manifest: ProfileManifest): Record<string, string> {
   return { ...extra.devDependencies, ...manifest.dependencies, ...extra.optionalDependencies }
 }
 
+/** Only release previously referenced market archives; another install may still be preparing an unreferenced one. */
+async function removeUnusedMarketTarballs(before: ProfileManifest, after: ProfileManifest, dir: string): Promise<void> {
+  const root = join(dir, '.plugin-market', 'tarballs')
+  const paths = (manifest: ProfileManifest): Set<string> => {
+    const extra = manifest as ProfileManifest & { devDependencies?: Record<string, string>; optionalDependencies?: Record<string, string> }
+    return new Set([manifest.dependencies, extra.devDependencies, extra.optionalDependencies].flatMap(dependencies =>
+      Object.entries(dependencies ?? {}).flatMap(([name, recorded]) => {
+        if (!recorded.startsWith('file:') && !recorded.startsWith('link:')) return []
+        const path = dependencySpec(name, recorded, dir).replace(/^(?:file|link):/, '')
+        return relative(root, dirname(path)) === '' && /\.tgz$/i.test(basename(path)) ? [path] : []
+      })))
+  }
+  const retained = [...paths(after)]
+  const removed = [...paths(before)].filter(path => !retained.some(other => relative(path, other) === ''))
+  if (removed.length === 0) return
+  let actual: string
+  try { actual = await realpath(root) } catch (error) {
+    if (error instanceof Error && 'code' in error && error.code === 'ENOENT') return
+    throw error
+  }
+  // A linked market directory does not establish ownership of the files it points at.
+  if (relative(join(await realpath(dir), '.plugin-market', 'tarballs'), actual) !== '') return
+  for (const path of removed) {
+    try { await unlink(path) } catch (error) {
+      if (error instanceof Error && 'code' in error && error.code === 'ENOENT') continue
+      throw new Error(`Cannot delete unused market archive ${path}; remove this file after fixing filesystem access`, { cause: error })
+    }
+  }
+}
+
 /** Inspect only plugin rows contributed by the changed bundle, not its dependency closure. */
 function bundleComponentManifests(manifest: ProfileManifest, dir: string, anchor: string): ProfileManifest[] {
   const bundle = manifest.dsh?.bundle
@@ -276,6 +307,8 @@ function bundleComponentManifests(manifest: ProfileManifest, dir: string, anchor
  * Newly installed or updated direct dependencies are checked even when activation is disabled;
  * an untouched dependency never blocks an unrelated operation and stays denied at startup.
  * Compatibility denial restores the profile manifest and lockfile, but leaves downloaded modules on disk.
+ * Successful removals delete their unreferenced archives in the profile's `.plugin-market/tarballs` directory;
+ * user-supplied archives outside it are retained. Cleanup failure reports exit code 1 and keeps completed removals.
  * @param context Launcher-owned profile and resolution locations.
  * @param args Pnpm arguments, before relative path anchoring.
  * @param options Output, activation and cancellation policy.
@@ -522,6 +555,15 @@ export async function runProfilePnpm(
         append(Buffer.from(diagnostic))
       } else if (options.activateNewBundles !== false) {
         await reconcile(before, dir, context.installAnchor, options)
+      }
+      if (exitCode === 0 && !options.signal?.aborted && REMOVE_COMMANDS.has(args.find(argument => !argument.startsWith('-')) ?? '')) {
+        try { await removeUnusedMarketTarballs(before, readProfileManifest('dsh', dir), dir) } catch (error) {
+          exitCode = 1
+          const diagnostic = `\ndsh: pnpm removal completed, but market package cleanup failed: ${String(error)}\ndsh: removed dependencies stay removed.\n`
+          await log.write(diagnostic)
+          options.onOutput?.(diagnostic, 'stderr')
+          append(Buffer.from(diagnostic))
+        }
       }
     }
   } finally {

@@ -41,6 +41,30 @@ function remote(frames: MarketSnapshot[], patch: Partial<MarketRemote> = {}): Ma
 
 const echoLab: ConnectorView = { id: 'echo-lab', origin: 'market', enabled: true, confirmed: true, state: 'connected', launch: { command: 'server.cmd', args: [] } }
 
+it.each(['install', 'uninstall', 'refresh'] as const)('keeps a newer market frame when %s returns an older snapshot', async (operation) => {
+  let push!: (value: MarketSnapshot) => void
+  let answer!: (value: { ok: true; value: MarketSnapshot }) => void
+  const frame = new Promise<MarketSnapshot>((resolve) => { push = resolve })
+  const response = new Promise<{ ok: true; value: MarketSnapshot }>((resolve) => { answer = resolve })
+  const backend = remote([], {
+    async *watch() { yield { value: await frame, accept: () => {} } },
+    [operation]: vi.fn(() => response),
+  })
+  const store = createMarketStore(backend)
+  try {
+    const pending = operation === 'refresh' ? store.refresh() : store[operation]({ kind: 'plugin', id: 'camera-tools' }, 'Camera tools')
+    push(snapshot({ revision: 5 }))
+    await vi.waitFor(() => { expect(store.state.getSnapshot().market?.revision).toBe(5) })
+    answer({ ok: true, value: snapshot({ revision: 4 }) })
+    await pending
+    expect(store.state.getSnapshot().market?.revision).toBe(5)
+  } finally {
+    push(snapshot({ revision: 5 }))
+    answer({ ok: true, value: snapshot({ revision: 4 }) })
+    store.dispose()
+  }
+})
+
 it('follows the connector stream and keeps a connector busy only while its switch is written', async () => {
   let release!: () => void
   const pending = new Promise<void>((resolve) => { release = resolve })

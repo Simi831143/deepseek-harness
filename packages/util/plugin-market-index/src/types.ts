@@ -56,6 +56,17 @@ export type MarketSource =
     /** Relative POSIX package directory; absent means the repository root. */
     readonly path?: string
   }
+  | {
+    readonly type: 'tarball'
+    /** Relative POSIX `.tgz` path declared by the index. */
+    readonly path: string
+    /** Absolute same-origin URL resolved against the index URL. */
+    readonly url: string
+    /** Lowercase SHA-256 digest of the complete tarball. */
+    readonly sha256: string
+    /** Exact tarball size in bytes. */
+    readonly size: number
+  }
 
 /** Runtime requirements of one version. */
 export interface MarketEngines {
@@ -91,9 +102,9 @@ export interface MarketPlugin {
   readonly versions: readonly MarketVersion[]
 }
 
-/** One validated format-1 index; members the format does not define are dropped. */
+/** One validated format-1 or format-2 index; members the format does not define are dropped. Format 2 adds tarballs. */
 export interface MarketIndex {
-  readonly format: 1
+  readonly format: 1 | 2
   readonly title: LocalizedText
   readonly description?: LocalizedText
   readonly metadata: MarketIndexMetadata

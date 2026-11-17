@@ -1,7 +1,7 @@
 /** A catalog item's published icon, with its kind's glyph when it has none or it fails to load. */
 import { useState, type ReactNode } from 'react'
 import type { MarketItemView } from '@deepseek-ai/dsh-market/types'
-import { IconLinkOutlineRegular, IconSkillOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
+import { IconLinkOutlineRegular, IconPluginPinwheelOutlineRegular, IconSkillOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
 
 /**
  * Render an item icon.
@@ -19,6 +19,7 @@ export function ItemIcon({ item, className, glyphSize }: {
   if (item.iconUrl !== undefined && !broken) {
     return <img className={className} src={item.iconUrl} alt="" onError={() => { setBroken(true) }} />
   }
-  const Glyph = item.kind === 'connector' ? IconLinkOutlineRegular : IconSkillOutlineRegular
+  const Glyph = item.kind === 'connector' ? IconLinkOutlineRegular
+    : item.kind === 'plugin' ? IconPluginPinwheelOutlineRegular : IconSkillOutlineRegular
   return <span className={className} aria-hidden="true"><Glyph size={glyphSize} /></span>
 }

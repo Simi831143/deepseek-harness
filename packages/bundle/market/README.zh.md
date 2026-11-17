@@ -1,5 +1,5 @@
 ---
-description: "挂载市场目录、技能安装和浏览器市场页面的 profile bundle。"
+description: "为专家、技能、连接器和插件挂载统一市场的 profile bundle。"
 kind: "package-bundle"
 ---
 
@@ -9,7 +9,7 @@ kind: "package-bundle"
 
 ## 概述
 
-此 bundle 为 profile 增加市场目录、已验证的技能安装、已安装技能开关、本机 MCP 连接器和浏览器市场页面。它是可选产品层，不存在时不会改变基础 profile。
+此 bundle 提供包含专家、技能、连接器和插件的统一市场页面，共享目录读取和已验证的软件包下载。它还提供已安装技能开关、本机 MCP 连接器和 profile 插件安装。它是可选产品层，不存在时不会改变基础 profile。
 
 ## 目录
 
@@ -22,12 +22,12 @@ kind: "package-bundle"
 <a id="use-this-package"></a>
 ## 使用此包
 
-通过 profile 组合器将 bundle 加入 `dsh` profile。补丁会一起挂载 `dsh-market`、`dsh-market-skills`、`dsh-market-connectors` 和 `dsh-client-ui-market`，使 Host 与浏览器使用相同的目录和安装记录。
+通过 profile 组合器将 bundle 加入 `dsh` profile。补丁会挂载 `dsh-market`、`dsh-market-skills`、`dsh-market-connectors`、`dsh-market-plugins` 和 `dsh-client-ui-market`。通过 `market` 配置行的 `catalogUrl` 设置共享目录。插件适配器需要 profile 及其插件管理器。
 
 <a id="understand-the-implementation"></a>
 ## 实现说明
 
-`cordis.patch.yml` 提供 Host 服务和浏览器插件。bundle 只负责组合；目录读取和压缩包验证由 `dsh-market` 负责，技能记录与启用状态由 `dsh-market-skills` 负责，连接器程序及其开关由 `dsh-market-connectors` 负责。
+`cordis.patch.yml` 提供 Host 服务和浏览器插件。bundle 只负责组合；目录读取、已验证的下载、操作进度和分发由 `dsh-market` 负责。各市场领域负责内容验证和运行时变更。插件适配器将依赖和 profile 变更交给插件管理器；插件的启用和配置仍可在插件页面管理。
 
 <a id="model-experience"></a>
 ## 模型体验

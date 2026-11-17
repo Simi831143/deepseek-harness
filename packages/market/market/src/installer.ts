@@ -3,7 +3,7 @@ import { createHash, randomUUID } from 'node:crypto'
 import { mkdir, rename, rm } from 'node:fs/promises'
 import { join } from 'node:path'
 import { extractArchive, MarketArchiveError, within } from './archive.ts'
-import type { MarketCatalogItem, MarketInstallPhase, MarketKindName } from './types.ts'
+import type { MarketCatalogItem, MarketInstallPhase, MarketKindName, MarketPackageRef } from './types.ts'
 
 /** Locations and timing shared by every install. */
 export interface InstallerOptions {
@@ -78,9 +78,7 @@ export async function installPackage(
 ): Promise<PlacedPackage> {
   const ref = item.package
   if (ref === undefined) throw new MarketArchiveError(`${item.kind}:${item.id} has no package to install`)
-  const data = await download(url, ref.size, options, signal, (received) => { steps.progress('download', received, ref.size) })
-  const digest = createHash('sha256').update(data).digest('hex')
-  if (digest !== ref.sha256) throw new MarketArchiveError(`package SHA-256 ${digest} does not match the catalog`)
+  const data = await downloadPackage(url, ref, options, signal, (received) => { steps.progress('download', received, ref.size) })
   await mkdir(options.stagingRoot, { recursive: true })
   const staging = join(options.stagingRoot, randomUUID())
   try {
@@ -121,10 +119,31 @@ export async function removePackage(packagesRoot: string, kind: MarketKindName, 
   await rm(itemDirectory(packagesRoot, kind, id), { recursive: true, force: true })
 }
 
-async function download(
-  url: string, size: number, options: InstallerOptions, signal: AbortSignal, received: (bytes: number) => void,
+/**
+ * Download the current market package and verify its exact size and SHA-256.
+ * @param url - same-origin package URL resolved from the catalog.
+ * @param ref - declared size and content digest.
+ * @param options - download deadline.
+ * @param signal - caller and service cancellation.
+ * @param received - progress callback, in bytes.
+ * @returns verified package bytes; no local package is reused.
+ */
+export async function downloadPackage(
+  url: string, ref: MarketPackageRef, options: Pick<InstallerOptions, 'downloadTimeoutMs'>,
+  signal: AbortSignal, received: (bytes: number) => void,
 ): Promise<Uint8Array> {
-  const response = await fetch(url, { signal: AbortSignal.any([signal, AbortSignal.timeout(options.downloadTimeoutMs)]), redirect: 'error' })
+  const data = await download(url, ref.size, options, signal, received)
+  const digest = createHash('sha256').update(data).digest('hex')
+  if (digest !== ref.sha256) throw new MarketArchiveError(`package SHA-256 ${digest} does not match the catalog`)
+  return data
+}
+
+async function download(
+  url: string, size: number, options: Pick<InstallerOptions, 'downloadTimeoutMs'>, signal: AbortSignal, received: (bytes: number) => void,
+): Promise<Uint8Array> {
+  const response = await fetch(url, {
+    signal: AbortSignal.any([signal, AbortSignal.timeout(options.downloadTimeoutMs)]), redirect: 'error', cache: 'no-store',
+  })
   if (!response.ok) throw new MarketArchiveError(`package download returned HTTP ${response.status}`)
   if (response.body === null) throw new MarketArchiveError('package download returned no body')
   const chunks: Uint8Array[] = []

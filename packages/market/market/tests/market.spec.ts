@@ -13,7 +13,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { MemoryStorageBackend } from '../../../storage/storage-domain/tests/helpers/memory-backend.ts'
 import { extractArchive, MarketArchiveError } from '../src/archive.ts'
 import { MarketCatalogError, parseCatalog, resolveCatalogPath } from '../src/catalog.ts'
-import Market, { type InstalledItem, type MarketKind } from '../src/index.ts'
+import Market, { type InstalledItem, type MarketKind, type MarketManagedKind } from '../src/index.ts'
 import { installPackage } from '../src/installer.ts'
 import type { MarketCatalogItem } from '../src/types.ts'
 
@@ -236,6 +236,9 @@ describe('Market', () => {
     const after = await ctx.market.refreshCatalog()
     expect(after.items).toHaveLength(1)
     expect(after.fetchError).toContain('not JSON')
+    ctx.effect(() => ctx.market.registerKind(recordingKind()))
+    await expect(ctx.market.installItem({ kind: 'skill', id: 'pdf-cjk' })).rejects.toMatchObject({ code: 'market/catalog-unavailable' })
+    expect(server.requests.some(line => line.includes('.zip'))).toBe(false)
   })
 
   it('streams a fresh snapshot after each change', async () => {
@@ -382,5 +385,103 @@ describe('Market', () => {
     await vi.waitFor(() => { expect(ctx.market.catalogSnapshot().fetchError).toBeDefined() })
     await expect(stat(join(home, 'cache', 'index.json'))).rejects.toThrow()
     await writeFile(join(home, 'marker'), '')
+  })
+})
+
+describe('managed market packages', () => {
+  const archive = strToU8('verified plugin archive bytes')
+  function pluginCatalog(overrides: object = {}): string {
+    return catalogText([], { format: 2, title: { zh: '统一市场', en: 'Market' }, metadata: {}, plugins: [{
+      name: '@lc/demo', title: { zh: '演示插件', en: 'Demo plugin' }, description: { zh: '扩展能力', en: 'Extend capabilities' }, metadata: {},
+      versions: ['2.0.0', '1.0.0'].map(version => ({ version, publishTimestamp: 1, engines: {},
+        source: { type: 'tarball', path: `packages/plugin/demo-${version}.tgz`, size: archive.byteLength, sha256: sha256(archive) },
+      })),
+    }], ...overrides })
+  }
+
+  async function managedMarket() {
+    const server = await publish()
+    server.setCatalog(pluginCatalog())
+    for (const version of ['1.0.0', '2.0.0']) server.setPackage(`packages/plugin/demo-${version}.tgz`, archive)
+    const ctx = await mountMarket(server.url, await tempDir())
+    await vi.waitFor(() => { expect(ctx.market.catalogSnapshot().source).toBe('remote') })
+    let installedVersion: string | undefined
+    const install = vi.fn(async (item: MarketCatalogItem, _data: Uint8Array, _signal: AbortSignal) => { installedVersion = item.version })
+    const uninstall = vi.fn(async (_id: string) => { installedVersion = undefined })
+    const kind: MarketManagedKind = {
+      kind: 'plugin', mode: 'managed', refresh: async () => {},
+      view: () => ({ installed: installedVersion !== undefined, compatible: true,
+        ...installedVersion === undefined ? {} : { installedVersion } }),
+      install, uninstall,
+    }
+    const unregister = ctx.market.registerKind(kind)
+    cleanup.push(async () => { unregister() })
+    return { server, ctx, install, uninstall, kind, unregister }
+  }
+
+  it('projects scoped plugin names and versions into the shared catalog', () => {
+    const catalog = parseCatalog(pluginCatalog(), 'http://localhost/market/index.json')
+    expect(catalog.items[0]).toMatchObject({ kind: 'plugin', id: '@lc/demo', version: '2.0.0', name: { zh: '演示插件' },
+      package: { path: 'packages/plugin/demo-2.0.0.tgz' }, plugin: { versions: [{ version: '2.0.0' }, { version: '1.0.0' }] } })
+    expect(() => parseCatalog(pluginCatalog({ plugins: [{ name: '@lc/demo', versions: [] }] }), 'http://localhost/index.json'))
+      .toThrow(MarketCatalogError)
+  })
+
+  it('downloads and verifies each selected version through the shared installer, and removes through its manager', async () => {
+    const { server, ctx, install, uninstall, unregister } = await managedMarket()
+    const progress: string[] = []
+    const signal = new AbortController()
+    const iterator = ctx.market.watch(signal.signal)[Symbol.asyncIterator]()
+    const observe = (async () => { for await (const state of { [Symbol.asyncIterator]: () => iterator }) {
+      progress.push(...state.progress.map(entry => entry.phase))
+    } })()
+    try {
+      await ctx.market.installItem({ kind: 'plugin', id: '@lc/demo', version: '1.0.0' })
+      expect(install).toHaveBeenCalledWith(expect.objectContaining({ version: '1.0.0' }), archive, expect.any(AbortSignal))
+      expect(ctx.market.catalogSnapshot().items[0]?.installedVersion).toBe('1.0.0')
+      await ctx.market.installItem({ kind: 'plugin', id: '@lc/demo', version: '1.0.0' })
+      expect(server.requests.filter(line => line.includes('demo-1.0.0.tgz'))).toHaveLength(2)
+      await ctx.market.installItem({ kind: 'plugin', id: '@lc/demo' })
+      expect(ctx.market.catalogSnapshot().items[0]?.installedVersion).toBe('2.0.0')
+      server.setCatalog(pluginCatalog({ plugins: [] }))
+      await ctx.market.refreshCatalog()
+      await ctx.market.uninstallPackage({ kind: 'plugin', id: '@lc/demo' })
+      expect(uninstall).toHaveBeenCalledWith('@lc/demo', expect.any(AbortSignal))
+      expect(progress).toContain('download')
+      expect(progress).toContain('install')
+      expect(ctx.market.catalogSnapshot().installing).toEqual([])
+      unregister()
+      expect(ctx.market.catalogSnapshot().kinds).not.toContain('plugin')
+    } finally {
+      signal.abort()
+      await observe
+    }
+  })
+
+  it.each(['removed', 'unlisted-version', 'invalid-catalog', 'invalid-bytes', 'incompatible', 'provided'])(
+    'refuses %s without executing the plugin manager', async (condition) => {
+      const { server, ctx, install, kind } = await managedMarket()
+      const ref = { kind: 'plugin' as const, id: '@lc/demo', version: '2.0.0' }
+      if (condition === 'removed') server.setCatalog(pluginCatalog({ plugins: [] }))
+      if (condition === 'unlisted-version') ref.version = '9.0.0'
+      if (condition === 'invalid-catalog') server.setCatalog('{')
+      if (condition === 'invalid-bytes') server.setPackage('packages/plugin/demo-2.0.0.tgz', strToU8('bad'))
+      if (condition === 'incompatible') kind.view = () => ({ installed: false, compatible: false, reason: 'Requires another DSH version' })
+      if (condition === 'provided') kind.view = () => ({ installed: true, compatible: true, provided: true })
+      await expect(ctx.market.installItem(ref)).rejects.toThrow()
+      expect(install).not.toHaveBeenCalled()
+      expect(ctx.market.catalogSnapshot().installing).toEqual([])
+      expect(ctx.market.catalogSnapshot().progress).toEqual([])
+    },
+  )
+
+  it('publishes authoritative state after a partially committed manager failure', async () => {
+    const { ctx, install, kind } = await managedMarket()
+    let installed = true
+    kind.view = () => ({ installed, compatible: true })
+    install.mockImplementation(async () => { installed = false; throw new Error('Replacement failed after removal') })
+    await expect(ctx.market.installItem({ kind: 'plugin', id: '@lc/demo' })).rejects.toMatchObject({ code: 'market/install-failed' })
+    expect(ctx.market.catalogSnapshot().items[0]?.managed?.installed).toBe(false)
+    expect(ctx.market.catalogSnapshot().installing).toEqual([])
   })
 })

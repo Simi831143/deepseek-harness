@@ -1,5 +1,5 @@
 ---
-description: "Profile bundle that mounts the market catalog, skill installation, and browser market page."
+description: "Profile bundle that mounts one market for experts, skills, connectors, and plugins."
 kind: "package-bundle"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-This bundle adds the market catalog, verified skill installation, installed-skill switches, local MCP connectors, and the browser Market page to a profile. It is an optional product layer and does not change the base profile when it is absent.
+This bundle adds one Market page for experts, skills, connectors, and plugins, with shared catalog reads and verified package downloads. It also provides installed-skill switches, local MCP connectors, and profile plugin installation. It is an optional product layer and does not change the base profile when it is absent.
 
 ## Table of Contents
 
@@ -22,12 +22,12 @@ This bundle adds the market catalog, verified skill installation, installed-skil
 <a id="use-this-package"></a>
 ## Use this package
 
-Add the bundle to a `dsh` profile through the profile composer. The bundle patch mounts `dsh-market`, `dsh-market-skills`, `dsh-market-connectors`, and `dsh-client-ui-market` together so the Host and browser use the same catalog and installed records.
+Add the bundle to a `dsh` profile through the profile composer. The bundle patch mounts `dsh-market`, `dsh-market-skills`, `dsh-market-connectors`, `dsh-market-plugins`, and `dsh-client-ui-market`. Configure the shared catalog through the `market` row's `catalogUrl`. The plugin adapter requires a profile and its Plugin Manager.
 
 <a id="understand-the-implementation"></a>
 ## Understand the implementation
 
-`cordis.patch.yml` contributes the Host services and browser plugin. The bundle owns composition only; catalog fetching and archive verification live in `dsh-market`, skill records and enablement live in `dsh-market-skills`, and connector programs and their switches live in `dsh-market-connectors`.
+`cordis.patch.yml` contributes the Host services and browser plugin. The bundle owns composition only; catalog reads, verified downloads, operation progress, and dispatch live in `dsh-market`. Each market domain owns content validation and runtime changes. The plugin adapter delegates dependency and profile changes to Plugin Manager; plugin enablement and configuration remain available on the Plugins page.
 
 <a id="model-experience"></a>
 ## Model Experience

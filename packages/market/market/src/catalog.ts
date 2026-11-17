@@ -1,5 +1,6 @@
 /** Validation of the published catalog file and its URL rules. */
 import { z } from 'zod'
+import { MarketIndexError, parseMarketIndex, type MarketPlugin, type MarketVersion } from '@deepseek-ai/dsh-plugin-market-index'
 import type { MarketCatalog, MarketCatalogItem, MarketKindName } from './types.ts'
 
 /**
@@ -40,6 +41,8 @@ const catalogSchema = z.object({
   categories: z.array(z.object({ kind: z.enum(KINDS), id: z.string().min(1), name: textSchema })).default([]),
   featured: z.array(z.object({ kind: z.enum(KINDS), id: idSchema })).default([]),
   items: z.array(itemSchema),
+  format: z.unknown().optional(),
+  plugins: z.unknown().optional(),
 })
 
 /** A catalog file that could not be accepted. */
@@ -49,11 +52,12 @@ export class MarketCatalogError extends Error {
 
 /**
  * Parse and validate catalog text. Duplicate `(kind, id)` pairs reject the whole file.
- * @param text - catalog file content.
+ * @param text - catalog file content, optionally including the published plugin index.
+ * @param catalogUrl - URL used to resolve plugin sources; required when the catalog includes plugins.
  * @returns the validated catalog.
  * @throws MarketCatalogError when the text is not a schema 1 catalog.
  */
-export function parseCatalog(text: string): MarketCatalog {
+export function parseCatalog(text: string, catalogUrl?: string): MarketCatalog {
   let raw: unknown
   try {
     raw = JSON.parse(text)
@@ -71,7 +75,48 @@ export function parseCatalog(text: string): MarketCatalog {
     if (seen.has(key)) throw new MarketCatalogError(`catalog lists ${key} more than once`)
     seen.add(key)
   }
-  return parsed.data as MarketCatalog
+  const catalog: MarketCatalog = parsed.data as MarketCatalog
+  if (parsed.data.plugins === undefined && parsed.data.format === undefined) return catalog
+  if (catalogUrl === undefined) throw new MarketCatalogError('catalog URL is required to resolve plugin sources')
+  try {
+    const index = parseMarketIndex(raw, catalogUrl)
+    const items = index.plugins.map((plugin) => {
+      const version = plugin.versions[0]
+      if (version === undefined) throw new MarketCatalogError(`${plugin.name} has no published version`)
+      return pluginItem(plugin, version)
+    })
+    const categories = Object.entries(index.metadata.categories).map(([id, value]) => ({
+      kind: 'plugin' as const, id, name: marketText(value.title, id),
+    }))
+    return { ...catalog, items: [...catalog.items, ...items], categories: [...catalog.categories, ...categories] }
+  } catch (error) {
+    if (!(error instanceof MarketIndexError)) throw error
+    throw new MarketCatalogError(error.message, { cause: error })
+  }
+}
+
+/**
+ * Project a validated plugin version into the shared market catalog.
+ * @param plugin - plugin identity, display metadata and published versions.
+ * @param version - exact published version to install.
+ * @returns common catalog fields with the plugin metadata retained.
+ */
+export function pluginItem(plugin: MarketPlugin, version: MarketVersion): MarketCatalogItem {
+  const source = version.source
+  return {
+    kind: 'plugin', id: plugin.name, version: version.version,
+    name: marketText(plugin.title, plugin.name), description: marketText(plugin.description, plugin.name),
+    ...plugin.icon === undefined ? {} : { icon: plugin.icon },
+    ...plugin.metadata.category === undefined ? {} : { category: plugin.metadata.category },
+    tags: plugin.metadata.keywords, plugin,
+    ...source.type !== 'tarball' ? {} : { package: { path: source.path, size: source.size, sha256: source.sha256 } },
+  }
+}
+
+function marketText(value: MarketPlugin['title'], fallback: string): { zh: string; en?: string } {
+  if (typeof value === 'string') return { zh: value, en: value }
+  const zh = value?.zh ?? value?.en ?? Object.values(value ?? {})[0] ?? fallback
+  return { zh, ...value?.en === undefined ? {} : { en: value.en } }
 }
 
 /**

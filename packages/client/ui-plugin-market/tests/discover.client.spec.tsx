@@ -112,6 +112,26 @@ const openMenu = (name: RegExp | string): void => { fireEvent.click(screen.getBy
 const pick = (name: string): void => { fireEvent.click(screen.getByRole('menuitem', { name: new RegExp(name) })) }
 
 describe('DiscoverSection', () => {
+  it('directs static tarball installation to the shared Market without offering a local install action', () => {
+    const version: MarketListingVersion = {
+      version: '1.0.0', publishTimestamp: 1790476800, engines: {}, compatibility: { compatible: true },
+      source: { type: 'tarball', path: 'static.tgz', url: 'https://a.example/static.tgz', sha256: 'a'.repeat(64), size: 1 },
+    }
+    const item = entry('dsh-static', { versions: [version], defaultVersion: version.version })
+    const { install } = renderTab({ listing: { ...READY.listing!, value: { ...LISTING, entries: [item] } } })
+    expect(card('dsh-static').getByText(en.staticMarket)).toBeTruthy()
+    expect(card('dsh-static').queryByRole('button', { name: 'Install dsh-static' })).toBeNull()
+    fireEvent.click(card('dsh-static').getByRole('button', { name: 'View dsh-static' }))
+    expect(screen.queryByRole('button', { name: 'Install dsh-static 1.0.0' })).toBeNull()
+    expect(install).not.toHaveBeenCalled()
+    expect({ guidance: screen.getByText(en.staticMarket).textContent, dialog: screen.queryByRole('dialog') }).toMatchInlineSnapshot(`
+      {
+        "dialog": null,
+        "guidance": "Install from Market → Plugins",
+      }
+    `)
+  })
+
   it('shows the list skeleton until the sources are read, and a retry when they cannot be', () => {
     const { actions, set } = renderTab({ status: 'loading' })
     expect(actions.ensure).toHaveBeenCalledOnce()

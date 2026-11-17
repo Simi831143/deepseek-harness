@@ -1700,11 +1700,16 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     description: 'Host owner of the `market` Remote namespace and the `ctx.market` service.',
     methods: [
       {
-        signature: 'registerKind(kind: MarketKind): () => void',
+        signature: 'registerKind(kind: MarketKind | MarketManagedKind): () => void',
         description: 'Register the domain behavior of one kind. Its installed items are synced at once.',
         parameters: [{ name: 'kind', description: 'domain behavior.' }],
         returns: 'disposer; register it with the domain plugin\'s effects.',
         throws: ['when another package already handles the kind.'],
+      },
+      {
+        signature: 'async invalidateKind(kind: MarketKindName): Promise<void>',
+        description: 'Refresh a kind after its owning manager changes outside the market.',
+        parameters: [{ name: 'kind', description: 'registered kind whose installed state changed.' }],
       },
       {
         signature: 'kindDirectory(kind: MarketKindName): string',
@@ -1720,7 +1725,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       },
       {
         signature: 'async installItem(ref: MarketItemRef, signal: AbortSignal = this.lifetime.signal): Promise<void>',
-        description: 'Install an item for an in-process caller such as an expert installing its skills. The catalog is read again first, so a page opened before a publish installs the package the publisher now lists; a failed read installs from the last good catalog.',
+        description: 'Install an item for an in-process caller such as an expert installing its skills. The catalog is read again first, so a page opened before a publish installs the package the publisher now lists; a failed read stops installation while retaining the displayed catalog.',
         parameters: [{ name: 'ref', description: 'kind and id.' }, { name: 'signal', description: 'cancellation.' }],
         returns: 'after the item is installed and its kind synced; an installed item at the catalog version returns at once.',
       },
@@ -1741,7 +1746,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'Install or update one item from the catalog.',
         parameters: [{ name: 'ref', description: 'kind and id.' }, { name: 'signal', description: 'caller cancellation.' }],
         returns: 'the state after the install.',
-        throws: ['RemoteError `market/not-found`, `market/kind-unavailable`, or `market/install-failed`.'],
+        throws: ['RemoteError `market/catalog-unavailable`, `market/not-found`, `market/kind-unavailable`, or `market/install-failed`.'],
       },
       {
         signature: '@Remote async uninstallPackage(ref: MarketItemRef): Promise<MarketSnapshot>',
@@ -6591,7 +6596,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'MarketCatalogItem',
-    declaration: 'export interface MarketCatalogItem {\n    readonly kind: MarketKindName;\n    readonly id: string;\n    readonly version: string;\n    readonly name: MarketText;\n    readonly description: MarketText;\n    readonly category?: string;\n    readonly tags?: readonly string[];\n    readonly icon?: string;\n    readonly examples?: readonly MarketText[];\n    readonly package?: MarketPackageRef;\n}',
+    declaration: 'export interface MarketCatalogItem {\n    readonly kind: MarketKindName;\n    readonly id: string;\n    readonly version: string;\n    readonly name: MarketText;\n    readonly description: MarketText;\n    readonly category?: string;\n    readonly tags?: readonly string[];\n    readonly icon?: string;\n    readonly examples?: readonly MarketText[];\n    readonly package?: MarketPackageRef;\n    readonly plugin?: MarketPlugin;\n}',
   },
   {
     name: 'MarketCatalogSource',
@@ -6635,11 +6640,11 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'MarketInstalledRecord',
-    declaration: 'export interface MarketInstalledRecord {\n    readonly kind: MarketKindName;\n    readonly id: string;\n    readonly version: string;\n    readonly sha256: string;\n    readonly installedAt: string;\n}',
+    declaration: 'export interface MarketInstalledRecord {\n    readonly kind: \'skill\' | \'expert\' | \'connector\';\n    readonly id: string;\n    readonly version: string;\n    readonly sha256: string;\n    readonly installedAt: string;\n}',
   },
   {
     name: 'MarketInstallPhase',
-    declaration: 'export type MarketInstallPhase = \'download\' | \'unpack\';',
+    declaration: 'export type MarketInstallPhase = \'download\' | \'unpack\' | \'install\';',
   },
   {
     name: 'MarketInstallProgress',
@@ -6651,19 +6656,19 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'MarketItemRef',
-    declaration: 'export interface MarketItemRef {\n    readonly kind: MarketKindName;\n    readonly id: string;\n}',
+    declaration: 'export interface MarketItemRef {\n    readonly kind: MarketKindName;\n    readonly id: string;\n    readonly version?: string;\n}',
   },
   {
     name: 'MarketItemView',
-    declaration: 'export interface MarketItemView extends MarketCatalogItem {\n    readonly iconUrl?: string;\n    readonly installedVersion?: string;\n}',
+    declaration: 'export interface MarketItemView extends MarketCatalogItem {\n    readonly iconUrl?: string;\n    readonly installedVersion?: string;\n    readonly managed?: MarketManagedState;\n}',
   },
   {
     name: 'MarketKind',
-    declaration: 'export interface MarketKind {\n    readonly kind: MarketKindName;\n    validate(directory: string, item: MarketCatalogItem): Promise<void>;\n    sync(items: readonly InstalledItem[]): Promise<void>;\n    release?(id: string): Promise<void>;\n}',
+    declaration: 'export interface MarketKind {\n    readonly kind: Exclude<MarketKindName, \'plugin\'>;\n    readonly mode?: \'archive\';\n    validate(directory: string, item: MarketCatalogItem): Promise<void>;\n    sync(items: readonly InstalledItem[]): Promise<void>;\n    release?(id: string): Promise<void>;\n}',
   },
   {
     name: 'MarketKindName',
-    declaration: 'export type MarketKindName = \'skill\' | \'expert\' | \'connector\';',
+    declaration: 'export type MarketKindName = \'skill\' | \'expert\' | \'connector\' | \'plugin\';',
   },
   {
     name: 'MarketListingEntry',
@@ -6671,7 +6676,15 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'MarketListingVersion',
-    declaration: 'export interface MarketListingVersion extends MarketVersion {\n    readonly install: MarketInstallTarget;\n    readonly compatibility: MarketCompatibility;\n}',
+    declaration: 'export interface MarketListingVersion extends MarketVersion {\n    readonly install?: MarketInstallTarget;\n    readonly compatibility: MarketCompatibility;\n}',
+  },
+  {
+    name: 'MarketManagedKind',
+    declaration: 'export interface MarketManagedKind {\n    readonly kind: MarketKindName;\n    readonly mode: \'managed\';\n    refresh(): Promise<void>;\n    view(item: MarketCatalogItem): MarketManagedState;\n    install(item: MarketCatalogItem, data: Uint8Array, signal: AbortSignal): Promise<void>;\n    uninstall(id: string, signal: AbortSignal): Promise<void>;\n}',
+  },
+  {
+    name: 'MarketManagedState',
+    declaration: 'export interface MarketManagedState {\n    readonly installed: boolean;\n    readonly installedVersion?: string;\n    readonly provided?: boolean;\n    readonly enabled?: boolean;\n    readonly restartRequired?: boolean;\n    readonly compatible: boolean;\n    readonly reason?: string;\n    readonly versions?: readonly {\n        readonly version: string;\n        readonly compatible: boolean;\n        readonly reason?: string;\n    }[];\n}',
   },
   {
     name: 'MarketPackageRef',
@@ -6711,7 +6724,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'MarketSource',
-    declaration: 'export type MarketSource = {\n    readonly type: \'npm\';\n    readonly registry?: string;\n} | {\n    readonly type: \'git\';\n    readonly url: string;\n    readonly commit: string;\n    readonly path?: string;\n};',
+    declaration: 'export type MarketSource = {\n    readonly type: \'npm\';\n    readonly registry?: string;\n} | {\n    readonly type: \'git\';\n    readonly url: string;\n    readonly commit: string;\n    readonly path?: string;\n} | {\n    readonly type: \'tarball\';\n    readonly path: string;\n    readonly url: string;\n    readonly sha256: string;\n    readonly size: number;\n};',
   },
   {
     name: 'MarketText',

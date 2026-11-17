@@ -1,5 +1,5 @@
 ---
-description: "Browser market page for browsing, installing, switching, and removing market skills."
+description: "Unified market page for browsing, installing, updating, and removing skills, connectors, and plugins."
 kind: "package-reference"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-The market client plugin presents catalog skills and connectors in a browser page, follows Host installation and connector state, and lets users install, enable, disable, edit, or remove market and personal skills connect, disconnect, update, or remove market connectors, and add, edit, or delete custom connectors. It mounts the `market`, `marketSkills`, and `marketConnectors` Remote namespaces that it consumes and reveals skill folders through the `session` namespace.
+The Market page groups experts, skills, connectors, and plugins in four tabs. Users can install, update, and remove market packages through one Host market service, manage skill switches and personal skills, and connect or configure MCP servers. The page follows installation and connector state and reports operation outcomes through a persistent toast.
 
 ## Table of Contents
 
@@ -38,7 +38,9 @@ The Connectors tab appears when the Host mounts the connector kind. **Connect** 
 
 **Add connector** adds MCP servers the user configures: paste the JSON an MCP project publishes, which may hold several servers and shows each one with its problem before anything is saved, or fill in one server with its whole command line or URL, environment variables or headers one per line, and a timeout, with the resulting JSON shown below. Custom connectors come first in the grid with a Custom tag and their command or URL, and switch from their card. Editing keeps the type; to change it, delete the connector and add it again. Their detail dialog hides environment and header values until shown, and offers Edit and Delete. A failed start shows a hint for common causes, the Host's reason, and the program's last stderr lines; **Ask the assistant** opens a new conversation with the connector's configuration and failure, listing environment and header names without their values.
 
-While a skill or connector installs, its card shows a progress bar and its detail dialog shows the step with a bar: megabytes downloaded, then files unpacked.
+The Plugins tab searches plugin titles, descriptions, and package names and filters the published categories. Details show the installed version and let users select a published version. Compatibility comes from the Host; an incompatible version shows its reason and cannot be installed. Installation asks for confirmation because plugin code runs with the user's permissions and affects the profile's conversations. Application-provided plugins cannot be replaced or removed here. Plugin switches and configuration remain on the Plugins management page.
+
+While a market package installs, its card shows a progress bar and its detail dialog shows the step: megabytes downloaded, files unpacked, then an indeterminate package-installation step when required. Plugins use the same `market` install, update, removal, progress, and toast paths as skills and connectors. Removing an installed plugin asks for confirmation before the Host unloads it and deletes its package files.
 
 <a id="understand-the-implementation"></a>
 ## Understand the implementation

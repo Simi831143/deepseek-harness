@@ -35,6 +35,16 @@
   transition: width 200ms ease-out;
 }
 
+.indeterminate {
+  width: 35%;
+  animation: dsh-market-install-pending 1200ms ease-in-out infinite alternate;
+}
+
+@keyframes dsh-market-install-pending {
+  to { transform: translateX(180%); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .bar { transition: none; }
+  .indeterminate { animation: none; }
 }

@@ -10,6 +10,7 @@ import {
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
 import { ConnectorCatalog } from './Connectors.tsx'
+import { PluginCatalog } from './Plugins.tsx'
 import type { MarketFace } from './index.ts'
 import { InstallProgress } from './InstallProgress.tsx'
 import { ItemIcon } from './ItemIcon.tsx'
@@ -49,6 +50,7 @@ export function MarketPage(props: MarketPageProps): ReactNode {
     { value: 'expert' as const, label: t('tabExperts'), id: 'market-tab-expert', panelId: 'market-panel' },
     { value: 'skill' as const, label: t('tabSkills'), id: 'market-tab-skill', panelId: 'market-panel' },
     { value: 'connector' as const, label: t('tabConnectors'), id: 'market-tab-connector', panelId: 'market-panel' },
+    { value: 'plugin' as const, label: t('tabPlugins'), id: 'market-tab-plugin', panelId: 'market-panel' },
   ] as const
   return (
     <div className={css.page}>
@@ -62,9 +64,11 @@ export function MarketPage(props: MarketPageProps): ReactNode {
           ? <InstalledSkills {...props} text={text} />
           : tab === 'skill'
             ? <SkillCatalog {...props} market={state.market} text={text} />
-            : tab === 'connector' && state.market?.kinds.includes('connector') === true
-              ? <ConnectorCatalog {...props} market={state.market} text={text} />
-              : <p className={css.empty}>{t('comingSoon')}</p>}
+            : tab === 'plugin'
+              ? <PluginCatalog {...props} market={state.market} text={text} />
+              : tab === 'connector' && state.market?.kinds.includes('connector') === true
+                ? <ConnectorCatalog {...props} market={state.market} text={text} />
+                : <p className={css.empty}>{t('comingSoon')}</p>}
       </section>
     </div>
   )

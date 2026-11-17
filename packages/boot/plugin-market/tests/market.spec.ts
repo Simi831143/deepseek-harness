@@ -144,6 +144,19 @@ it('reads an index with installation status, compatibility, and install argument
   expect(market.listIndexes()).toEqual([{ url: URL_A, title: { en: 'Market', zh: '市场' }, description: 'Bundles' }])
 })
 
+it('lists a static tarball without an npm or Git install target', async () => {
+  serve(json({ format: 2, title: 'Market', plugins: [entry('static', {}, [release('1.0.0', {
+    source: { type: 'tarball', path: 'packages/static-1.0.0.tgz', sha256: 'a'.repeat(64), size: 1 },
+  })])] }))
+  const { market } = await mount()
+  const listed = (await read(market, URL_A)).entries[0]?.versions[0]
+  expect(listed).toMatchObject({
+    source: { type: 'tarball', url: 'https://market.example/packages/static-1.0.0.tgz', sha256: 'a'.repeat(64), size: 1 },
+    compatibility: { compatible: true },
+  })
+  expect(listed?.install).toBeUndefined()
+})
+
 it('defaults to the highest compatible stable version, or the highest compatible prerelease without a stable one', async () => {
   serve(json(index([
     entry('mixed', {}, [release('2.0.0-rc.1'), release('1.0.0'), release('1.1.0', { engines: { dsh: '0.0.1' } })]),

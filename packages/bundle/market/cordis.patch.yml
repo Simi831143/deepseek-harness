@@ -2,7 +2,8 @@
 #
 # The catalog is a static `index.json` on the intranet nginx, published by
 # copying files to \\172.24.126.12\worksapce\lc-camera-agent\market. Installed
-# packages, the catalog cache and install records live under the DSH home.
+# skill and connector packages, the catalog cache and install records live under
+# the DSH home. Plugin dependencies and their retained archives belong to the profile.
 # 我安装的 lists market downloads and the user's personal skill folders only;
 # skills the application, its composition or the project ships stay off it.
 # Its switches write the `disabled` setting of the `skill` row.
@@ -22,6 +23,10 @@
 
     - id: market-connectors
       name: '@deepseek-ai/dsh-market-connectors'
+
+    - id: market-plugins
+      name: '@deepseek-ai/dsh-market-plugins'
+      disabled: !!js "!ctx.get('profileContext')"
 
     - id: ui-market
       name: '@deepseek-ai/dsh-client-ui-market'

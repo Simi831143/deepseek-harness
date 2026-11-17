@@ -8,6 +8,7 @@ import { join, resolve } from 'node:path'
 import { homedir, tmpdir } from 'node:os'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { execa } from 'execa'
+import { create as createTarball } from 'tar'
 import type { Context } from '@deepseek-ai/cordis'
 import { afterAll, beforeAll, expect, it, onTestFinished, vi } from 'vitest'
 import {
@@ -1316,7 +1317,7 @@ it('applies watched configuration while pnpm installation is still running', asy
   expect(ctx.get('managedProbe')).toBeUndefined()
 })
 
-it('installs and removes with the bundled pnpm when PATH contains no pnpm', async () => {
+it.each(['directory', 'market tarball'])('installs and removes a %s with the bundled pnpm when PATH contains no pnpm', async (source) => {
   const pnpm = fileURLToPath(new URL('../../../../apps/desktop/node_modules/pnpm/bin/pnpm.mjs', import.meta.url))
   const { manager, dir } = await fixture('startup', false, undefined, { pnpmCommand: 'must-not-be-used' }, {
     command: process.execPath, args: ['--expose-internals', pnpm], env: { PATH: '', ELECTRON_RUN_AS_NODE: '1' },
@@ -1330,14 +1331,22 @@ it('installs and removes with the bundled pnpm when PATH contains no pnpm', asyn
   const manifest = readProfileManifest('test', dir)
   delete manifest.dependencies
   writeFileSync(join(dir, 'package.json'), JSON.stringify(manifest))
-  const installed = await manager.installBundle(target)
+  const archive = join(dir, '.plugin-market', 'tarballs', 'desktop-manager.tgz')
+  if (source === 'market tarball') {
+    mkdirSync(join(dir, '.plugin-market', 'tarballs'), { recursive: true })
+    await createTarball({ file: archive, gzip: true, cwd: dir }, ['local-bundle'])
+  }
+  const installed = await manager.installBundle(source === 'directory' ? target : archive)
   expect(installed.error).toBeUndefined()
   expect(installed.packageResult?.exitCode).toBe(0)
   expect(readProfileManifest('test', dir).dependencies).toHaveProperty('@test/desktop-manager')
+  if (source === 'market tarball') expect(existsSync(archive)).toBe(true)
   const removed = await manager.removeBundle('@test/desktop-manager')
   expect(removed.error).toBeUndefined()
   expect(removed.packageResult?.exitCode).toBe(0)
   expect(readProfileManifest('test', dir).dependencies ?? {}).not.toHaveProperty('@test/desktop-manager')
+  expect({ source, installed: installed.packageResult?.exitCode, removed: removed.packageResult?.exitCode,
+    sourceExists: existsSync(source === 'directory' ? target : archive) }).toMatchSnapshot()
 })
 
 const MIRROR = 'https://registry.npmmirror.com/'

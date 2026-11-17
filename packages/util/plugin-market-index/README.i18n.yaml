@@ -3,20 +3,20 @@
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/util/plugin-market-index/README.md
 /:
-  en: be1a45173d5c1ce7
-  zh: a9a5a976e40e4a8a
+  en: 66cc66061ea19d52
+  zh: 5e1cfd53db2bd191
 /dsh-plugin-market-index:
   en: 78d8cc75e40d4e48
   zh: 9db1a93fb07d4ded
 /dsh-plugin-market-index/summary:
-  en: f68c94d63c1ec0e5
-  zh: 52db4114eef7454d
+  en: ee7123d448ce997e
+  zh: a2871f474a5faa04
 /dsh-plugin-market-index/table-of-contents:
   en: cd2a60a905c978d6
   zh: cc71d387d0cbd442
 /dsh-plugin-market-index/use-this-package:
-  en: 8eac2625e2e366a8
-  zh: 652131f240e929e0
+  en: 5ebb29451700c213
+  zh: 2561d7692951a14f
 /dsh-plugin-market-index/api:
   en: e0e4444616427bf2
   zh: 3960a7602bb17705

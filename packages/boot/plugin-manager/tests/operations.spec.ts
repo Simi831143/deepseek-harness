@@ -1,6 +1,6 @@
 /** The CLI and manager share package reconciliation, path anchoring and diagnostics. */
 import { EventEmitter } from 'node:events'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
 import { PassThrough } from 'node:stream'
@@ -186,6 +186,143 @@ function writePathSpec(home: string, peer: string): void {
     name: 'plugin', version: '1.0.0', peerDependencies: { '@deepseek-ai/dsh': peer },
   }))
 }
+
+function marketTarball(dir: string, name = 'plugin'): string {
+  const path = join(dir, '.plugin-market', 'tarballs', `${name}.tgz`)
+  mkdirSync(join(dir, '.plugin-market', 'tarballs'), { recursive: true })
+  writeFileSync(path, 'downloaded package')
+  const manifest = readProfileManifest('test', dir)
+  manifest.dependencies = { ...manifest.dependencies, [name]: `file:.plugin-market/tarballs/${name}.tgz` }
+  writeFileSync(join(dir, 'package.json'), JSON.stringify(manifest))
+  return path
+}
+
+it.each(['remove', 'rm', 'uninstall', 'un'])('deletes the removed market tarball after pnpm %s succeeds', async (verb) => {
+  const { dir, context, pnpm } = fixture()
+  const path = marketTarball(dir)
+  pnpm.mutate = () => {
+    expect(existsSync(path)).toBe(true)
+    writeFileSync(join(dir, 'package.json'), '{"dependencies":{}}\n')
+  }
+  const outcome = await runPluginCommand(context, [verb, 'plugin'], { execution: 'service', outputBytes: 8192, activateNewBundles: false })
+  expect({ exitCode: outcome.exitCode, packageFileExists: existsSync(path), dependencies: readProfileManifest('test', dir).dependencies })
+    .toMatchInlineSnapshot(`
+      {
+        "dependencies": {},
+        "exitCode": 0,
+        "packageFileExists": false,
+      }
+    `)
+})
+
+it.each(['dependencies', 'devDependencies', 'optionalDependencies'])('retains a market tarball still referenced by %s', async (field) => {
+  const { dir, context, pnpm } = fixture()
+  const path = marketTarball(dir)
+  pnpm.mutate = () => {
+    writeFileSync(join(dir, 'package.json'), JSON.stringify({ [field]: { retained: `file:${path}` } }))
+  }
+  expect(await runProfilePnpm(context, ['remove', 'plugin'], { execution: 'service', outputBytes: 8192, activateNewBundles: false })).toMatchObject({ exitCode: 0 })
+  expect(readFileSync(path, 'utf8')).toBe('downloaded package')
+})
+
+it.skipIf(process.platform !== 'win32')('retains a market archive referenced with different Windows path casing', async () => {
+  const { dir, context, pnpm } = fixture()
+  const path = marketTarball(dir)
+  pnpm.mutate = () => {
+    writeFileSync(join(dir, 'package.json'), JSON.stringify({ dependencies: { retained: `file:${path.toUpperCase()}` } }))
+  }
+  expect(await runProfilePnpm(context, ['remove', 'plugin'], { execution: 'service', outputBytes: 8192, activateNewBundles: false })).toMatchObject({ exitCode: 0 })
+  expect(existsSync(path)).toBe(true)
+})
+
+it('retains the market tarball when removal fails after changing the manifest', async () => {
+  const { dir, context, pnpm } = fixture()
+  const path = marketTarball(dir)
+  pnpm.exitCode = 1
+  pnpm.mutate = () => { writeFileSync(join(dir, 'package.json'), '{}\n') }
+  expect(await runProfilePnpm(context, ['remove', 'plugin'], { execution: 'service', outputBytes: 8192 })).toMatchObject({ exitCode: 1 })
+  expect(existsSync(path)).toBe(true)
+})
+
+it('retains the market tarball when cancellation leaves pnpm with a zero exit code', async () => {
+  const { dir, context, pnpm } = fixture()
+  const path = marketTarball(dir)
+  const cancellation = new AbortController()
+  pnpm.mutate = () => { writeFileSync(join(dir, 'package.json'), '{}\n'); cancellation.abort() }
+  await runProfilePnpm(context, ['remove', 'plugin'], { execution: 'service', outputBytes: 8192, signal: cancellation.signal })
+  expect(existsSync(path)).toBe(true)
+})
+
+it('retains a market tarball when a timed-out removal traps its signal and exits zero', async () => {
+  const { dir, context } = fixture()
+  const path = marketTarball(dir)
+  command.run.mockImplementationOnce(() => {
+    writeFileSync(join(dir, 'package.json'), '{}\n')
+    return silentChild('removing\n', 0)
+  })
+  const outcome = await runProfilePnpm(context, ['remove', 'plugin'], { execution: 'service', outputBytes: 8192, idleTimeoutMs: 10 })
+  expect(outcome).toMatchObject({ exitCode: 0, timedOut: true })
+  expect(existsSync(path)).toBe(true)
+})
+
+it('keeps user-supplied archives and unrelated prepared market downloads', async () => {
+  const { home, dir, context, pnpm } = fixture()
+  const removed = marketTarball(dir)
+  const pending = join(dir, '.plugin-market', 'tarballs', 'pending.tgz')
+  const external = join(home, 'user-package.tgz')
+  writeFileSync(pending, 'pending install')
+  writeFileSync(external, 'user archive')
+  const manifest = readProfileManifest('test', dir)
+  manifest.dependencies = { ...manifest.dependencies, external: `file:${external}` }
+  writeFileSync(join(dir, 'package.json'), JSON.stringify(manifest))
+  pnpm.mutate = () => { writeFileSync(join(dir, 'package.json'), '{}\n') }
+  expect(await runProfilePnpm(context, ['remove', 'plugin', 'external'], { execution: 'cli', outputBytes: 8192 })).toMatchObject({ exitCode: 0 })
+  expect(existsSync(removed)).toBe(false)
+  expect(readFileSync(pending, 'utf8')).toBe('pending install')
+  expect(readFileSync(external, 'utf8')).toBe('user archive')
+})
+
+it('accepts an already absent market archive after removing its dependency', async () => {
+  const { dir, context, pnpm } = fixture()
+  rmSync(marketTarball(dir))
+  pnpm.mutate = () => { writeFileSync(join(dir, 'package.json'), '{}\n') }
+  expect(await runProfilePnpm(context, ['remove', 'plugin'], { execution: 'service', outputBytes: 8192 })).toMatchObject({ exitCode: 0 })
+})
+
+it('keeps the original archive during an installation that replaces its dependency spec', async () => {
+  const { dir, context, pnpm } = fixture()
+  const path = marketTarball(dir)
+  pnpm.mutate = () => { writeFileSync(join(dir, 'package.json'), '{}\n') }
+  expect(await runProfilePnpm(context, ['install'], { execution: 'service', outputBytes: 8192 })).toMatchObject({ exitCode: 0 })
+  expect(existsSync(path)).toBe(true)
+})
+
+it('does not delete archives through a linked market directory', async () => {
+  const { home, dir, context, pnpm } = fixture()
+  const external = join(home, 'external-market')
+  mkdirSync(join(external, 'tarballs'), { recursive: true })
+  symlinkSync(external, join(dir, '.plugin-market'), 'junction')
+  const path = marketTarball(dir)
+  pnpm.mutate = () => { writeFileSync(join(dir, 'package.json'), '{}\n') }
+  expect(await runProfilePnpm(context, ['remove', 'plugin'], { execution: 'service', outputBytes: 8192 })).toMatchObject({ exitCode: 0 })
+  expect(readFileSync(path, 'utf8')).toBe('downloaded package')
+})
+
+it('reports an archive cleanup failure while keeping the dependency removed', async () => {
+  const { dir, context, pnpm } = fixture()
+  const path = marketTarball(dir)
+  rmSync(path)
+  mkdirSync(path)
+  writeFileSync(join(path, 'untouched'), 'must not recursively delete')
+  pnpm.mutate = () => { writeFileSync(join(dir, 'package.json'), '{}\n') }
+  const outcome = await runProfilePnpm(context, ['remove', 'plugin'], { execution: 'service', outputBytes: 8192 })
+  expect(outcome.exitCode).toBe(1)
+  expect(outcome.output).toContain('pnpm removal completed')
+  expect(outcome.output).toContain(path)
+  expect(readFileSync(outcome.logPath, 'utf8')).toContain('market package cleanup failed')
+  expect(readProfileManifest('test', dir).dependencies).toBeUndefined()
+  expect(readFileSync(join(path, 'untouched'), 'utf8')).toBe('must not recursively delete')
+})
 
 it.each([
   { form: 'a relative path', spec: () => './plugin' },

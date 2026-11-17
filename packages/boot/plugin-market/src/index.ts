@@ -296,6 +296,7 @@ export default class PluginMarket extends TypertRemoteService {
     const found = declared === undefined ? undefined : repositoryOf(declared.url)
     let repository: RepositoryLocation | undefined = found === undefined ? undefined : { ...found, directory: declared?.directory ?? '' }
     const { source } = listed
+    if (source.type === 'tarball') return { status: 'none' }
     let location: DetailLocation
     if (source.type === 'git') {
       const ref = repositoryOf(source.url)
@@ -478,7 +479,7 @@ function listingOf(
 ): MarketListingEntry {
   const versions = plugin.versions.map((version): MarketListingVersion => ({
     ...version,
-    install: marketInstallTarget(plugin.name, version),
+    ...version.source.type === 'tarball' ? {} : { install: marketInstallTarget(plugin.name, version) },
     compatibility: compatibilityOf(plugin.name, version, exemptions, runtimeVersion),
   }))
   const compatible = versions.filter(version => version.compatibility.compatible)

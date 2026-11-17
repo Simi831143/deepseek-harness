@@ -1,5 +1,5 @@
 ---
-description: "供 DSH 读取器和索引生成器使用的插件市场索引格式 1 校验与安装参数。"
+description: "供 DSH 读取器和索引生成器使用的插件市场索引校验、相对 tarball 路径解析与安装参数。"
 kind: "package-library"
 ---
 
@@ -9,7 +9,7 @@ kind: "package-library"
 
 ## 概述
 
-插件市场索引格式 1 的校验器，没有运行时依赖。插件市场索引是一份 JSON 文件，列出可安装的 DSH 组合包（bundle）及其展示元数据。[格式 Agent Note](../../../.agents/notes/implemented/feature/2026-10-02-plugin-market-index-format.zh.md) 定义该文档；本包是其可执行的规则集。DSH 的 [`dsh-plugin-market`](../../boot/plugin-market/README.zh.md) 用它读取索引，索引生成器在发布前用它校验输出。
+插件市场索引格式 1 和 2 的校验器，没有运行时依赖。格式 1 接受 npm 和 Git 来源；格式 2 还接受与索引同源的 tarball。插件市场索引是一份 JSON 文件，列出可安装的 DSH 组合包（bundle）及其展示元数据。[格式 Agent Note](../../../.agents/notes/implemented/feature/2026-10-02-plugin-market-index-format.zh.md) 定义该文档；本包是其可执行的规则集。DSH 的 [`dsh-plugin-market`](../../boot/plugin-market/README.zh.md) 用它读取索引，索引生成器在发布前用它校验输出。
 
 ## 目录
 
@@ -26,7 +26,7 @@ kind: "package-library"
 
 本包是库，不是服务或插件：没有 `ctx`、没有注册、没有状态，也没有 I/O。
 
-先把获取到的文档解析为 JSON，再把该值和读取它的 URL 传给 `parseMarketIndex`。遇到第一条被违反的规则时，它抛出 `MarketIndexError`，并附带违规值的 JSON 路径。成功的结果会丢弃格式未定义的成员，用空值填充缺失的 `metadata` 分组、`keywords`、`labels`、`sortKeys` 和 `engines`，按 SemVer 优先级降序排列每个插件的 `versions`，并把每个相对 `icon` 引用替换为其绝对 URL。
+先把获取到的文档解析为 JSON，再把该值和读取它的 URL 传给 `parseMarketIndex`。遇到第一条被违反的规则时，它抛出 `MarketIndexError`，并附带违规值的 JSON 路径。成功的结果会丢弃格式未定义的成员，用空值填充缺失的 `metadata` 分组、`keywords`、`labels`、`sortKeys` 和 `engines`，按 SemVer 优先级降序排列每个插件的 `versions`，并把每个相对 `icon` 引用或格式 2 的 tarball `path` 替换为其绝对 URL。tarball 来源携带精确字节数和小写 SHA-256；`marketInstallTarget` 会拒绝它，因为 Host 必须先下载校验，再交给安装器。
 
 使用 `marketInstallTarget(name, version)` 安装一个版本：它返回精确的 pnpm spec（npm 为 `name@version`，Git 为固定到提交、可带 `path:` 参数的 `git+https` URL），该版本指定了 registry 时还返回首先询问的 registry。
 

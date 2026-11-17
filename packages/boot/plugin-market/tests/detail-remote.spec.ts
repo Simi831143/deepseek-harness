@@ -42,7 +42,13 @@ function serve(routes: Record<string, unknown>) {
 }
 
 const index = {
-  format: 1, title: 'Market', plugins: [
+  format: 2, title: 'Market', plugins: [
+    {
+      name: 'from-tarball', versions: [{
+        version: '1.0.0', publishTimestamp: 1,
+        source: { type: 'tarball', path: 'packages/from-tarball.tgz', sha256: 'a'.repeat(64), size: 1 },
+      }],
+    },
     {
       name: 'from-git', repository: { url: 'https://github.com/o/mono', directory: 'other' },
       versions: [{ version: '1.0.0', publishTimestamp: 1, source: { type: 'git', url: 'https://github.com/o/r', commit: COMMIT, path: 'pkg' }, engines: { dsh: '*' } }],
@@ -101,6 +107,13 @@ async function mount(options: { profile?: boolean; connection?: boolean } = {}) 
 }
 
 const failureOf = async (promise: Promise<unknown>) => remoteErrorOf(await promise.catch((error: unknown) => error))
+
+it('does not query public package CDNs for a static tarball', async () => {
+  const requests = serve({ [INDEX]: index })
+  const { market } = await mount()
+  expect(await market.readEntryDetail(INDEX, 'from-tarball', '1.0.0', 'en')).toEqual({ status: 'none' })
+  expect(requests.mock.calls.map(([url]) => url)).toEqual([INDEX])
+})
 
 it('requires a clone cache directory outside a profile', async () => {
   const ctx = new Context()

@@ -67,9 +67,10 @@ export type MarketCompatibility =
     readonly exempted: boolean
   }
 
-/** One listed version with its compatibility and the arguments that install it. */
+/** One listed version with its compatibility and, for npm and Git, the arguments that install it. */
 export interface MarketListingVersion extends MarketVersion {
-  readonly install: MarketInstallTarget
+  /** Absent for a static tarball, which the shared Market installs through its plugin adapter. */
+  readonly install?: MarketInstallTarget
   readonly compatibility: MarketCompatibility
 }
 

@@ -1,5 +1,5 @@
 ---
-description: "市场目录、已验证的软件包安装和已安装技能管理。"
+description: "供技能、连接器和插件共享的市场目录与软件包操作。"
 kind: "package-group"
 ---
 
@@ -9,7 +9,7 @@ kind: "package-group"
 
 ## 概述
 
-`market/` 组提供可选市场 bundle 使用的目录和安装服务。核心包管理目录数据与已验证的压缩包，技能包将已安装内容接入共享技能注册表并提供管理操作，连接器包启动用户开启的已安装 MCP 程序。
+`market/` 组提供可选市场 bundle 使用的目录和安装服务。核心包管理共享目录、已验证的下载和软件包操作。领域包将已安装内容接入技能注册表，启动已启用的 MCP 连接器，或通过插件管理器安装 profile 插件。
 
 ## 目录
 
@@ -27,6 +27,7 @@ kind: "package-group"
 | [`market`](market/README.zh.md) | 目录、软件包验证、安装和删除 | `ctx.market` |
 | [`market-skills`](market-skills/README.zh.md) | 已安装技能提供方和管理 Remote | `ctx.marketSkills` |
 | [`market-connectors`](market-connectors/README.zh.md) | 本机 MCP 连接器程序、开关及其技能 | `ctx.marketConnectors` |
+| [`market-plugins`](market-plugins/README.zh.md) | 通过 profile 插件管理器安装市场插件 | `ctx.market` 注册 |
 
 <a id="related-documentation"></a>
 ## 相关文档

@@ -3,20 +3,20 @@
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/market/README.md
 /:
-  en: 0514bc769b66887f
-  zh: 27f518876c632726
+  en: b9f2eb408c1a15d6
+  zh: 92c85061f8e91070
 /market-market-capabilities:
   en: f3ea0424a8652332
   zh: d2786eb09a5ac5bc
 /market-market-capabilities/summary:
-  en: 842958de2d05d415
-  zh: 26de8bbc430e7b59
+  en: 88da187fc007ed1e
+  zh: 5f976f0535a0cb1b
 /market-market-capabilities/table-of-contents:
   en: 1eb35b015a6c423f
   zh: a8a3dceee2c9e943
 /market-market-capabilities/packages:
-  en: 2112ced80af39183
-  zh: ef2c2a6afb660d7f
+  en: afd3a0e4e83e1708
+  zh: 179bc11cb0878e32
 /market-market-capabilities/related-documentation:
   en: 157a9448fb620120
   zh: 86a3aefe37dcbe34

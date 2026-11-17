@@ -61,6 +61,12 @@ describe('presentedVersion', () => {
 })
 
 describe('sourceFacts', () => {
+  it('identifies a static package without treating its tarball URL as a Git repository', () => {
+    expect(sourceFacts('static', release('1.0.0', { source: {
+      type: 'tarball', path: 'static.tgz', url: 'https://market.example/static.tgz', sha256: 'a'.repeat(64), size: 1,
+    } }))).toEqual([{ kind: 'package', value: 'static@1.0.0' }])
+  })
+
   it('names the npm package and registry, or the Git repository, commit, and directory', () => {
     const commit = 'abcdef0'.padEnd(40, '1')
     expect(sourceFacts('dsh-a', release('1.0.0'))).toEqual([{ kind: 'package', value: 'dsh-a@1.0.0' }])

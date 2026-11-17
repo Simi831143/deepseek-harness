@@ -142,6 +142,25 @@ describe('desktop external plugin profile', () => {
     expect(read().dsh.profile.bundles).toEqual([...base, '@deepseek-ai/dsh-account-feishu', '@deepseek-ai/dsh-market-bundle', 'external'])
   })
 
+  it('removes the experimental plugin market bundle while preserving other profile bundles', async () => {
+    const { manager } = setup()
+    await manager.applyRelease()
+    const path = join(manager.paths.profile, 'package.json')
+    const read = () => JSON.parse(readFileSync(path, 'utf8')) as { dsh: { profile: { bundles: string[] } } }
+    const manifest = read()
+    const expected = manifest.dsh.profile.bundles
+    manifest.dsh.profile.bundles = [
+      ...expected,
+      '@deepseek-ai/dsh-experimental-plugin-market-bundle',
+      'external',
+    ]
+    writeFileSync(path, JSON.stringify(manifest))
+
+    await manager.applyRelease()
+
+    expect(read().dsh.profile.bundles).toEqual([...expected, 'external'])
+  })
+
   it('needs no runtime or package manifest when no plugins have been installed', async () => {
     const { manager } = setup()
     await expect(manager.disableAllPlugins()).resolves.toBeUndefined()

@@ -334,6 +334,7 @@ Every package below exports a Cordis plugin that a bundle patch can name in a Lo
 |---|---|---|
 | `@deepseek-ai/dsh-market` | yes | Market core for LC Camera Agent: one published catalog, verified package installation, and installed-item records |
 | `@deepseek-ai/dsh-market-connectors` | no | Connector kind of the LC Camera Agent market: local MCP programs installed from the market, started and stopped per connector |
+| `@deepseek-ai/dsh-market-plugins` | yes | Profile plugin installation and removal through the shared market |
 | `@deepseek-ai/dsh-market-skills` | yes | Skill kind of the LC Camera Agent market: installed market skills for every Agent, and one switch per skill across every source |
 
 ## mcp

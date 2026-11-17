@@ -268,7 +268,13 @@ Host owner of the `market` Remote namespace and the `ctx.market` service.
  * @returns disposer; register it with the domain plugin's effects.
  * @throws when another package already handles the kind.
  */
-registerKind(kind: MarketKind): () => void
+registerKind(kind: MarketKind | MarketManagedKind): () => void
+
+/**
+ * Refresh a kind after its owning manager changes outside the market.
+ * @param kind - registered kind whose installed state changed.
+ */
+async invalidateKind(kind: MarketKindName): Promise<void>
 
 /**
  * Directory holding every installed item of one kind, one subdirectory per id.
@@ -287,7 +293,7 @@ installedItems(kind: MarketKindName): InstalledItem[]
 /**
  * Install an item for an in-process caller such as an expert installing its skills.
  * The catalog is read again first, so a page opened before a publish installs the package the
- * publisher now lists; a failed read installs from the last good catalog.
+ * publisher now lists; a failed read stops installation while retaining the displayed catalog.
  * @param ref - kind and id.
  * @param signal - cancellation.
  * @returns after the item is installed and its kind synced; an installed item at the catalog version returns at once.
@@ -311,7 +317,7 @@ async installItem(ref: MarketItemRef, signal: AbortSignal = this.lifetime.signal
  * @param ref - kind and id.
  * @param signal - caller cancellation.
  * @returns the state after the install.
- * @throws RemoteError `market/not-found`, `market/kind-unavailable`, or `market/install-failed`.
+ * @throws RemoteError `market/catalog-unavailable`, `market/not-found`, `market/kind-unavailable`, or `market/install-failed`.
  */
 @Remote async installPackage(ref: MarketItemRef, signal: AbortSignal): Promise<MarketSnapshot>
 

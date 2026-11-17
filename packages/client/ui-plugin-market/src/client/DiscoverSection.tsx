@@ -96,6 +96,7 @@ function EntryAction({ entry, title, t, onInstall, onOpenInstalled }: {
     )
   }
   const version = presentedVersion(entry)
+  if (version.install === undefined) return <span className={css.meta}>{t('staticMarket')}</span>
   if (!version.compatibility.compatible && !version.compatibility.exempted) {
     return (
       <Tooltip label={t('noCompatibleVersion', { runtime: version.compatibility.runtimeVersion })} side="bottom" portal delayMs={300}>
@@ -154,7 +155,7 @@ function VersionRow({ entry, version, title, t, language, onInstall }: {
 }): ReactNode {
   const current = entry.installation.installedVersion === version.version
   // DSH ships a provided bundle; the market cannot replace it.
-  const offered = !current && entry.installation.status !== 'provided' && installable(version.compatibility)
+  const offered = version.install !== undefined && !current && entry.installation.status !== 'provided' && installable(version.compatibility)
   const { compatibility } = version
   return (
     <li className={css.versionRow} data-market-version={version.version}>
@@ -601,6 +602,7 @@ export function DiscoverSection(props: DiscoverSectionProps): ReactNode {
       <ConfirmDialog choice={confirming} t={t} face={face} onCancel={() => { setConfirming(null) }}
         onConfirm={({ entry, version }) => {
           setConfirming(null)
+          if (version.install === undefined) return
           install({ ...version.install, title: entryTitle(entry, face), version: version.version })
         }} />
     </div>

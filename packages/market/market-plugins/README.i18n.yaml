@@ -1,0 +1,43 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/market/market-plugins/README.md
+/:
+  en: 8eb8c5653d609f24
+  zh: 325f5f9d57bfb424
+/deepseek-ai-dsh-market-plugins:
+  en: 357aae0d64216707
+  zh: c075874c9931cc3d
+/deepseek-ai-dsh-market-plugins/summary:
+  en: 996c54953c3b02cc
+  zh: 88f1858fdf548929
+/deepseek-ai-dsh-market-plugins/table-of-contents:
+  en: 122f0d41696980b1
+  zh: 0792dcf8b2a8e025
+/deepseek-ai-dsh-market-plugins/use-this-package:
+  en: c1f74fff3faef615
+  zh: 48ea7763722962bf
+/deepseek-ai-dsh-market-plugins/understand-the-implementation:
+  en: c12bc91f9227f38a
+  zh: 459c8795541cc2e9
+/deepseek-ai-dsh-market-plugins/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/deepseek-ai-dsh-market-plugins/model-experience/plugin-installation:
+  en: e438f22311fb2dde
+  zh: d99dd6d2ed6052da
+/deepseek-ai-dsh-market-plugins/model-experience/plugin-installation/what-the-model-sees:
+  en: 682e2eb22066a3ea
+  zh: 87b3be331792e052
+/deepseek-ai-dsh-market-plugins/model-experience/plugin-installation/token-effect:
+  en: 4ca78612bddc1c5e
+  zh: 865c047b847c57b3
+/deepseek-ai-dsh-market-plugins/model-experience/plugin-installation/kv-cache-effect:
+  en: de4322f1a874fe92
+  zh: 3b5579ceccd5b5e7
+/deepseek-ai-dsh-market-plugins/known-limitations-and-deferred-work:
+  en: 65cb52e5858030e9
+  zh: f43b0cfa80ab20c1
+/deepseek-ai-dsh-market-plugins/known-limitations-and-deferred-work/dev-note:
+  en: 7972e4b2005ec9a4
+  zh: 754c49ec538c164c

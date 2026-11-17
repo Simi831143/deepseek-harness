@@ -102,6 +102,20 @@ it('pages plugins with the default version\'s install target and registry plugin
   expect(rest.json).toMatchObject({ entries: [{ name: 'dsh-c', title: 'dsh-c', description: `${'x'.repeat(300)}…` }], total: 3, nextOffset: null })
 })
 
+it('reports a static tarball without an agent install target', async () => {
+  serve({
+    format: 2, title: 'Market', plugins: [{
+      name: 'static', versions: [{
+        version: '1.0.0', publishTimestamp: 1,
+        source: { type: 'tarball', path: 'static.tgz', sha256: 'a'.repeat(64), size: 1 },
+      }],
+    }],
+  })
+  const { call } = await fixture()
+  expect((await call({ action: 'list_versions', target: URL_A, name: 'static' })).json)
+    .toMatchObject({ versions: [{ version: '1.0.0', install: null }] })
+})
+
 it('lists plugins matching a query by relevance', async () => {
   serve(document)
   const { call } = await fixture()
