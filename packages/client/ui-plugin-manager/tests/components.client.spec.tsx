@@ -1316,12 +1316,40 @@ describe('PluginManagerPage', () => {
       expect(stops).toEqual(['#54ECE7', '#658EFF'])
     })
 
-    it('renders a bundle\'s own configuration on its page, and no configure control on a row without one', () => {
-      renderTab({ packages: [pkg({ rows: [row()] })] }, { bundles: new Set(['dsh-better-sidebar']) }, bodies)
+    it('renders a bundle\'s own configuration above its rows, and no configure control on a row without one', () => {
+      const theme = row({ rowId: 'theme', moduleName: 'dsh-better-sidebar/theme', entryId: 'include:theme' as PluginEntryId })
+      renderTab({ packages: [pkg({ rows: [row(), theme] })] }, { bundles: new Set(['dsh-better-sidebar']) }, bodies)
       fireEvent.click(screen.getByRole('button', { name: en.openDetail.replace('{name}', 'dsh-better-sidebar') }))
       const detail = document.querySelector('[data-plugin-detail]') as HTMLElement
-      expect(within(detail).getByRole('form', { name: 'sidebar form' })).toBeTruthy()
+      const form = within(detail).getByRole('form', { name: 'sidebar form' })
+      const rows = detail.querySelector('[data-plugin-rows]') as HTMLElement
+      expect(form.compareDocumentPosition(rows) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+      expect(detail.querySelector('[data-plugin-name]')).not.toBeNull()
+      expect(detail.querySelector('[data-plugin-source]')).not.toBeNull()
       expect(within(detail).queryByRole('button', { name: en.configureRow.replace('{name}', 'dsh-better-sidebar') })).toBeNull()
+    })
+
+    it('opens a one-row bundle with its own configuration straight to that form, keeping its header and controls', () => {
+      const { actions } = renderTab(
+        { packages: [pkg({ meta: { title: 'Search extension', description: 'Searches the web.' }, rows: [row()] })] },
+        { bundles: new Set(['dsh-better-sidebar']) },
+        bodies,
+      )
+      fireEvent.click(screen.getByRole('button', { name: en.openDetail.replace('{name}', 'Search extension') }))
+      const detail = document.querySelector('[data-plugin-detail="dsh-better-sidebar"]') as HTMLElement
+      expect(within(detail).getByRole('heading', { level: 3 }).textContent).toBe('Search extension')
+      expect(within(detail).getByText('Searches the web.')).toBeTruthy()
+      expect(within(detail).getByRole('form', { name: 'sidebar form' })).toBeTruthy()
+      expect(detail.querySelector('[data-plugin-name]')).toBeNull()
+      expect(actions.loadDetail).not.toHaveBeenCalled()
+      expect(detail.querySelector('[data-plugin-rows]')).toBeNull()
+      expect(detail.querySelector('[data-plugin-source]')).toBeNull()
+      fireEvent.click(within(detail).getByRole('button', { name: en.uninstallLabel.replace('{name}', 'Search extension') }))
+      expect(actions.uninstall).toHaveBeenCalledExactlyOnceWith('dsh-better-sidebar')
+      fireEvent.click(within(detail).getByRole('switch', { name: en.enableToggle.replace('{name}', 'Search extension') }))
+      expect(actions.setEnabled).toHaveBeenCalledExactlyOnceWith('dsh-better-sidebar', false)
+      fireEvent.click(screen.getByRole('button', { name: en.backToList }))
+      expect(screen.getByRole('heading', { name: en.title, level: 1 })).toBeTruthy()
     })
 
     it.each([false, true])('opens row configuration and returns to the bundle and originating list, from secondary page: %s', (fromMore) => {

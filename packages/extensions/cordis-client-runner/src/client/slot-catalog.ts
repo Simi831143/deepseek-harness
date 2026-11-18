@@ -2407,7 +2407,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     kind: 'keyed',
     scope: 'root',
     summary: 'A bundle\'s own configuration, keyed by the bundle\'s package name and rendered on the bundle\'s page between its description and its rows (`view: \'page\'` only).',
-    doc: 'A bundle\'s own configuration, keyed by the bundle\'s package name and\nrendered on the bundle\'s page between its description and its rows\n(`view: \'page\'` only).',
+    doc: 'A bundle\'s own configuration, keyed by the bundle\'s package name and\nrendered on the bundle\'s page between its description and its rows\n(`view: \'page\'` only). For a bundle of exactly one row the page is that\nconfiguration alone: it drops the package name, the detail document, the\nparts list, and the source, keeping the header, version updates, and\ndetail contributions.',
     registerOptions: [
       {
         name: 'key',
@@ -2444,7 +2444,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     ],
     replaceRisk: 'shadows-shipped-ui',
     example: 'return {\n  inject: [\'slots\'],\n  apply(ctx) {\n    ctx.slots.inject(\'plugins.bundle.config\', () => ctx.slots.register(\n      { name: \'plugins.bundle.config\', key: \'<one key the owner dispatches>\' },\n      () => React.createElement(\'div\', null, \'hello\'),\n    ))\n  },\n}',
-    source: 'packages/client/ui-plugin-manager/src/client/slot-contract.ts:142',
+    source: 'packages/client/ui-plugin-manager/src/client/slot-contract.ts:145',
   },
   {
     key: 'plugins.detail.actions',
@@ -2496,7 +2496,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     occupants: [],
     replaceRisk: 'none',
     example: 'return {\n  inject: [\'slots\'],\n  apply(ctx) {\n    ctx.slots.inject(\'plugins.detail.actions\', () => ctx.slots.register(\n      { name: \'plugins.detail.actions\', id: \'my-entry\', order: 100, label: \'My entry\' },\n      () => React.createElement(\'div\', null, \'hello\'),\n    ))\n  },\n}',
-    source: 'packages/client/ui-plugin-manager/src/client/slot-contract.ts:156',
+    source: 'packages/client/ui-plugin-manager/src/client/slot-contract.ts:159',
   },
   {
     key: 'plugins.detail.badge',
@@ -2548,7 +2548,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     occupants: [],
     replaceRisk: 'none',
     example: 'return {\n  inject: [\'slots\'],\n  apply(ctx) {\n    ctx.slots.inject(\'plugins.detail.badge\', () => ctx.slots.register(\n      { name: \'plugins.detail.badge\', id: \'my-entry\', order: 100, label: \'My entry\' },\n      () => React.createElement(\'div\', null, \'hello\'),\n    ))\n  },\n}',
-    source: 'packages/client/ui-plugin-manager/src/client/slot-contract.ts:161',
+    source: 'packages/client/ui-plugin-manager/src/client/slot-contract.ts:164',
   },
   {
     key: 'plugins.detail.section',
@@ -2600,7 +2600,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     occupants: [],
     replaceRisk: 'none',
     example: 'return {\n  inject: [\'slots\'],\n  apply(ctx) {\n    ctx.slots.inject(\'plugins.detail.section\', () => ctx.slots.register(\n      { name: \'plugins.detail.section\', id: \'my-entry\', order: 100, label: \'My entry\' },\n      () => React.createElement(\'div\', null, \'hello\'),\n    ))\n  },\n}',
-    source: 'packages/client/ui-plugin-manager/src/client/slot-contract.ts:168',
+    source: 'packages/client/ui-plugin-manager/src/client/slot-contract.ts:171',
   },
   {
     key: 'plugins.item',
@@ -2697,7 +2697,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     occupants: [],
     replaceRisk: 'none',
     example: 'return {\n  inject: [\'slots\'],\n  apply(ctx) {\n    ctx.slots.inject(\'plugins.row.config\', () => ctx.slots.register(\n      { name: \'plugins.row.config\', key: \'<one key the owner dispatches>\' },\n      () => React.createElement(\'div\', null, \'hello\'),\n    ))\n  },\n}',
-    source: 'packages/client/ui-plugin-manager/src/client/slot-contract.ts:150',
+    source: 'packages/client/ui-plugin-manager/src/client/slot-contract.ts:153',
   },
   {
     key: 'plugins.tab',

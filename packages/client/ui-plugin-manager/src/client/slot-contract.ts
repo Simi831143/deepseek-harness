@@ -137,7 +137,10 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
     /**
      * A bundle's own configuration, keyed by the bundle's package name and
      * rendered on the bundle's page between its description and its rows
-     * (`view: 'page'` only).
+     * (`view: 'page'` only). For a bundle of exactly one row the page is that
+     * configuration alone: it drops the package name, the detail document, the
+     * parts list, and the source, keeping the header, version updates, and
+     * detail contributions.
      */
     'plugins.bundle.config': { kind: 'keyed'; scope: 'root'; owner: PluginConfigViewProps }
     /**

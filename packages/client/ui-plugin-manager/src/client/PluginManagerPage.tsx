@@ -712,6 +712,9 @@ function PackageDetail({
   const newer = versionUpdate(versions)
   const status = packageStatus(pkg)
   const subject: PluginsSubject = { kind: 'bundle', pkg: packageRef(pkg) }
+  // A one-part bundle that brings its own configuration is that configuration: its page is the form,
+  // without the document, the parts list, or the technical source the configuration already stands for.
+  const settingsPage = configured && pkg.rows.length === 1
   return (
     <div className={css.detail} data-plugin-detail={pkg.name}>
       <DetailTop
@@ -763,14 +766,14 @@ function PackageDetail({
           {updateAvailable(pkg) || newer !== undefined ? <Tag className={css.statusTag} tone="info">{t('statusUpdateAvailable')}</Tag> : null}
           {renderSlot('plugins.detail.badge', { subject })}
         </div>
-        <p className={css.detailName}><code data-plugin-name>{pkg.name}</code></p>
+        {settingsPage ? null : <p className={css.detailName}><code data-plugin-name>{pkg.name}</code></p>}
         {description === undefined ? null : <p className={css.detailDesc}>{description}</p>}
       </div>
       <MetadataError error={pkg.meta?.error} t={t} />
       {pkg.error === undefined ? null : <p className={css.reason} role="status">{t('reasonLabel')}: {managementText(pkg.error, t)}</p>}
       {pkg.readOnlyReason === undefined ? null : <p className={css.reason} role="status">{managementText({ code: pkg.readOnlyReason }, t)}</p>}
       <div className={css.detailSections}>
-        {detail}
+        {settingsPage ? null : detail}
         {configured
           ? (
             <section className={css.detailSection} data-plugin-config>
@@ -778,7 +781,7 @@ function PackageDetail({
             </section>
           )
           : null}
-        {pkg.availability === 'missing' ? null : (<RowsSection
+        {settingsPage || pkg.availability === 'missing' ? null : (<RowsSection
           rows={pkg.rows}
           t={t}
           resolveText={resolveText}
@@ -788,7 +791,7 @@ function PackageDetail({
         <VersionSection
           pkg={pkg} check={versions} t={t} busy={busy} onEnsure={onEnsureVersions} onCheck={onCheckVersions} onUpdate={onUpdateVersion}
         />
-        <SourceSection pkg={pkg} t={t} />
+        {settingsPage ? null : <SourceSection pkg={pkg} t={t} />}
         {renderSlot('plugins.detail.section', { subject })}
       </div>
     </div>

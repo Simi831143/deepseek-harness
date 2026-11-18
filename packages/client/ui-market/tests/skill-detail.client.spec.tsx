@@ -2,7 +2,7 @@
 /**
  * The skill detail dialog joins the catalog entry with the installed state:
  * display fields, install, the success-toned switch, one more-actions menu
- * (edit, open folder, uninstall) for market and personal skills alike, the
+ * (edit and uninstall, plus open folder for personal skills), the
  * overview of the skill's instructions with its search, an example
  * turning into a conversation that opens with the skill, and the progress of
  * a running install.
@@ -181,15 +181,17 @@ it('uninstalls a market skill by deleting it after a confirmation', async () => 
   expect(screen.queryByRole('alertdialog')).toBeNull()
 })
 
-it('offers the same more-actions menu for market and personal skills', () => {
-  show('lark-unified', stateOf([{ ...lark, installedVersion: '2.3.0' }], [larkInstalled]))
+it.each([true, false])('hides open folder for market skills with catalog presence %s', (inCatalog) => {
+  const props = show('lark-unified', stateOf(inCatalog ? [{ ...lark, installedVersion: '2.3.0' }] : [], [larkInstalled]))
   fireEvent.click(screen.getByRole('button', { name: zh.more }))
-  const market = screen.getAllByRole('menuitem').map(item => item.textContent)
-  cleanup()
+  expect(screen.getAllByRole('menuitem').map(item => item.textContent)).toEqual([zh.edit, zh.uninstall])
+  expect(props.revealSkill).not.toHaveBeenCalled()
+})
+
+it('offers edit, open folder and uninstall for personal skills', () => {
   show('camera-log', stateOf([], [cameraLog]))
   fireEvent.click(screen.getByRole('button', { name: zh.more }))
-  expect(screen.getAllByRole('menuitem').map(item => item.textContent)).toEqual(market)
-  expect(market).toEqual([zh.edit, zh.openFolder, zh.uninstall])
+  expect(screen.getAllByRole('menuitem').map(item => item.textContent)).toEqual([zh.edit, zh.openFolder, zh.uninstall])
 })
 
 it('deletes a personal skill from its folder after a confirmation and closes the dialog', async () => {

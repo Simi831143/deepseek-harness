@@ -4,8 +4,8 @@
  * name, icon, description, example requests, version) with its installed
  * state (switch, overview of its instructions, more actions), so any skill
  * shows the parts it has: a catalog skill not yet installed offers Install,
- * and an installed skill offers the switch plus Edit, Open folder and
- * Uninstall, whether it came from the market or a personal skill folder.
+ * and an installed skill offers the switch plus Edit and Uninstall. Personal
+ * skills also offer Open folder when the Host has a file manager and a file path.
  * Picking an example
  * installs the skill when needed, then opens a new conversation whose composer
  * holds the skill chip and the example.
@@ -92,7 +92,8 @@ export function SkillDetail(props: SkillDetailProps): ReactNode {
     await props.uninstall(ref, name)
   }
   const path = installed?.path
-  const reveal = canReveal && path !== undefined ? () => { void props.revealSkill(path, name) } : undefined
+  const reveal = installed?.origin === 'user' && canReveal && path !== undefined
+    ? () => { void props.revealSkill(path, name) } : undefined
   const edit = (): void => {
     onClose()
     props.editSkill(skill)
@@ -219,7 +220,7 @@ function PrimaryAction({ item, installed, t, busy, onInstall, onTry }: SkillDeta
 
 function MoreMenu({ t, onEdit, onReveal, onUninstall }: SkillDetailProps & {
   onEdit: () => void
-  /** Absent when the Host has no file manager or the skill has no file path. */
+  /** Available only for personal skills with a file path and a Host file manager. */
   onReveal: (() => void) | undefined
   onUninstall: () => void
 }): ReactNode {

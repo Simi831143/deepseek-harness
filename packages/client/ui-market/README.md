@@ -31,7 +31,7 @@ In the Skills tab, **Add skill → Find skills** opens a new conversation, focus
 Every installed skill's detail dialog has one More actions menu, whether the skill came from the market or a personal folder:
 
 - **Edit** opens a new conversation whose composer reads `/skill-creator 请帮我编辑 /<skill> 这个 skill`, with both names as skill chips, unsent.
-- **Open folder** shows the skill's instruction file selected in the Host file manager. It appears only when the Host reports a desktop and the skill has a file path.
+- **Open folder** shows a personal skill's instruction file selected in the Host file manager. It appears only for personal skills when the Host reports a desktop and the skill has a file path; market-downloaded skills hide it.
 - **Uninstall** asks for confirmation. A market skill is uninstalled through the market; a personal skill's folder is deleted.
 
 The Connectors tab appears when the Host mounts the connector kind. **Connect** installs a connector that is not installed yet; the first connection shows the program the connector runs and starts it only after the user accepts. An accepted connector switches from its card. The detail dialog shows the connector's state and start failure, and offers Retry, Update, and Uninstall.
