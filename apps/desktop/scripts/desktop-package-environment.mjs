@@ -9,7 +9,7 @@ import {
   DESKTOP_INTRANET_UPDATE_URL_ENV,
   resolveDesktopAutoUpdateConfig,
   resolveDesktopIntranetUpdateUrl,
-} from './desktop-auto-update-environment.mjs'
+} from '@deepseek-ai/dsh-desktop-publisher/desktop-auto-update-environment.mjs'
 import { createWindowsTokenSigner } from './windows-sign.mjs'
 import { resolveDesktopPolicyEnvironment } from './desktop-policy-environment.mjs'
 import { validateMacOSSignatureCacheDirectory } from './macos-signature-cache-directory.mjs'

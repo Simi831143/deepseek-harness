@@ -1,13 +1,12 @@
 /**
  * Transport factory: creates the appropriate MCP transport based on the
  * plugin's resolved config. Stdio spawns a child process (with credential
- * scrubbing) and, when the caller reads stderr, pipes it to the caller;
- * Streamable HTTP connects to a URL.
+ * scrubbing); Streamable HTTP connects to a URL.
  *
  * @module
  */
 
-import type { Transport } from '@modelcontextprotocol/client'
+import type { AuthProvider, FetchLike, Transport } from '@modelcontextprotocol/client'
 import { StdioClientTransport } from '@modelcontextprotocol/client/stdio'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/client'
 import { scrubbedParentEnv } from '@deepseek-ai/dsh-subprocess'
@@ -28,11 +27,17 @@ function buildChildEnv(extra: Record<string, string>): Record<string, string> {
  * Create an MCP transport from the resolved plugin config.
  *
  * @param config - Resolved plugin config discriminated on `transport`.
- * @param onStderrLine - Receives each decoded stderr line of a stdio server from
- *   spawn to exit. Without it the child inherits the Host's stderr.
- * @returns A connected-ready MCP Transport (stdio or Streamable HTTP).
+ * @param fetch - optional OAuth request wrapper that binds each request to the active grant.
+ * @param authProvider - optional passive OAuth token and refresh callbacks.
+ * @param onStderrLine - optional receiver of decoded stdio diagnostics; otherwise stderr is inherited.
+ * @returns an unstarted MCP transport (stdio or Streamable HTTP).
  */
-export function createTransport(config: Config, onStderrLine?: (line: string) => void): Transport {
+export function createTransport(
+  config: Config,
+  fetch?: FetchLike,
+  authProvider?: AuthProvider,
+  onStderrLine?: (line: string) => void,
+): Transport {
   switch (config.transport) {
     case 'stdio': {
       const transport = new StdioClientTransport({
@@ -42,15 +47,15 @@ export function createTransport(config: Config, onStderrLine?: (line: string) =>
         cwd: config.cwd,
         ...onStderrLine === undefined ? {} : { stderr: 'pipe' as const },
       })
-      // The piped stream exists before start(), so the earliest output is read too.
-      const stderr = transport.stderr
-      if (onStderrLine !== undefined && stderr) readStderrLines(stderr, onStderrLine)
+      if (onStderrLine !== undefined && transport.stderr) readStderrLines(transport.stderr, onStderrLine)
       return transport
     }
     case 'streamable-http':
       return new StreamableHTTPClientTransport(
         new URL(config.url),
-        { requestInit: { headers: config.headers } },
+        { requestInit: { headers: config.headers }, ...fetch === undefined ? {} : { fetch },
+          ...authProvider === undefined ? {} : { authProvider, onInsufficientScope: 'throw' },
+        },
       )
   }
 }

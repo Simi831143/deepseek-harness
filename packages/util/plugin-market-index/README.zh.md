@@ -37,6 +37,7 @@ kind: "package-library"
 
 ```ts
 import { MarketIndexError, marketInstallTarget, parseMarketIndex } from '@deepseek-ai/dsh-plugin-market-index'
+import { gitMarketIndexSource, isGitMarketIndexSourceAddress, parseGitMarketIndexSource } from '@deepseek-ai/dsh-plugin-market-index/source'
 ```
 
 | 导出 | 作用 |
@@ -45,6 +46,9 @@ import { MarketIndexError, marketInstallTarget, parseMarketIndex } from '@deepse
 | `marketInstallTarget(name, version)` | 安装该精确版本的 `{ spec, registry? }`。 |
 | `MarketIndexError` | 携带 `path` 和 `reason` 的校验失败。 |
 | `MAX_INLINE_ICON_BYTES` | 内联 `data:` 图标解码后载荷的最大字节数，即 32 KiB。 |
+| `parseGitMarketIndexSource(input)` | 规范的 Git 索引地址、Git 远端和文件位置。 |
+| `gitMarketIndexSource(input, path?, ref?)` | 从粘贴的仓库链接和可选的文件位置生成规范的 Git 索引地址。 |
+| `isGitMarketIndexSourceAddress(input)` | 地址是否指向 Git 仓库。 |
 | `MarketIndex`, `MarketPlugin`, `MarketVersion`, `MarketEngines`, `MarketSource`, `MarketRepository`, `MarketIndexMetadata`, `MarketPluginMetadata`, `MarketDeclaration`, `MarketSortKeyDeclaration`, `MarketInstallTarget` | 经过校验的记录类型。 |
 
 <a id="model-experience"></a>

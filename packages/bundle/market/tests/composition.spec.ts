@@ -61,7 +61,7 @@ it('composes one catalog reader and registers skills, connectors and profile plu
     await writeFile(join(dir, 'cordis.yml'), '[]\n')
     const profile: ProfileContext = {
       name: 'test', dir, patchPath: join(dir, 'cordis.patch.yml'), installAnchor: join(home, 'package.json'),
-      cwd: home, home, startedBundles: [], overlays: [], telemetryDisabledEnv: undefined,
+      cwd: home, home, startedBundles: [], overlayPaths: [], telemetryDisabledEnv: undefined,
     }
     const modules = {
       '@deepseek-ai/dsh-market': Market,

@@ -47,7 +47,8 @@ import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type { DraftReference } from '@deepseek-ai/dsh-client-ui-conversation/client'
-import { rankByName, IconSkillOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
+import { IconSkillOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
+import { TextSearchIndex } from '@deepseek-ai/dsh-util-text-search'
 import { SkillRow } from './SkillRow.tsx'
 import { SkillReference, type SkillReferenceInjected } from './SkillReference.tsx'
 import { skillReferenceRule } from './user-text-rules.ts'
@@ -208,7 +209,7 @@ export function apply(ctx: ClientContext): void {
         const label = labelOf(skill.name)
         return label === undefined ? skill : { ...skill, label }
       })
-      return rankByName(titled, query)
+      return new TextSearchIndex(titled, skill => ({ fuzzy: [skill.name, ...'label' in skill ? [skill.label] : []] })).search(query)
         .map(skill => ({
           name: skill.name,
           ...'label' in skill ? { label: skill.label } : {},

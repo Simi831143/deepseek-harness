@@ -113,7 +113,7 @@ async function fixture(seed?: CredentialRecord): Promise<Fixture> {
     appId: APP_ID, apiOrigin, authorizeEndpoint: `${apiOrigin}/authorize`, scope: SCOPE, requestTimeoutMs: 2_000, attemptTimeoutMs: 20_000,
   })
   await accountFiber
-  const account = ctx.deepseekAccount as FeishuAccount
+  const account = ctx.feishuAccount
   if (seed === undefined) holdRefresh = false
   const dispose = async (): Promise<void> => {
     await accountFiber.dispose()
@@ -131,7 +131,7 @@ async function fixture(seed?: CredentialRecord): Promise<Fixture> {
 async function waitForPhase(account: FeishuAccount, phase: AccountView['attempt'] extends infer Attempt ? Attempt extends { phase: infer Phase } ? Phase : never : never): Promise<AccountView> {
   const controller = new AbortController()
   try {
-    for await (const view of account.watch(controller.signal)) if (view.attempt?.phase === phase) return view
+    for await (const { state } of account.watch(controller.signal)) if (state.attempt?.phase === phase) return state
   } finally {
     controller.abort()
   }

@@ -1,4 +1,5 @@
 /** Inline text and reference presentation; business rules supply resolved JSON data and actions. */
+import type { HTMLAttributes } from 'react'
 import type { ReactNode } from 'react'
 import clsx from 'clsx'
 import { ReferenceIconRegular, type ReferenceIconKind } from './ReferenceIcon.tsx'
@@ -22,6 +23,8 @@ export function UserTextRun({ text }: UserTextRunProps): ReactNode {
 /** Presentation selected by a reference renderer, independent of its matching grammar. */
 export interface ReferenceChipProps {
   readonly appearance: ReferenceIconKind | 'skill' | 'command'
+  /** Explicit object-menu gesture bindings; absent for display-only references. */
+  readonly contextMenuProps?: Pick<HTMLAttributes<HTMLElement>, 'onContextMenu' | 'onKeyDown' | 'tabIndex'>
   readonly label: string
   readonly title: string
   /** Absent for display-only references and previews. */
@@ -39,7 +42,9 @@ export interface ReferenceChipProps {
  * @param props - resolved visual fields and optional action from the owning renderer.
  * @returns an inline label, or a keyboard-accessible button when activation is supplied.
  */
-export function ReferenceChip({ appearance, label, title, onActivate, display = 'text' }: ReferenceChipProps): ReactNode {
+export function ReferenceChip({
+  appearance, label, title, onActivate, contextMenuProps, display = 'text',
+}: ReferenceChipProps): ReactNode {
   const pill = display === 'pill'
   const slash = !pill && (appearance === 'skill' || appearance === 'command')
   const contents = <>
@@ -48,9 +53,15 @@ export function ReferenceChip({ appearance, label, title, onActivate, display = 
   </>
   const className = clsx(css.refChip, slash && css.slashChip, pill && css.pillChip)
   return onActivate === undefined
-    ? <span className={className} data-ref-chip={appearance} title={title}>{contents}</span>
+    ? <span
+      {...contextMenuProps}
+      className={className}
+      data-ref-chip={appearance}
+      title={title}
+    >{contents}</span>
     : <button
       type="button"
+      {...contextMenuProps}
       className={clsx(className, markdownCss.fileMention)}
       data-ref-chip={appearance}
       title={title}

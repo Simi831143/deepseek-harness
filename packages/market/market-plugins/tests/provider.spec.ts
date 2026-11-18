@@ -18,7 +18,7 @@ async function fixture() {
   onTestFinished(async () => { await ctx.fiber.dispose(); await rm(home, { recursive: true, force: true }) })
   const profile: ProfileContext = {
     name: 'test', dir: home, home, cwd: home, patchPath: join(home, 'cordis.patch.yml'), installAnchor: join(home, 'anchor.json'),
-    startedBundles: [], overlays: [], telemetryDisabledEnv: undefined,
+    startedBundles: [], overlayPaths: [], telemetryDisabledEnv: undefined,
   }
   await writeFile(join(home, 'package.json'), '{}')
   ctx.provide('profileContext', profile)
@@ -69,7 +69,7 @@ async function fixture() {
 
 function bundle(availability: BundleInfo['availability'] = 'profile'): BundleInfo {
   return { name: 'demo', version: '0.9.0', official: false, availability, enabled: false, installed: availability !== 'installation',
-    optional: false, removable: availability !== 'installation', updatable: false, rows: [], overrides: [] }
+    optional: false, removable: availability !== 'installation', rows: [], overrides: [] }
 }
 
 it('reads installation state from Plugin Manager and refuses application-provided packages', async () => {

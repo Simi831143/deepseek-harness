@@ -1,6 +1,6 @@
 /** Locate the Windows Desktop's bundled Cua Driver MCP server outside ASAR. */
 import { dirname, join } from 'node:path'
-import type { StdioConfig } from '@deepseek-ai/dsh-mcp-client'
+import type { ConfigInput } from '@deepseek-ai/dsh-mcp-client'
 
 /**
  * Select the bundled stdio server without depending on PATH or a separate Cua Driver installation.
@@ -10,7 +10,7 @@ import type { StdioConfig } from '@deepseek-ai/dsh-mcp-client'
  * @param platform - Application host platform.
  * @returns Windows server configuration, or undefined for platforms without this payload.
  */
-export function desktopCuaDriverConfig(source: string, platform: NodeJS.Platform = process.platform): StdioConfig | undefined {
+export function desktopCuaDriverConfig(source: string, platform: NodeJS.Platform = process.platform): Extract<ConfigInput, { transport: 'stdio' }> | undefined {
   if (platform !== 'win32') return undefined
   const root = join(dirname(source), 'cua-driver')
   return {

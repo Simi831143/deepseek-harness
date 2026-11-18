@@ -16,9 +16,13 @@ const BUSY_PHASES: ReadonlySet<DesktopUpdatePresentation['phase']> = new Set([
 
 function failureCopy(failure: DesktopUpdateFailureKind | undefined, t: SettingsTranslate): string {
   const failures: Readonly<Record<DesktopUpdateFailureKind, string>> = {
+    configuration: t('desktop.update.configurationFailed'),
     check: t('desktop.update.checkFailed'),
     'check-network': t('desktop.update.checkNetworkFailed'),
     download: t('desktop.update.downloadFailed'),
+    'download-space': t('desktop.update.downloadSpaceFailed'),
+    'download-permission': t('desktop.update.downloadPermissionFailed'),
+    'download-busy': t('desktop.update.downloadBusyFailed'),
     'download-network': t('desktop.update.downloadNetworkFailed'),
     install: t('desktop.update.installFailed'),
     'install-network': t('desktop.update.installNetworkFailed'),
@@ -41,6 +45,10 @@ interface UpdateCardCopy {
 }
 
 function cardCopy(state: DesktopUpdatePresentation | undefined, failed: boolean, t: SettingsTranslate): UpdateCardCopy {
+  if (state?.configurationError !== undefined) {
+    const title = t('desktop.update.configurationFailed')
+    return { title, action: t('desktop.update.retryAction'), tooltip: t(`desktop.update.configuration.${state.configurationError}`), error: true }
+  }
   if (failed || state === undefined) {
     const retry = t('desktop.update.retry')
     return { title: retry, action: t('desktop.update.retryAction'), tooltip: retry, error: true }
@@ -94,7 +102,7 @@ export function DesktopUpdateIndicator({ wide, hidden, t, view, onOpen }: {
   onOpen: () => void
 }) {
   const { presentation: state, failed, opening } = view
-  if (!wide || hidden || (!failed && (state === undefined || state.phase === 'idle'))) return null
+  if (!wide || hidden || (!failed && (state === undefined || (state.phase === 'idle' && state.configurationError === undefined)))) return null
   const copy = cardCopy(state, failed, t)
   const busy = opening || (!failed && state !== undefined && BUSY_PHASES.has(state.phase))
   return <section className={clsx(css.card, copy.error && css.error)} aria-label={t('desktop.update.region')}>
@@ -127,7 +135,7 @@ export function DesktopUpdateBadge({ useDesktopUpdate, useConnectionState, t }: 
   const { presentation: state, failed } = useDesktopUpdate(value => value)
   const connection = useConnectionState(value => value)
   if (((connection === 'disconnected' || connection === 'connecting') && state?.phase !== 'installing')
-    || (!failed && (state === undefined || state.phase === 'idle'))) return null
+    || (!failed && (state === undefined || (state.phase === 'idle' && state.configurationError === undefined)))) return null
   const copy = cardCopy(state, failed, t)
   const label = copy.subtitle === undefined ? copy.title : `${copy.title} ${copy.subtitle}`
   return <Tooltip label={copy.tooltip} side="right">

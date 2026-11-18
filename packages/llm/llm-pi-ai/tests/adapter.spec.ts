@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { Context, Service } from '@deepseek-ai/cordis'
-import { AttachmentId, AttachmentStore, ImageVariantId } from '@deepseek-ai/dsh-attachment'
+import { type AttachmentId, AttachmentStore, type ImageVariantId } from '@deepseek-ai/dsh-attachment'
 import type {
   ImageAttachmentLimits,
   ImageAttachmentRef,
@@ -9,15 +9,16 @@ import type {
   SaveImageAttachment,
   StoredImageAttachment,
 } from '@deepseek-ai/dsh-attachment'
-import LlmRuntime, { createToolResultMessage, createUserMessage, CONTEXT_WINDOW_EXCEEDED_CODE, LlmError, ReasoningEffortId, userAgent } from '@deepseek-ai/dsh-llm'
+import LlmRuntime, { createToolResultMessage, createUserMessage, CONTEXT_WINDOW_EXCEEDED_CODE, LlmError, type ReasoningEffortId, userAgent } from '@deepseek-ai/dsh-llm'
 import * as LlmPiAi from '@deepseek-ai/dsh-llm-pi-ai'
 import { PiAiAdapter } from '@deepseek-ai/dsh-llm-pi-ai'
 import { MAX_TIMER_DELAY_MS } from '@deepseek-ai/dsh-timeout'
 import { getBuiltinModels } from '@earendil-works/pi-ai/providers/all'
-import { DEFAULT_IMAGE_OFFLOAD_COUNT_QUANTUM, DEFAULT_MAX_REQUEST_IMAGE_BYTES, resolveProfiles } from '../src/config.ts'
+import { DEFAULT_IMAGE_OFFLOAD_COUNT_QUANTUM, DEFAULT_MAX_REQUEST_IMAGE_BYTES, DEFAULT_MAX_REQUEST_IMAGES, resolveProfiles } from '../src/config.ts'
 import { memoryAuth } from './auth-double.ts'
 import { assemble } from './assemble.ts'
 import { anthropicTextEvents, closeMockServers, mockServer, textEvents } from './mock-server.ts'
+import { brandString } from '@deepseek-ai/dsh-brand'
 
 afterEach(async () => {
   vi.useRealTimers()
@@ -26,7 +27,7 @@ afterEach(async () => {
 })
 
 const IMAGE_REF: ImageAttachmentRef = {
-  attachmentId: AttachmentId(`sha256:${'a'.repeat(64)}`),
+  attachmentId: brandString<AttachmentId>(`sha256:${'a'.repeat(64)}`),
   mediaType: 'image/png',
   bytes: 1,
   width: 1,
@@ -45,25 +46,32 @@ class MappedFileSystem extends Service {
   }
 }
 
-async function harness(baseURL: string, overrides: Record<string, unknown> = {}): Promise<Context> {
-  vi.stubEnv('PI_TEST_KEY', 'test-key')
-  const ctx = new Context()
-  await ctx.plugin(LlmRuntime)
-  await ctx.plugin(LlmPiAi, {
-    providers: { deepseek: { apiKeyEnv: 'PI_TEST_KEY', baseURL, ...overrides } },
-  })
-  return ctx
-}
+/** Attachment provider that serves every request image as one 1-byte PNG. */
+class RequestImageStore extends AttachmentStore {
+  readonly imageLimits: ImageAttachmentLimits = {
+    maxImageBytes: 1,
+    maxImagesPerMessage: 1,
+    maxMessageImageBytes: 1,
+    maxImagePixels: 1,
+    maxImageDimension: 1,
+    mediaTypes: ['image/png'],
+  }
 
-/** Attachment service, mounted after the adapter, serving one-byte request versions of every image. */
-function lateAttachmentStore() {
-  const readImageRequest = vi.fn((
-    value: ImageAttachmentRef,
-    _target: ImageRequestTarget,
-    _signal?: AbortSignal,
-  ): Promise<RequestImageAttachment> => (
-    Promise.resolve({
-      variantId: ImageVariantId(`sha256:${'b'.repeat(64)}`),
+  validateImage(_input: SaveImageAttachment): Promise<void> {
+    return Promise.reject(new Error('not used'))
+  }
+
+  saveImage(_input: SaveImageAttachment): Promise<ImageAttachmentRef> {
+    return Promise.reject(new Error('not used'))
+  }
+
+  readImage(ref: ImageAttachmentRef): Promise<StoredImageAttachment> {
+    return Promise.resolve({ ref, data: Uint8Array.of(1) })
+  }
+
+  override readImageRequest(value: ImageAttachmentRef): Promise<RequestImageAttachment> {
+    return Promise.resolve({
+      variantId: brandString<ImageVariantId>(`sha256:${'b'.repeat(64)}`),
       attachment: value,
       data: Uint8Array.of(1),
       mediaType: value.mediaType,
@@ -74,44 +82,17 @@ function lateAttachmentStore() {
       space: 'srgb',
       hasAlpha: true,
     })
-  ))
-
-  class LateAttachmentStore extends AttachmentStore {
-    readonly imageLimits: ImageAttachmentLimits = {
-      maxImageBytes: 1,
-      maxImagesPerMessage: 1,
-      maxMessageImageBytes: 1,
-      maxImagePixels: 1,
-      maxImageDimension: 2000,
-      mediaTypes: ['image/png'],
-    }
-
-    validateImage(_input: SaveImageAttachment): Promise<void> {
-      return Promise.reject(new Error('not used'))
-    }
-
-    saveImage(_input: SaveImageAttachment): Promise<ImageAttachmentRef> {
-      return Promise.reject(new Error('not used'))
-    }
-
-    readImage(value: ImageAttachmentRef): Promise<StoredImageAttachment> {
-      return Promise.resolve({ ref: value, data: Uint8Array.of(1) })
-    }
-
-    override imageHostPath(_ref: ImageAttachmentRef): string {
-      return HOST_IMAGE_PATH
-    }
-
-    override readImageRequest(
-      value: ImageAttachmentRef,
-      policy: ImageRequestTarget,
-      signal?: AbortSignal,
-    ): Promise<RequestImageAttachment> {
-      return readImageRequest(value, policy, signal)
-    }
   }
+}
 
-  return { LateAttachmentStore, readImageRequest }
+async function harness(baseURL: string, overrides: Record<string, unknown> = {}): Promise<Context> {
+  vi.stubEnv('PI_TEST_KEY', 'test-key')
+  const ctx = new Context()
+  await ctx.plugin(LlmRuntime)
+  await ctx.plugin(LlmPiAi, {
+    providers: { deepseek: { apiKeyEnv: 'PI_TEST_KEY', baseURL, ...overrides } },
+  })
+  return ctx
 }
 
 /** Direct adapter over the real profile resolver, with a fixed key per call. */
@@ -212,20 +193,41 @@ describe('PiAiAdapter provider routing', () => {
     expect(server.requests[0]).not.toHaveProperty('dsh_plugin_packages')
   })
 
+  it('routes OpenCode Go requests by Session id through its required session header', async () => {
+    const server = await mockServer([{ events: textEvents }, { events: textEvents }])
+    const ctx = new Context()
+    await ctx.plugin(LlmRuntime)
+    ctx.llm.registerAdapter(['opencode-go'], adapterOf({
+      'opencode-go': { apiKeyEnv: 'PI_TEST_KEY', baseURL: `${server.url}/v1` },
+    }))
+
+    await assemble(ctx, {
+      provider: 'opencode-go',
+      model: 'deepseek-v4.1-flash',
+      messages: [],
+      sessionId: 'opencode-session' as never,
+    })
+    await assemble(ctx, { provider: 'opencode-go', model: 'deepseek-v4.1-flash', messages: [] })
+
+    expect(server.paths).toEqual(['/v1/chat/completions', '/v1/chat/completions'])
+    expect(server.headers[0]?.['x-opencode-session']).toBe('opencode-session')
+    expect(server.headers[1]).not.toHaveProperty('x-opencode-session')
+  })
+
   it('uses a dynamic request effort and reports unsupported efforts before network I/O', async () => {
     const server = await mockServer([{ events: textEvents }, { events: textEvents }])
     const ctx = await harness(server.url, { reasoning: 'max' })
 
     await assemble(ctx, {
       model: 'deepseek-flash',
-      reasoningEffort: ReasoningEffortId('high'),
+      reasoningEffort: brandString<ReasoningEffortId>('high'),
       messages: [],
     })
     expect(server.requests[0]).toMatchObject({ reasoning_effort: 'high' })
 
     await assemble(ctx, {
       model: 'deepseek-flash',
-      reasoningEffort: ReasoningEffortId('off'),
+      reasoningEffort: brandString<ReasoningEffortId>('off'),
       messages: [],
     })
     expect(server.requests[1]).toMatchObject({ thinking: { type: 'disabled' } })
@@ -233,7 +235,7 @@ describe('PiAiAdapter provider routing', () => {
 
     const unsupported = await assemble(ctx, {
       model: 'deepseek-flash',
-      reasoningEffort: ReasoningEffortId('xhigh'),
+      reasoningEffort: brandString<ReasoningEffortId>('xhigh'),
       messages: [],
     })
     expect(unsupported.finish).toMatchObject({
@@ -302,8 +304,69 @@ describe('PiAiAdapter provider routing', () => {
 
   it('resolves attachment and filesystem services mounted after the adapter when dispatching an image', async () => {
     const server = await mockServer([{ status: 401, body: JSON.stringify({ error: { message: 'expected mock failure' } }) }])
-    const ref = IMAGE_REF
-    const { LateAttachmentStore, readImageRequest } = lateAttachmentStore()
+    const attachmentId = brandString<AttachmentId>(`sha256:${'a'.repeat(64)}`)
+    const ref: ImageAttachmentRef = {
+      attachmentId,
+      mediaType: 'image/png',
+      bytes: 1,
+      width: 1,
+      height: 1,
+    }
+    const readImage = vi.fn((_ref: ImageAttachmentRef): Promise<StoredImageAttachment> =>
+      Promise.resolve({ ref, data: Uint8Array.of(1) }))
+    const readImageRequest = vi.fn((
+      value: ImageAttachmentRef,
+      _target: ImageRequestTarget,
+      _signal?: AbortSignal,
+    ): Promise<RequestImageAttachment> => (
+      Promise.resolve({
+        variantId: brandString<ImageVariantId>(`sha256:${'b'.repeat(64)}`),
+        attachment: value,
+        data: Uint8Array.of(1),
+        mediaType: value.mediaType,
+        bytes: 1,
+        width: value.width,
+        height: value.height,
+        depth: 'uchar',
+        space: 'srgb',
+        hasAlpha: true,
+      })
+    ))
+
+    class LateAttachmentStore extends AttachmentStore {
+      readonly imageLimits: ImageAttachmentLimits = {
+        maxImageBytes: 1,
+        maxImagesPerMessage: 1,
+        maxMessageImageBytes: 1,
+        maxImagePixels: 1,
+        maxImageDimension: 2000,
+        mediaTypes: ['image/png'],
+      }
+
+      validateImage(_input: SaveImageAttachment): Promise<void> {
+        return Promise.reject(new Error('not used'))
+      }
+
+      saveImage(_input: SaveImageAttachment): Promise<ImageAttachmentRef> {
+        return Promise.reject(new Error('not used'))
+      }
+
+      readImage(value: ImageAttachmentRef): Promise<StoredImageAttachment> {
+        return readImage(value)
+      }
+
+      override imageHostPath(_ref: ImageAttachmentRef): string {
+        return HOST_IMAGE_PATH
+      }
+
+      override readImageRequest(
+        value: ImageAttachmentRef,
+        policy: ImageRequestTarget,
+        signal?: AbortSignal,
+      ): Promise<RequestImageAttachment> {
+        return readImageRequest(value, policy, signal)
+      }
+    }
 
     const ctx = new Context()
     await ctx.plugin(LlmRuntime)
@@ -332,32 +395,29 @@ describe('PiAiAdapter provider routing', () => {
     expect(server.paths).toEqual(['/v1/responses'])
   })
 
-  it('fails a request over the route image-count bound before provider I/O', async () => {
-    const server = await mockServer([])
-    const { LateAttachmentStore, readImageRequest } = lateAttachmentStore()
+  it.each([
+    { name: 'the default count bound rejects', profile: {}, failure: { code: 'IMAGE_OFFLOAD_REQUIRED', offloadImages: DEFAULT_IMAGE_OFFLOAD_COUNT_QUANTUM }, requests: 0 },
+    { name: 'a raised count bound dispatches', profile: { maxRequestImages: 60 }, failure: { code: 'AUTH' }, requests: 1 },
+  ])('$name a request carrying 51 retained images', async ({ profile, failure, requests }) => {
+    const server = await mockServer([{ status: 401, body: JSON.stringify({ error: { message: 'expected mock failure' } }) }])
     const ctx = new Context()
     await ctx.plugin(LlmRuntime)
     await ctx.plugin(LlmPiAi, {
-      providers: {
-        openai: { apiKeyEnv: 'PI_TEST_KEY', baseURL: `${server.url}/v1`, maxRequestImages: 2, imageOffloadCountQuantum: 2 },
-      },
+      providers: { openai: { apiKeyEnv: 'PI_TEST_KEY', baseURL: `${server.url}/v1`, ...profile } },
     })
-    await ctx.plugin(LateAttachmentStore)
-    await ctx.plugin(MappedFileSystem)
+    await ctx.plugin(RequestImageStore)
 
-    const image = { type: 'image', attachment: IMAGE_REF } as const
     const result = await assemble(ctx, {
       provider: 'openai',
       model: 'gpt-4.1',
-      messages: [createUserMessage({
-        content: [image, image, image],
-        source: { kind: 'model', provider: 'deepseek-official', model: 'deepseek-v4-flash' },
-      })],
+      messages: Array.from({ length: DEFAULT_MAX_REQUEST_IMAGES + 1 }, () => createUserMessage({
+        content: [{ type: 'image', attachment: IMAGE_REF }],
+        source: { kind: 'test' },
+      })),
     })
 
-    expect(result.finish).toMatchObject({ kind: 'error', failure: { code: 'IMAGE_OFFLOAD_REQUIRED', offloadImages: 2 } })
-    expect(readImageRequest).toHaveBeenCalledTimes(1)
-    expect(server.requests).toHaveLength(0)
+    expect(result.finish).toMatchObject({ kind: 'error', failure })
+    expect(server.requests).toHaveLength(requests)
   })
 
   it('forces one wire request for an SDK-retryable provider failure', async () => {
@@ -413,6 +473,29 @@ describe('PiAiAdapter provider routing', () => {
     const result = await assemble(ctx, { model: 'deepseek-flash', messages: [] })
     expect(result.finish).toMatchObject({ kind: 'error', failure: { code } })
     expect(server.paths).toEqual(['/chat/completions'])
+  })
+
+  it('classifies a gateway 500 that relays an upstream 401 as SERVER with the rendered message', async () => {
+    vi.stubEnv('PI_TEST_KEY', 'test-key')
+    // The Anthropic SDK renders the whole JSON body after the gateway's own status.
+    const body = JSON.stringify({
+      error: {
+        origin: 'upstream',
+        message: 'upstream returned an error response: User not found.',
+        type: 'upstream_error',
+        upstream: { provider: 'custom', status: 401, body: { error: { message: 'User not found.' } } },
+      },
+    })
+    const server = await mockServer([{ status: 500, body }])
+    const ctx = new Context()
+    await ctx.plugin(LlmRuntime)
+    await ctx.plugin(LlmPiAi, {
+      providers: {
+        gateway: { apiKeyEnv: 'PI_TEST_KEY', api: 'anthropic-messages', baseURL: server.url, models: [{ id: 'gateway-model' }] },
+      },
+    })
+    const result = await assemble(ctx, { provider: 'gateway', model: 'gateway-model', messages: [] })
+    expect(result.finish).toEqual({ kind: 'error', failure: { message: `500 ${body}`, code: 'SERVER' } })
   })
 
   it('uses the resolved catalog context window for usage-based overflow detection', async () => {
@@ -535,21 +618,21 @@ describe('provider profile lifecycle', () => {
       .resolves.toMatchObject({
         reasoning: {
           efforts: [
-            { id: ReasoningEffortId('off'), name: 'Off' },
-            { id: ReasoningEffortId('low'), name: 'Low' },
-            { id: ReasoningEffortId('high'), name: 'High' },
-            { id: ReasoningEffortId('max'), name: 'Max' },
+            { id: brandString<ReasoningEffortId>('off'), name: 'Off' },
+            { id: brandString<ReasoningEffortId>('low'), name: 'Low' },
+            { id: brandString<ReasoningEffortId>('high'), name: 'High' },
+            { id: brandString<ReasoningEffortId>('max'), name: 'Max' },
           ],
         },
       })
     const extended = await ctx.llm.resolveModelInfo('openai', 'gpt-5.6-sol')
     expect(extended.reasoning?.efforts.map(effort => effort.id)).toEqual([
-      ReasoningEffortId('off'),
-      ReasoningEffortId('low'),
-      ReasoningEffortId('medium'),
-      ReasoningEffortId('high'),
-      ReasoningEffortId('xhigh'),
-      ReasoningEffortId('max'),
+      brandString<ReasoningEffortId>('off'),
+      brandString<ReasoningEffortId>('low'),
+      brandString<ReasoningEffortId>('medium'),
+      brandString<ReasoningEffortId>('high'),
+      brandString<ReasoningEffortId>('xhigh'),
+      brandString<ReasoningEffortId>('max'),
     ])
     // A catalog model without reasoning is the same case as a hand-declared
     // one: pi-ai reports the single level `off`, which translates to omitting
@@ -565,7 +648,7 @@ describe('provider profile lifecycle', () => {
       providers: { deepseek: { reasoning: 'max' } },
     })
     await expect(supported.llm.resolveModelInfo('deepseek', 'deepseek-flash'))
-      .resolves.toMatchObject({ reasoning: { defaultEffort: ReasoningEffortId('max') } })
+      .resolves.toMatchObject({ reasoning: { defaultEffort: brandString<ReasoningEffortId>('max') } })
 
     // A profile level this model cannot take DESCRIBES as no default rather
     // than failing: resolveModelInfo builds the model catalog, and a catalog
@@ -592,7 +675,7 @@ describe('provider profile lifecycle', () => {
       providers: { deepseek: { reasoning: 'off' } },
     })
     await expect(disabled.llm.resolveModelInfo('deepseek', 'deepseek-flash'))
-      .resolves.toMatchObject({ reasoning: { defaultEffort: ReasoningEffortId('off') } })
+      .resolves.toMatchObject({ reasoning: { defaultEffort: brandString<ReasoningEffortId>('off') } })
   })
 
   it('serves declared reasoning efforts to selectors and honours the profile default', async () => {
@@ -620,11 +703,11 @@ describe('provider profile lifecycle', () => {
     await expect(ctx.llm.resolveModelInfo('acme-gateway', 'acme-think')).resolves.toMatchObject({
       reasoning: {
         efforts: [
-          { id: ReasoningEffortId('off'), name: 'Off' },
-          { id: ReasoningEffortId('low'), name: 'Low' },
-          { id: ReasoningEffortId('high'), name: 'High' },
+          { id: brandString<ReasoningEffortId>('off'), name: 'Off' },
+          { id: brandString<ReasoningEffortId>('low'), name: 'Low' },
+          { id: brandString<ReasoningEffortId>('high'), name: 'High' },
         ],
-        defaultEffort: ReasoningEffortId('high'),
+        defaultEffort: brandString<ReasoningEffortId>('high'),
       },
     })
   })
@@ -653,7 +736,7 @@ describe('provider profile lifecycle', () => {
     await assemble(ctx, {
       provider: 'acme-gateway',
       model: 'acme-think',
-      reasoningEffort: ReasoningEffortId('high'),
+      reasoningEffort: brandString<ReasoningEffortId>('high'),
       messages: [],
     })
     // The declared value, not the canonical level name, goes on the wire.
@@ -662,7 +745,7 @@ describe('provider profile lifecycle', () => {
     const undeclared = await assemble(ctx, {
       provider: 'acme-gateway',
       model: 'acme-think',
-      reasoningEffort: ReasoningEffortId('max'),
+      reasoningEffort: brandString<ReasoningEffortId>('max'),
       messages: [],
     })
     expect(undeclared.finish).toMatchObject({
@@ -698,7 +781,7 @@ describe('provider profile lifecycle', () => {
     const prompt = (effort: string): Promise<unknown> => assemble(ctx, {
       provider: 'acme-gateway',
       model: 'acme-think',
-      reasoningEffort: ReasoningEffortId(effort),
+      reasoningEffort: brandString<ReasoningEffortId>(effort),
       messages: [],
     })
 
@@ -736,7 +819,7 @@ describe('provider profile lifecycle', () => {
       await assemble(ctx, {
         provider: 'acme-gateway',
         model,
-        reasoningEffort: ReasoningEffortId('high'),
+        reasoningEffort: brandString<ReasoningEffortId>('high'),
         system: 'you are a harness',
         messages: [],
       })
@@ -777,7 +860,7 @@ describe('provider profile lifecycle', () => {
     await assemble(ctx, {
       provider: 'acme-gateway',
       model: 'acme-think',
-      reasoningEffort: ReasoningEffortId('off'),
+      reasoningEffort: brandString<ReasoningEffortId>('off'),
       messages: [],
     })
     expect(server.requests[0]).toMatchObject({ reasoning_effort: 'none' })
@@ -808,7 +891,7 @@ describe('provider profile lifecycle', () => {
     await assemble(ctx, {
       provider: 'acme-gateway',
       model: 'acme-think',
-      reasoningEffort: ReasoningEffortId('high'),
+      reasoningEffort: brandString<ReasoningEffortId>('high'),
       messages: [],
     })
     expect(server.requests[0]).not.toHaveProperty('reasoning_effort')
@@ -842,7 +925,7 @@ describe('provider profile lifecycle', () => {
     const request = (model: string, effort: string): Promise<unknown> => assemble(ctx, {
       provider: 'adaptive-gateway',
       model,
-      reasoningEffort: ReasoningEffortId(effort),
+      reasoningEffort: brandString<ReasoningEffortId>(effort),
       maxTokens: 64,
       messages: [],
     })
@@ -901,6 +984,28 @@ describe('provider profile lifecycle', () => {
     expect(server.requests).toHaveLength(0)
   })
 
+  it.each([
+    ['   ', 'is blank; set PI_CUSTOM_REF_KEY to the raw key (the web Models page writes it) or export it in the launching environment'],
+    ['sk-\u{1F600}supersecret', 'contains characters no HTTP header can carry; set PI_CUSTOM_REF_KEY to the raw key alone (the web Models page writes it)'],
+  ])('refuses the unusable key %j behind apiKeyEnv before any request, naming the reference and never the key', async (value, detail) => {
+    vi.stubEnv('PI_CUSTOM_REF_KEY', value)
+    const server = await mockServer([{ events: textEvents }])
+    const ctx = await harness(server.url, { apiKey: undefined, apiKeyEnv: 'PI_CUSTOM_REF_KEY' })
+    const result = await assemble(ctx, { model: 'deepseek-flash', messages: [] })
+    expect(result.finish).toEqual({
+      kind: 'error', failure: { message: `llm-pi-ai: the API key resolved from PI_CUSTOM_REF_KEY ${detail}`, code: 'INVALID_CREDENTIAL' },
+    })
+    expect(server.requests).toHaveLength(0)
+  })
+
+  it('trims whitespace around the key behind apiKeyEnv', async () => {
+    vi.stubEnv('PI_CUSTOM_REF_KEY', '  custom-ref-key\t\n')
+    const server = await mockServer([{ events: textEvents }])
+    const ctx = await harness(server.url, { apiKey: undefined, apiKeyEnv: 'PI_CUSTOM_REF_KEY' })
+    await assemble(ctx, { model: 'deepseek-flash', messages: [] })
+    expect(server.headers[0]?.authorization).toBe('Bearer custom-ref-key')
+  })
+
   it('validates empty, underspecified, legacy-shaped, and explicitly blank profiles', () => {
     expect(DEFAULT_MAX_REQUEST_IMAGE_BYTES).toBe(20 * 1024 * 1024)
     // Empty and omitted dicts are the dormant zero-route posture, not errors.
@@ -921,23 +1026,15 @@ describe('provider profile lifecycle', () => {
       .toBe(DEFAULT_MAX_REQUEST_IMAGE_BYTES)
     expect(resolveProfiles({ openai: { maxRequestImageBytes: 1024 } }).get('openai')?.maxRequestImageBytes)
       .toBe(1024)
-  })
-
-  it('resolves the image-count bound and its offload step', () => {
-    expect(resolveProfiles({ openai: {} }).get('openai')).toMatchObject({
-      imageOffloadCountQuantum: DEFAULT_IMAGE_OFFLOAD_COUNT_QUANTUM,
-    })
-    expect(resolveProfiles({ openai: {} }).get('openai')).not.toHaveProperty('maxRequestImages')
-    expect(resolveProfiles({ openai: { maxRequestImages: 16, imageOffloadCountQuantum: 8 } }).get('openai'))
-      .toMatchObject({ maxRequestImages: 16, imageOffloadCountQuantum: 8 })
-    expect(() => resolveProfiles({ openai: { maxRequestImages: 0 } })).toThrow(/maxRequestImages must be a positive/)
-    expect(() => resolveProfiles({ openai: { maxRequestImages: 1.5 } })).toThrow(/maxRequestImages must be a positive/)
-    expect(() => resolveProfiles({ openai: { imageOffloadCountQuantum: 8 } }))
-      .toThrow(/imageOffloadCountQuantum requires maxRequestImages/)
-    expect(() => resolveProfiles({ openai: { maxRequestImages: 16, imageOffloadCountQuantum: 0 } }))
-      .toThrow(/imageOffloadCountQuantum must be a positive/)
-    expect(() => resolveProfiles({ openai: { maxRequestImages: 16, imageOffloadCountQuantum: 17 } }))
-      .toThrow(/imageOffloadCountQuantum must not exceed maxRequestImages/)
+    expect(() => resolveProfiles({ openai: { maxRequestImages: 0 } })).toThrow(/maxRequestImages must/)
+    expect(() => resolveProfiles({ openai: { maxRequestImages: 1.5 } })).toThrow(/maxRequestImages must/)
+    expect(resolveProfiles({ openai: {} }).get('openai')?.maxRequestImages).toBe(DEFAULT_MAX_REQUEST_IMAGES)
+    expect(resolveProfiles({ openai: { maxRequestImages: 100 } }).get('openai')?.maxRequestImages).toBe(100)
+    expect(resolveProfiles({ openai: {} }).get('openai')?.imageOffloadCountQuantum).toBe(DEFAULT_IMAGE_OFFLOAD_COUNT_QUANTUM)
+    expect(resolveProfiles({ openai: { maxRequestImages: 4 } }).get('openai')?.imageOffloadCountQuantum).toBe(4)
+    expect(() => resolveProfiles({ openai: { maxRequestImages: 4, imageOffloadCountQuantum: 5 } }))
+      .toThrow(/imageOffloadCountQuantum must be .* no greater than maxRequestImages/)
+    expect(() => resolveProfiles({ openai: { imageOffloadCountQuantum: 0 } })).toThrow(/imageOffloadCountQuantum must/)
   })
 
   it.each([
@@ -971,6 +1068,7 @@ describe('provider profile lifecycle', () => {
       { maxRequestImageBytes: 0 },
       { maxRequestImageBytes: 1.5 },
       { maxRequestImageBytes: Number.NaN },
+      { maxRequestImages: 0 },
     ]
     for (const entry of invalid) {
       const ctx = new Context()
@@ -1003,7 +1101,7 @@ describe('provider profile lifecycle', () => {
     await expect((async () => {
       for await (const _chunk of adapter.stream({ provider: 'anthropic', model: 'claude-sonnet-4', messages: [] })) { /* drain */ }
     })()).rejects.toMatchObject({ code: 'NO_ADAPTER' })
-    expect(new LlmError('x', 'X')).toBeInstanceOf(Error)
+    expect(LlmError.fromFailure({ message: 'x', code: 'X' })).toBeInstanceOf(Error)
   })
 
   it('rejects unsupported or unresolved image input before provider I/O', async () => {

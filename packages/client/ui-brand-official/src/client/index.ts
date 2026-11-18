@@ -1,4 +1,4 @@
-/** LC Camera Agent brand occupants for the browser sidebar slots. */
+/** LC Camera Agent sidebar branding and blank-home whale frame. */
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 // Type-only: pulls the locale plugin's Context merge (ctx.locale).
 import type {} from '@deepseek-ai/dsh-client-locale/client'
@@ -6,6 +6,8 @@ import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 // Type-only: pulls the sidebar brand slot declarations.
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
+import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
+import { PixelWhale } from './home-whale/PixelWhale.tsx'
 // Type-only: pulls the locale namespace table this package merges into.
 import type {} from '@deepseek-ai/dsh-client-ui-slots'
 import { OfficialBrandMark, OfficialBrandName } from './Brand.tsx'
@@ -27,12 +29,15 @@ const NS = 'brand'
 export const inject = ['slots', 'locale']
 
 /**
- * Fill the sidebar brand slots in every build profile as one declaration-aware
- * registration set. The conversation hero retains its declaring package's fallback.
+ * Fill the sidebar brand slots and decorate the conversation hero in every build profile.
  * @param ctx - Client root context.
  */
 export function apply(ctx: ClientContext): void {
   ctx.effect(() => ctx.locale.register(NS, { zh, en, ja, es, fr, de, ru, pt }), 'ui-brand-official: dictionaries')
+  ctx.slots.inject('conversation.hero.frame', () => ctx.slots.register({
+    name: 'conversation.hero.frame',
+    id: 'pixel-whale',
+  }, PixelWhale))
   ctx.slots.inject('sidebar.brand.mark', () =>
     ctx.slots.inject('sidebar.brand.name', function* () {
       yield ctx.slots.register({ name: 'sidebar.brand.mark' }, OfficialBrandMark)

@@ -19,6 +19,7 @@ const HOLES = [
 ] as const
 
 const HERO_HOLE = 'conversation.hero.brand.mark'
+const FRAME_HOLE = 'conversation.hero.frame'
 
 async function bench(declare = true) {
   const ctx = new Context()
@@ -28,7 +29,8 @@ async function bench(declare = true) {
   const slots = ctx.get('slots') as SlotRegistry
   const declareHoles = () => slots.register({
     name: 'root',
-    children: Object.fromEntries([...HOLES, HERO_HOLE].map(name => [name, { kind: 'single', scope: 'root' }])),
+    children: { ...Object.fromEntries([...HOLES, HERO_HOLE].map(name => [name, { kind: 'single', scope: 'root' }])),
+      [FRAME_HOLE]: { kind: 'list', scope: 'root' } },
   } as never, () => null)
   const disposeHoles = declare ? declareHoles() : undefined
   return { ctx, locale, slots, declareHoles, disposeHoles }
@@ -67,11 +69,12 @@ describe('official browser-brand plugin', () => {
     for (const hole of HOLES) expect(after.slots.entries(hole)).toHaveLength(1)
   })
 
-  it('leaves the conversation hero on its declaring fallback even in official builds', async () => {
+  it('adds the whale frame without replacing the conversation hero mark', async () => {
     vi.stubEnv('DSH_CLIENT_BUILD_PROFILE', 'official')
     const subject = await bench()
     await subject.ctx.plugin({ inject: [...inject], apply }).await()
     expect(subject.slots.entries(HERO_HOLE)).toHaveLength(0)
+    expect(subject.slots.entries(FRAME_HOLE)).toHaveLength(1)
   })
 
   it.each(['official', 'local'])('renders the product name and both requested mark sizes in %s builds', async (profile) => {

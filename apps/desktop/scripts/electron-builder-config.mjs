@@ -25,7 +25,7 @@ import {
   DESKTOP_INTRANET_UPDATE_URL_ENV,
   resolveDesktopAutoUpdateConfig,
   resolveDesktopIntranetUpdateUrl,
-} from './desktop-auto-update-environment.mjs'
+} from '@deepseek-ai/dsh-desktop-publisher/desktop-auto-update-environment.mjs'
 import { resolveDesktopBuildCommit } from './desktop-build-commit.mjs'
 import { resolveDesktopBuildVersion } from './desktop-build-version.mjs'
 import { resolveDesktopPolicyEnvironment } from './desktop-policy-environment.mjs'

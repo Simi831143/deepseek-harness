@@ -6,8 +6,8 @@ import { Context, Service } from '@deepseek-ai/cordis'
 import Schema from '@deepseek-ai/schemastery'
 import { z } from 'zod'
 import { AuthorizationDeclinedError, type AuthorizationSession } from '@deepseek-ai/dsh-authorization'
-import type { AccountClientMetadata, AccountDetails, AccountProfile, AccountUserId, AccountView, SignInAttemptId, SignInAttemptView } from '@deepseek-ai/dsh-deepseek-account'
-import { DeepSeekAccount, installAccountTaskCancellation } from '@deepseek-ai/dsh-deepseek-account'
+import type { AccountClientMetadata, AccountDetails, AccountProfile, AccountUpdate, AccountUserId, AccountView, SignInAttemptId, SignInAttemptView } from '@deepseek-ai/dsh-deepseek-account/types'
+import { Remote, TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol'
 import { credentialKey } from '@deepseek-ai/dsh-credentials'
 import { FeishuAuthError, authorizeUrl, exchangeCode, loginOrigin, readUser, refreshToken } from './protocol.ts'
 import type { FeishuAccountConfig } from './types.ts'
@@ -49,8 +49,15 @@ export const Config = Schema.object({
 type ResolvedConfig = ReturnType<typeof Config>
 type Grant = z.infer<typeof grant>
 
-/** Host-only Feishu account implementation. */
-export class FeishuAccount extends DeepSeekAccount {
+declare module '@deepseek-ai/cordis' {
+  interface Context {
+    /** Feishu identity and sign-in, independent of model credentials. */
+    feishuAccount: FeishuAccount
+  }
+}
+
+/** Feishu sign-in and client-safe account operations. */
+export class FeishuAccount extends TypertRemoteService {
   static inject = ['credentials', 'authorization']
 
   private readonly config: ResolvedConfig
@@ -63,8 +70,7 @@ export class FeishuAccount extends DeepSeekAccount {
 
   /** @param ctx - Host context with credentials and authorization services. @param config - provider configuration. */
   constructor(ctx: Context, config: FeishuAccountConfig = {}) {
-    super(ctx)
-    installAccountTaskCancellation(ctx)
+    super(ctx, 'feishuAccount')
     this.config = Config(config)
     if (!this.config.appId) throw new Error('feishu-account: appId is required')
     ctx.authorization.registerFlow({
@@ -104,13 +110,25 @@ export class FeishuAccount extends DeepSeekAccount {
     }
   }
 
-  override async getState(): Promise<AccountView> {
+  /**
+   * Read the account state without exposing its grant.
+   * @returns Stored-account presence and the latest sign-in attempt.
+   */
+  @Remote
+  async getState(): Promise<AccountView> {
     const record = await this.ctx.credentials.readRecord(KEY)
     if (record !== undefined) this.parseGrant(record)
     return { status: record === undefined ? 'signed-out' : 'credential-stored', links: { usageUrl: '', topUpUrl: '' }, attempt: this.attempt?.view ?? null }
   }
 
-  override async getProfile(_client: AccountClientMetadata): Promise<AccountDetails['profile'] | null> {
+  /**
+   * Read the display identity for the current Feishu grant.
+   * @param client - Requesting UI identity.
+   * @returns The profile for the current grant, or null when signed out.
+   */
+  @Remote
+  async getProfile(client: AccountClientMetadata): Promise<AccountDetails['profile'] | null> {
+    void client
     const stored = await this.refreshStoredGrant()
     if (stored === null) return null
     try {
@@ -135,22 +153,16 @@ export class FeishuAccount extends DeepSeekAccount {
     }
   }
 
-  // Feishu supplies identity only: no wallet, bonus, model token, or Platform session exists for this account.
-  override getBalance(_client: AccountClientMetadata): Promise<AccountDetails['balance'] | null> { return Promise.resolve(null) }
-  override getUnnotifiedBonuses(_client: AccountClientMetadata): Promise<null> { return Promise.resolve(null) }
-  override ackBonusNotified(): Promise<boolean> { return Promise.resolve(false) }
-  override resolveToken(): Promise<string | undefined> { return Promise.resolve(undefined) }
-  override rejectToken(): Promise<void> { return Promise.resolve() }
-  override getPlatformSession(): Promise<null> { return Promise.resolve(null) }
-
-  override async getDeviceIdentity(): Promise<{ deviceId?: string; userId?: AccountUserId; osVersion: string }> {
-    const record = await this.ctx.credentials.readRecord(KEY)
-    if (record === undefined) return { osVersion: process.platform }
-    const parsed = this.parseGrant(record)
-    return { userId: parsed.identity.id as AccountUserId, osVersion: process.platform }
-  }
-
-  override async startSignIn(client: AccountClientMetadata, callbackOrigin: string, _loginSource: 'web' | 'desktop'): Promise<AccountView> {
+  /**
+   * Start browser authorization without removing an existing grant.
+   * @param client - Requesting UI identity and language.
+   * @param callbackOrigin - Loopback origin that serves the registered OAuth callback.
+   * @param loginSource - UI that opens the authorization URL.
+   * @returns The state of the new or active sign-in attempt.
+   */
+  @Remote
+  async startSignIn(client: AccountClientMetadata, callbackOrigin: string, loginSource: 'web' | 'desktop'): Promise<AccountView> {
+    void loginSource
     if (this.removing !== undefined) await this.removing
     const origin = loginOrigin(callbackOrigin)
     if (this.closed) throw new FeishuAuthError('protocol')
@@ -181,15 +193,28 @@ export class FeishuAccount extends DeepSeekAccount {
     return this.getState()
   }
 
-  override async cancelSignIn(id: SignInAttemptId): Promise<AccountView> {
+  /**
+   * Cancel the matching sign-in attempt without invalidating a stored grant.
+   * @param attemptId - Attempt to cancel.
+   * @returns Account state after cancellation settles.
+   */
+  @Remote
+  async cancelSignIn(attemptId: SignInAttemptId): Promise<AccountView> {
     const attempt = this.attempt
-    if (attempt?.view.id === id && !['succeeded', 'cancelled', 'expired', 'failed'].includes(attempt.view.phase)) {
+    if (attempt?.view.id === attemptId && !['succeeded', 'cancelled', 'expired', 'failed'].includes(attempt.view.phase)) {
       attempt.controller.abort(); this.ctx.authorization.cancel(KEY); await attempt.done
     }
     return this.getState()
   }
 
-  override signOut(): Promise<AccountView> {
+  /**
+   * Remove the local Feishu grant.
+   * @param client - Requesting UI identity.
+   * @returns Account state after local grant removal.
+   */
+  @Remote
+  signOut(client?: AccountClientMetadata): Promise<AccountView> {
+    void client
     this.removing ??= (async () => {
       if (this.attempt !== undefined) await this.cancelSignIn(this.attempt.view.id)
       await this.ctx.credentials.deleteRecord(KEY)
@@ -199,17 +224,24 @@ export class FeishuAccount extends DeepSeekAccount {
     return this.removing
   }
 
-  override async *watch(signal: AbortSignal): AsyncIterable<AccountView> {
+  /**
+   * Subscribe to login progress and changes in credential presence.
+   * @param signal - Subscription lifetime.
+   * @returns Initial state and subsequent account snapshots.
+   */
+  @Remote({ mode: 'stream' })
+  async *watch(signal: AbortSignal): AsyncIterable<AccountUpdate> {
     let dirty = true
     let wake: (() => void) | undefined
     const changed = (): void => { dirty = true; wake?.() }
-    this.listeners.add(changed); signal.addEventListener('abort', changed, { once: true })
+    const lifetime = AbortSignal.any([signal, this.lifetime.signal])
+    this.listeners.add(changed); lifetime.addEventListener('abort', changed, { once: true })
     try {
-      while (!this.closed && !signal.aborted) {
-        if (dirty) { dirty = false; yield await this.getState(); continue }
+      while (!lifetime.aborted) {
+        if (dirty) { dirty = false; yield { type: 'snapshot', state: await this.getState() }; continue }
         await new Promise<void>((resolve) => { wake = resolve })
       }
-    } finally { this.listeners.delete(changed); signal.removeEventListener('abort', changed) }
+    } finally { this.listeners.delete(changed); lifetime.removeEventListener('abort', changed) }
   }
 
   private async run(session: AuthorizationSession, attempt: Attempt): Promise<void> {
@@ -227,12 +259,15 @@ export class FeishuAccount extends DeepSeekAccount {
     const redirectUri = `${attempt.origin}/feishu/callback`
     const code = Promise.withResolvers<string>()
     const signal = AbortSignal.any([session.signal, AbortSignal.timeout(this.config.attemptTimeoutMs)])
-    const dispose = webServer.register({ kind: 'exact', path: '/feishu/callback', handler: (req, res) => {
+    const dispose = webServer.register({ kind: 'exact', path: '/feishu/callback', auth: 'anonymous', handler: (req, res) => {
       let url: URL
       try { url = new URL(req.url ?? '/', 'http://127.0.0.1') } catch { res.writeHead(400).end(); return }
       const received = url.searchParams.get('state') ?? ''
       const valid = Buffer.byteLength(received) === Buffer.byteLength(state) && timingSafeEqual(Buffer.from(received), Buffer.from(state))
       if (req.method !== 'GET' || !valid || url.searchParams.getAll('state').length !== 1) { res.writeHead(400, { 'cache-control': 'no-store' }).end(); return }
+      if (signal.aborted || attempt.callback !== undefined || attempt.view.phase !== 'waiting-browser') {
+        res.writeHead(409, { 'cache-control': 'no-store' }).end(); return
+      }
       if (url.searchParams.get('error') === 'access_denied') {
         attempt.callback = res
         attempt.declined = true

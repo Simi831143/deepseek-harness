@@ -18,7 +18,7 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 }
 
 /** Services required by the Feishu account UI. */
-export const inject = ['slots', 'locale', 'remote', 'remote.account']
+export const inject = ['slots', 'locale', 'remote', 'remote.feishuAccount']
 
 /** Operations and state shared by the sidebar menu and the Settings section. */
 export interface FeishuAccountFace extends FeishuAccountActions {
@@ -36,14 +36,16 @@ export function apply(ctx: ClientContext): void {
     timezoneOffsetSeconds: -new Date().getTimezoneOffset() * 60,
   })
   const stream = ctx.remote.$stream({
-    name: 'feishu-account', open: signal => ctx.remote.account.watch(signal), ended: () => new Error('account stream ended'),
+    name: 'feishu-account', open: signal => ctx.remote.feishuAccount.watch(signal), ended: () => new Error('account stream ended'),
   })
   const store = createFeishuAccountStore({
-    watch: () => stream,
-    getProfile: value => ctx.remote.account.getProfile(value),
-    startSignIn: (value, origin, source) => ctx.remote.account.startSignIn(value, origin, source),
-    cancelSignIn: id => ctx.remote.account.cancelSignIn(id),
-    signOut: value => ctx.remote.account.signOut(value),
+    async *watch() {
+      for await (const frame of stream) yield { value: frame.value.state, accept: () => frame.accept() }
+    },
+    getProfile: value => ctx.remote.feishuAccount.getProfile(value),
+    startSignIn: (value, origin, source) => ctx.remote.feishuAccount.startSignIn(value, origin, source),
+    cancelSignIn: id => ctx.remote.feishuAccount.cancelSignIn(id),
+    signOut: value => ctx.remote.feishuAccount.signOut(value),
   }, client)
   ctx.effect(() => () => { store.dispose(); return stream.dispose() }, 'ui-account-feishu: account state stream')
   const face: FeishuAccountFace = {

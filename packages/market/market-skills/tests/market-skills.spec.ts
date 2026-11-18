@@ -8,7 +8,8 @@ import { join } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
 import { createVolatile, updateVolatile } from '@deepseek-ai/cosmokit'
 import Market from '@deepseek-ai/dsh-market'
-import SkillRegistry, { type Config as SkillConfig } from '@deepseek-ai/dsh-skill'
+import SkillRegistry from '@deepseek-ai/dsh-skill'
+import type { Config as SkillConfig } from '@deepseek-ai/dsh-skill'
 import * as skillFilesystem from '@deepseek-ai/dsh-skill-filesystem'
 import Storage from '@deepseek-ai/dsh-storage'
 import { DomainFacility } from '@deepseek-ai/dsh-storage-domain'
@@ -95,7 +96,8 @@ async function mount(catalogUrl: string) {
   ctx.provide('settings', {
     update: (ns: string, patch: { disabled: string[] }) => {
       updates.push({ ns, patch })
-      updateVolatile((registry.config as SkillConfig).disabled!, createVolatile(patch.disabled))
+      const config = registry.effectiveConfig as SkillConfig
+      updateVolatile(config.disabled!, createVolatile(patch.disabled))
       registry.ctx.emit('loader/volatile-update', [['disabled']])
       return Promise.resolve()
     },

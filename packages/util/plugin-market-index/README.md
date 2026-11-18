@@ -37,6 +37,7 @@ Install one version with `marketInstallTarget(name, version)`: it returns the ex
 
 ```ts
 import { MarketIndexError, marketInstallTarget, parseMarketIndex } from '@deepseek-ai/dsh-plugin-market-index'
+import { gitMarketIndexSource, isGitMarketIndexSourceAddress, parseGitMarketIndexSource } from '@deepseek-ai/dsh-plugin-market-index/source'
 ```
 
 | Export | Role |
@@ -45,6 +46,9 @@ import { MarketIndexError, marketInstallTarget, parseMarketIndex } from '@deepse
 | `marketInstallTarget(name, version)` | `{ spec, registry? }` that installs that exact version. |
 | `MarketIndexError` | Validation failure carrying `path` and `reason`. |
 | `MAX_INLINE_ICON_BYTES` | Largest decoded payload of an inline `data:` icon, 32 KiB. |
+| `parseGitMarketIndexSource(input)` | Canonical Git index address, Git remote, and file location. |
+| `gitMarketIndexSource(input, path?, ref?)` | Canonical Git index address from a pasted repository link and optional file location. |
+| `isGitMarketIndexSourceAddress(input)` | Whether an address identifies a Git repository. |
 | `MarketIndex`, `MarketPlugin`, `MarketVersion`, `MarketEngines`, `MarketSource`, `MarketRepository`, `MarketIndexMetadata`, `MarketPluginMetadata`, `MarketDeclaration`, `MarketSortKeyDeclaration`, `MarketInstallTarget` | Validated record types. |
 
 <a id="model-experience"></a>

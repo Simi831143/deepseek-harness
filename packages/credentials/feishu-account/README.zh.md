@@ -52,7 +52,7 @@ kind: "package-reference"
 
 - [account-feishu bundle](../../bundle/account-feishu/README.zh.md) —— 挂载此提供方的 profile 行。
 - [authorization](../authorization/README.zh.md) —— 共享浏览器授权生命周期。
-- [deepseek-account](../deepseek-account/README.zh.md) —— 本提供方实现的账号契约。
+- [DeepSeek 账号](../../account/deepseek-account/README.zh.md) —— 单独负责 DeepSeek 登录的账号服务。
 
 -----
 
@@ -63,7 +63,7 @@ kind: "package-reference"
 
 #### 模型看到什么
 
-无。`resolveToken()` 按设计返回空值；本提供方只提供账号身份和登录状态。
+无。`feishuAccount` 服务只提供身份和登录状态，不提供模型凭据。
 
 #### Token 影响
 

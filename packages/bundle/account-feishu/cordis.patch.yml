@@ -2,7 +2,7 @@
 #
 # The Feishu account names the user; it is not a model credential. Models keep
 # their own API keys on the Models page, so this layer disables the upstream
-# account provider, its Settings card, and the account-token model route, then
+# account provider, its Settings card, and its notifications, then
 # inserts the Feishu provider and its account UI. The app secret is read from
 # FEISHU_APP_SECRET in the Host environment; it is never stored in the profile
 # manifest or patch.
@@ -13,7 +13,7 @@
 - id: ui-settings-account
   disabled: true
 
-- id: llm-deepseek-account
+- id: ui-account-notifications
   disabled: true
 
 - insert:

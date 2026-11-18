@@ -232,6 +232,7 @@ describe('SkillRegistry registry', () => {
         get: () => Promise.resolve(undefined),
       })
       await expect(badList.skills.list()).rejects.toThrow('list() must return an array or { candidates, complete } observation')
+      await expect(badList.skills.list()).rejects.toThrow(expect.objectContaining({ name: 'SkillError', code: 'SKILL_INVALID_DEFINITION' }))
     }
 
     const cases: { patch: Partial<SkillCandidate>; expected: string }[] = [
@@ -265,6 +266,7 @@ describe('SkillRegistry registry', () => {
       })
 
       await expect(ctx.skills.list()).rejects.toThrow(expected)
+      await expect(ctx.skills.list()).rejects.toThrow(expect.objectContaining({ name: 'SkillError', code: 'SKILL_INVALID_DEFINITION' }))
     }
   })
 
@@ -559,6 +561,7 @@ describe('SkillRegistry registry', () => {
       })
 
       await expect(ctx.skills.get(skillName)).rejects.toThrow(expected)
+      await expect(ctx.skills.get(skillName)).rejects.toThrow(expect.objectContaining({ name: 'SkillError', code: 'SKILL_INVALID_DEFINITION' }))
     }
   })
 
@@ -1146,7 +1149,7 @@ describe('SkillRegistry disabled setting', () => {
     expect((await ctx.skills.list()).map(skill => skill.name)).toEqual(['alpha', 'beta'])
     const changed = vi.fn()
     ctx.on('skills/change', changed)
-    const config = fiber.config as Config
+    const config = fiber.effectiveConfig as Config
     updateVolatile(config.disabled!, createVolatile(['alpha']))
     fiber.ctx.emit('loader/volatile-update', [['collectCacheMaxEntries']])
     expect(changed).not.toHaveBeenCalled()

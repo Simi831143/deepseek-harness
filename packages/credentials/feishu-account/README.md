@@ -52,7 +52,7 @@ The provider validates callback origins, performs the authorization-code exchang
 
 - [account-feishu bundle](../../bundle/account-feishu/README.md) — the profile rows that mount this provider.
 - [authorization](../authorization/README.md) — shared browser authorization lifecycle.
-- [deepseek-account](../deepseek-account/README.md) — the account contract implemented by this provider.
+- [DeepSeek account](../../account/deepseek-account/README.md) — the separate account service for DeepSeek sign-in.
 
 -----
 
@@ -63,7 +63,7 @@ The provider validates callback origins, performs the authorization-code exchang
 
 #### What the model sees
 
-Nothing. `resolveToken()` intentionally returns no model credential; this provider supplies account identity and sign-in state only.
+Nothing. The `feishuAccount` service supplies identity and sign-in state only and does not provide model credentials.
 
 #### Token effect
 

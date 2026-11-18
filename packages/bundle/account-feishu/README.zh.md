@@ -39,7 +39,7 @@ Windows 打包时，将两个值写入仓库根目录 `.secrets.env`，设置 El
 <details>
 <summary>维护者的工作上下文——点击展开</summary>
 
-`cordis.patch.yml` 关闭 `deepseek-account`、`ui-settings-account` 与 `llm-deepseek-account`，再插入 `feishu-account` 与 `ui-account-feishu`。若不关闭该模型路由，模型列表会出现一个飞书账号永远无法认证的「DeepSeek Account」提供方。`package.json` 声明两个插入包，使这些行能从本 bundle 解析；应用 profile 把本 bundle 选作最后一层。
+`cordis.patch.yml` 关闭 `deepseek-account`、`ui-settings-account` 与 `ui-account-notifications`，再插入 `feishu-account` 与 `ui-account-feishu`。Desktop 和 Web 客户端通过 `feishuAccount` Remote 命名空间读取登录状态。`package.json` 声明两个插入包，使这些行能从本 bundle 解析；应用 profile 把本 bundle 选作最后一层。
 
 提供方使用 PKCE，请求 `offline_access contact:user.email:readonly`，在 token 过期前刷新，并通过 credentials 服务持久化账号身份和刷新凭据。提供方不返回模型 token、钱包链接、余额或平台会话。
 
@@ -86,7 +86,7 @@ Windows 打包时，将两个值写入仓库根目录 `.secrets.env`，设置 El
 
 - **登录时必须能访问飞书签发方。** 已有会话在需要刷新前使用已存 grant。
 - **部署密钥仍属于部署配置。** 缺少 `FEISHU_APP_SECRET` 时，登录会在显示二维码前失败，账号界面提示当前版本无法登录；缺少 `LONGCHEER_API_KEY` 会使所有内置网关模型请求失败。Host 仍会启动，两个密钥都不会复制到 profile `.env`。
-- **提供方不是模型凭据提供方。** `resolveToken()` 按设计返回空值。
+- **提供方不提供模型凭据。** 请在模型设置中单独配置 API 密钥。
 
 <a id="dev-note"></a>
 ### 开发备注

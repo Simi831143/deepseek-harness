@@ -108,7 +108,7 @@ describe('profile plugin package lifecycle', { timeout: 120_000 }, () => {
     const pnpm = fileURLToPath(new URL('../../../../apps/desktop/node_modules/pnpm/bin/pnpm.mjs', import.meta.url))
     const profile: ProfileContext = {
       name: 'test', startedBundles: [], dir, patchPath: join(dir, 'cordis.patch.yml'), installAnchor: anchor,
-      cwd: home, home, overlays: [], telemetryDisabledEnv: undefined,
+      cwd: home, home, overlayPaths: [], telemetryDisabledEnv: undefined,
       packageManager: { command: process.execPath, args: ['--expose-internals', pnpm], env: { PATH: '', ELECTRON_RUN_AS_NODE: '1' } },
     }
     await writeFile(join(dir, 'cordis.yml'), JSON.stringify([

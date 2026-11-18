@@ -39,7 +39,7 @@ The callback uses `http://127.0.0.1:19387/feishu/callback` on Desktop. Web uses 
 <details>
 <summary>Maintainer details — click to expand</summary>
 
-`cordis.patch.yml` disables `deepseek-account`, `ui-settings-account`, and `llm-deepseek-account`, then inserts `feishu-account` and `ui-account-feishu`. The disabled model route would otherwise list a "DeepSeek Account" provider that the Feishu account can never authenticate. `package.json` declares both inserted packages so the rows resolve from this bundle, while the app profile selects this bundle as its final layer.
+`cordis.patch.yml` disables `deepseek-account`, `ui-settings-account`, and `ui-account-notifications`, then inserts `feishu-account` and `ui-account-feishu`. Desktop and Web clients read login state from the `feishuAccount` Remote namespace. `package.json` declares both inserted packages so the rows resolve from this bundle, while the app profile selects this bundle as its final layer.
 
 The provider uses PKCE, requests `offline_access contact:user.email:readonly`, refreshes tokens before expiry, and persists the account identity and refresh grant through the credentials service. The provider returns no model token, wallet links, balance, or platform session.
 
@@ -86,7 +86,7 @@ None; this package neither assembles nor sends model requests.
 
 - **The Feishu issuer must be reachable during sign-in.** Existing sessions continue to use the stored grant until it needs refreshing.
 - **Deployment secrets remain deployment-sensitive.** Missing `FEISHU_APP_SECRET` makes sign-in fail before any QR code appears, and the account UI reports that this build cannot sign in; missing `LONGCHEER_API_KEY` makes every bundled gateway model request fail. The Host still starts, and neither secret is copied into profile `.env`.
-- **The provider is not a model credential provider.** `resolveToken()` intentionally returns no inference token.
+- **The provider does not supply model credentials.** Configure model API keys separately in Models.
 
 <a id="dev-note"></a>
 ### Dev Note
