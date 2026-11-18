@@ -9,7 +9,10 @@ import { Context } from '@deepseek-ai/cordis'
 import { credentialRef } from '@deepseek-ai/dsh-credentials'
 import type { CredentialProvider } from '@deepseek-ai/dsh-credentials'
 import type { CredentialInfo } from '@deepseek-ai/dsh-credentials/types'
+import { stat } from 'node:fs/promises'
+import { dirname } from 'node:path'
 import { Remote, RemoteError, TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol'
+import { openNativePath, revealNativePath } from '@deepseek-ai/dsh-native-command'
 import { z } from 'zod'
 
 /**
@@ -33,6 +36,21 @@ function parseRequest<T>(method: string, schema: z.ZodType<T>, value: unknown): 
     throw new RemoteError('gateway/bad-request', `invalid payload for ${method}`, { issues: parsed.error.issues })
   }
   return parsed.data
+}
+
+/** A failure's own message, or the thrown value itself when it is not an Error. */
+function messageOf(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
+
+/** Whether a path names an existing regular file; an absent or unreadable path answers false. */
+async function isFile(path: string): Promise<boolean> {
+  return (await stat(path).catch(() => undefined))?.isFile() === true
+}
+
+/** Whether a path names an existing directory; an absent or unreadable path answers false. */
+async function isDirectory(path: string): Promise<boolean> {
+  return (await stat(path).catch(() => undefined))?.isDirectory() === true
 }
 
 /**
@@ -115,6 +133,46 @@ export class CredentialsController extends TypertRemoteService {
     const branded = credentialRef(request.ref)
     const credentials = this.provider()
     await this.write(request.ref, () => credentials.unset(branded))
+  }
+
+  /**
+   * Native file-manager integrations, replaceable by direct unit tests: `reveal`
+   * opens a file's folder with the file selected, `openFolder` opens a folder.
+   */
+  static internals: {
+    reveal?: (path: string, signal: AbortSignal) => Promise<void>
+    openFolder?: (path: string, signal: AbortSignal) => Promise<void>
+  } = {}
+
+  /**
+   * Open the folder holding the provider's own credential document in the
+   * native file manager, with the document selected once it exists; before the
+   * first write creates it, the folder opens alone. The browser supplies no
+   * path and receives none back, and nothing is read from the document.
+   * @param signal - caller lifetime; abort terminates the native command.
+   * @throws RemoteError when no provider is mounted, the provider keeps no local
+   *   document, its folder does not exist, opening fails, or the caller aborts.
+   */
+  @Remote
+  async revealDocument(signal: AbortSignal): Promise<void> {
+    const filename = this.provider().filename
+    if (filename === undefined) {
+      throw new RemoteError('gateway/internal', 'the mounted credential provider keeps no local document', {})
+    }
+    if (signal.aborted) throw new RemoteError('gateway/cancelled', 'credential document reveal was aborted', {})
+    const { reveal = revealNativePath, openFolder = openNativePath } = CredentialsController.internals
+    try {
+      if (await isFile(filename)) {
+        await reveal(filename, signal)
+        return
+      }
+      const folder = dirname(filename)
+      if (!await isDirectory(folder)) throw new Error(`${folder} does not exist yet`)
+      await openFolder(folder, signal)
+    } catch (error: unknown) {
+      if (signal.aborted) throw new RemoteError('gateway/cancelled', 'credential document reveal was aborted', {})
+      throw new RemoteError('gateway/internal', `credential document reveal failed: ${messageOf(error)}`, {}, { cause: error })
+    }
   }
 
   /** Resolve the optional provider or report how to supply it. */

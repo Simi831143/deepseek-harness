@@ -952,6 +952,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         parameters: [{ name: 'ref', description: 'reference name to remove.' }],
         throws: ['RemoteError when the request is invalid, no provider is mounted, or the provider refuses the write.'],
       },
+      {
+        signature: '@Remote async revealDocument(signal: AbortSignal): Promise<void>',
+        description: 'Open the folder holding the provider\'s own credential document in the native file manager, with the document selected once it exists; before the first write creates it, the folder opens alone. The browser supplies no path and receives none back, and nothing is read from the document.',
+        parameters: [{ name: 'signal', description: 'caller lifetime; abort terminates the native command.' }],
+        throws: ['RemoteError when no provider is mounted, the provider keeps no local document, its folder does not exist, opening fails, or the caller aborts.'],
+      },
     ],
   },
   {

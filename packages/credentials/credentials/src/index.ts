@@ -169,6 +169,9 @@ declare module '@deepseek-ai/cordis' {
  * one lock).
  */
 export abstract class CredentialProvider extends Service {
+  /** Optional provider-owned file to reveal; never exposes secret contents. */
+  get filename(): string | undefined { return undefined }
+
   constructor(ctx: Context) {
     super(ctx, 'credentials')
   }

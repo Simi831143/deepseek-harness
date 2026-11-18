@@ -257,6 +257,17 @@ Host service backing the generated `ctx.remote.credentials` namespace. It carrie
  * @throws RemoteError when the request is invalid, no provider is mounted, or the provider refuses the write.
  */
 @Remote async unset(ref: string): Promise<void>
+
+/**
+ * Open the folder holding the provider's own credential document in the
+ * native file manager, with the document selected once it exists; before the
+ * first write creates it, the folder opens alone. The browser supplies no
+ * path and receives none back, and nothing is read from the document.
+ * @param signal - caller lifetime; abort terminates the native command.
+ * @throws RemoteError when no provider is mounted, the provider keeps no local
+ *   document, its folder does not exist, opening fails, or the caller aborts.
+ */
+@Remote async revealDocument(signal: AbortSignal): Promise<void>
 ```
 
 Source: [`packages/api/settings-controller/src/credentials.ts`](../../packages/api/settings-controller/src/credentials.ts)
