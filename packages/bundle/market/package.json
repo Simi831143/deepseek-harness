@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-market-bundle",
   "description": "Bundle that adds the LC Camera Agent market for experts, skills, connectors and plugins",
-  "version": "0.2.1-rc.3",
+  "version": "0.2.2-rc.4",
   "publishConfig": {
     "access": "public"
   },

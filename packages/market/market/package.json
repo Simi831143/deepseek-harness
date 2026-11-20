@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-market",
   "description": "Market core for LC Camera Agent: one published catalog, verified package installation, and installed-item records",
-  "version": "0.2.1-rc.3",
+  "version": "0.2.2-rc.4",
   "publishConfig": {
     "access": "public"
   },

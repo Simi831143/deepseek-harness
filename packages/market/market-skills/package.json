@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-market-skills",
   "description": "Skill kind of the LC Camera Agent market: installed market skills for every Agent, and one switch per skill across every source",
-  "version": "0.2.1-rc.3",
+  "version": "0.2.2-rc.4",
   "publishConfig": {
     "access": "public"
   },

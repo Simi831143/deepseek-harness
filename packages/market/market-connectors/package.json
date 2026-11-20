@@ -1,7 +1,7 @@
 {
   "name": "@deepseek-ai/dsh-market-connectors",
   "description": "Connector kind of the LC Camera Agent market: local MCP programs installed from the market, started and stopped per connector",
-  "version": "0.2.1-rc.3",
+  "version": "0.2.2-rc.4",
   "publishConfig": {
     "access": "public"
   },
