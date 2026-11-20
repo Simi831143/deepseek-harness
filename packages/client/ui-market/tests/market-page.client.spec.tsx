@@ -23,6 +23,30 @@ function translate(copy: Readonly<Record<keyof typeof en, string>>): MarketPageP
 
 afterEach(() => { cleanup() })
 
+it('follows the catalog while open and revalidates it on every tab switch', () => {
+  const view: MarketView = { kind: 'catalog', tab: 'connector' }
+  const stop = vi.fn()
+  const props = {
+    t: translate(zh),
+    useStore: <T,>(select: (value: { view: MarketView }) => T): T => select({ view }),
+    useMarket: <T,>(select: (value: MarketState) => T): T => select(state),
+    useLanguage: <T,>(select: (value: string) => T): T => select('zh'),
+    actions: { setView: vi.fn() },
+    refresh: vi.fn(() => Promise.resolve()),
+    revalidate: vi.fn(() => Promise.resolve()),
+    followCatalog: vi.fn(() => stop),
+  }
+  const page = render(<MarketPage {...Object.assign({} as MarketPageProps, props)} />)
+  expect(props.refresh).toHaveBeenCalledOnce()
+  expect(props.followCatalog).toHaveBeenCalledOnce()
+  fireEvent.click(screen.getByRole('tab', { name: zh.tabPlugins }))
+  expect(props.actions.setView).toHaveBeenCalledWith({ kind: 'catalog', tab: 'plugin' })
+  expect(props.revalidate).toHaveBeenCalledOnce()
+  expect(props.refresh).toHaveBeenCalledOnce()
+  page.unmount()
+  expect(stop).toHaveBeenCalledOnce()
+})
+
 it('starts 创建技能 with the skill-creator chip and the request template after it', () => {
   const view: MarketView = { kind: 'catalog', tab: 'skill' }
   const props = {
@@ -32,6 +56,7 @@ it('starts 创建技能 with the skill-creator chip and the request template aft
     useLanguage: <T,>(select: (value: string) => T): T => select('zh'),
     actions: { setView: vi.fn() },
     refresh: vi.fn(() => Promise.resolve()),
+    followCatalog: vi.fn(() => () => {}),
     loadInstalledSkills: vi.fn(() => Promise.resolve()),
     trySkill: vi.fn(),
   }
@@ -56,6 +81,7 @@ it.each([
     useLanguage: <T,>(select: (value: string) => T): T => select(language),
     actions: { setView: vi.fn() },
     refresh: vi.fn(() => Promise.resolve()),
+    followCatalog: vi.fn(() => () => {}),
     loadInstalledSkills: vi.fn(() => Promise.resolve()),
     findSkills: vi.fn(),
     trySkill: vi.fn(),

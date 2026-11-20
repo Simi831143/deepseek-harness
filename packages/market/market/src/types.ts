@@ -116,7 +116,7 @@ export interface MarketSnapshot {
   /** Increases with every change the browser should render. */
   readonly revision: number
   readonly source: MarketCatalogSource
-  /** ISO time of the last successful remote read, when there was one. */
+  /** ISO time of the last successful remote read, when there was one; a `watch` frame carries a newer time only with another change. */
   readonly fetchedAt?: string
   /** Why the last remote read failed; absent after a successful read. */
   readonly fetchError?: string

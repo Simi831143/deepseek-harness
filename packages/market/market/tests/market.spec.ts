@@ -241,6 +241,40 @@ describe('Market', () => {
     expect(server.requests.some(line => line.includes('.zip'))).toBe(false)
   })
 
+  it('publishes nothing for an unchanged 304, then publishes a recovery and a published change', async () => {
+    const server = await publish()
+    server.setCatalog(catalogText([skillItem(skillZip)]))
+    const ctx = await mountMarket(server.url, await tempDir())
+    // Joins the read started at load, which syncs the kinds registered when it ends.
+    await ctx.market.refreshCatalog()
+    const kind = recordingKind()
+    ctx.effect(() => ctx.market.registerKind(kind))
+    await vi.waitFor(() => { expect(kind.synced).toHaveLength(1) })
+    const settled = ctx.market.catalogSnapshot().revision
+
+    const unchanged = await ctx.market.refreshCatalog()
+    expect(server.requests.at(-1)).toMatch(/^GET \/market\/index\.json "/)
+    expect(unchanged.revision).toBe(settled)
+    expect(kind.synced).toHaveLength(1)
+
+    // A request that fails and one that succeeds again both change what the page shows.
+    const port = new URL(server.url).port
+    vi.spyOn(globalThis, 'fetch').mockRejectedValueOnce(new Error(`connect ECONNREFUSED 127.0.0.1:${port}`))
+    const failed = await ctx.market.refreshCatalog()
+    expect(failed.source).toBe('cache')
+    expect(failed.fetchError).toContain('ECONNREFUSED')
+    expect(failed.revision).toBeGreaterThan(settled)
+    const recovered = await ctx.market.refreshCatalog()
+    expect(recovered.source).toBe('remote')
+    expect(recovered.fetchError).toBeUndefined()
+    expect(recovered.revision).toBeGreaterThan(failed.revision)
+
+    server.setCatalog(catalogText([]))
+    const delisted = await ctx.market.refreshCatalog()
+    expect(delisted.items).toEqual([])
+    expect(delisted.revision).toBeGreaterThan(recovered.revision)
+  })
+
   it('streams a fresh snapshot after each change', async () => {
     const server = await publish()
     server.setCatalog(catalogText([]))

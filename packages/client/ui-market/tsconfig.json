@@ -9,7 +9,13 @@
   ],
   "references": [
     {
+      "path": "../config"
+    },
+    {
       "path": "../../../vendor/cordis"
+    },
+    {
+      "path": "../../../vendor/schemastery"
     },
     {
       "path": "../../api/remotes/tsconfig.client.json"

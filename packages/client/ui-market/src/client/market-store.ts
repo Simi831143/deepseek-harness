@@ -87,7 +87,13 @@ export interface MarketActions {
    * @param name - display name for the failure notice.
    */
   revealSkill(path: string, name: string): Promise<void>
+  /** Read the catalog again; a failed call is reported as a notice. */
   refresh(): Promise<void>
+  /**
+   * Read the catalog again in the background. A failed call is not reported: the page already shows a failed stream
+   * and an unreachable catalog, and a timed read would repeat the toast every interval.
+   */
+  revalidate(): Promise<void>
   loadInstalledSkills(): Promise<void>
   /**
    * Import one encoded local skill. Refusals stay with the caller's form; success reports an installation.
@@ -258,6 +264,16 @@ export function createMarketStore(remote: MarketRemote): MarketStore {
       const result = await remote.refresh()
       if (result.ok) marketResult(result.value)
       else notify({ kind: 'load-failed', reason: reasonOf(result.error) })
+    },
+    async revalidate() {
+      let result: MarketResult<MarketSnapshot>
+      try {
+        result = await remote.refresh()
+      } catch (_lostCall) {
+        // A call the connection dropped is repeated by the next revalidation.
+        return
+      }
+      if (result.ok) marketResult(result.value)
     },
     loadInstalledSkills,
     async importSkill(request) {

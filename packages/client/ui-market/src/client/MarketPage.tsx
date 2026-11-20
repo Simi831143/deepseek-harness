@@ -46,6 +46,8 @@ export function MarketPage(props: MarketPageProps): ReactNode {
   const tab: MarketKindName = view.kind === 'installed' ? 'skill' : view.tab
   // Opening the page revalidates the catalog; an unchanged file costs one 304.
   useEffect(() => { void props.refresh() }, [props.refresh])
+  // While it stays open, focus, visibility and a timer revalidate it, so a publish reaches it without reopening.
+  useEffect(() => props.followCatalog(), [props.followCatalog])
   const tabs = [
     { value: 'expert' as const, label: t('tabExperts'), id: 'market-tab-expert', panelId: 'market-panel' },
     { value: 'skill' as const, label: t('tabSkills'), id: 'market-tab-skill', panelId: 'market-panel' },
@@ -56,7 +58,7 @@ export function MarketPage(props: MarketPageProps): ReactNode {
     <div className={css.page}>
       <header className={css.head}>
         <SegmentedTabs className={css.tabs} items={tabs} value={tab} label={t('tabsLabel')}
-          onChange={(value) => { actions.setView({ kind: 'catalog', tab: value }) }} />
+          onChange={(value) => { actions.setView({ kind: 'catalog', tab: value }); void props.revalidate() }} />
       </header>
       <section id="market-panel" role="tabpanel" aria-labelledby={`market-tab-${tab}`} className={css.panel}>
         {notice(state.market, state.streamFailed, t)}

@@ -16,12 +16,15 @@ import type {} from '@deepseek-ai/dsh-client-ui-workspace/client'
 import type { DraftInput } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type { SkillLabels } from '@deepseek-ai/dsh-client-ui-skill/client'
 import type { HostObservable } from '@deepseek-ai/dsh-client-ui-slots'
+import type { SyncedConfig } from '@deepseek-ai/dsh-client-config/types'
 import type { SkillImportValue } from '@deepseek-ai/dsh-market-skills/types'
 import { bytesToBase64 } from '@deepseek-ai/dsh-util-crypto'
 import type { MarketItemView } from '@deepseek-ai/dsh-market/types'
 import marketRemote from '@deepseek-ai/dsh-market/remote'
 import marketConnectorsRemote from '@deepseek-ai/dsh-market-connectors/remote'
 import marketSkillsRemote from '@deepseek-ai/dsh-market-skills/remote'
+import type { MarketUiConfig } from '../types.ts'
+import { revalidateWhileShown } from './catalog-revalidation.ts'
 import { en, ja, es, fr, de, ru, pt, zh, type MarketLocaleKey } from './locales.ts'
 import { createMarketStore, type MarketActions, type MarketResult, type MarketState } from './market-store.ts'
 import { MarketPage, SKILL_CREATOR } from './MarketPage.tsx'
@@ -44,6 +47,9 @@ export const PANEL_ID = 'market' as MainPanelId
 
 /** Services the plugin needs before it mounts its Remote namespaces. */
 export const inject = ['remote', 'remote.session', 'slots', 'locale', 'layout', 'uiWorkspace']
+
+/** Revalidation delay while the Host sends none; the Host default. */
+const ABSENT_CATALOG_REVALIDATE_MS = 60_000
 
 /** State and actions every market view receives. */
 export interface MarketFace extends MarketActions {
@@ -76,6 +82,12 @@ export interface MarketFace extends MarketActions {
    * @param prompt - the request with the connector's configuration and failure.
    */
   diagnose(prompt: string): void
+  /**
+   * Revalidate the catalog when the window regains focus or becomes visible, and after every `catalogRevalidateMs`
+   * while it stays visible, so a publish reaches an open page without reopening it.
+   * @returns the stop function, called when the page closes.
+   */
+  followCatalog(): () => void
 }
 
 /** Where the edited skill's chip goes in the `promptEdit` copy. */
@@ -102,7 +114,7 @@ function skillTitles(market: HostObservable<MarketState>, language: HostObservab
   }
 }
 
-function registerUi(ctx: Context): void {
+function registerUi(ctx: Context, config: SyncedConfig<MarketUiConfig>): void {
   ctx.effect(() => ctx.locale.register(NS, { zh, en, ja, es, fr, de, ru, pt }), 'ui-market: dictionaries')
   const t = ctx.locale.bind(NS)
   const stream = ctx.remote.$stream({
@@ -161,6 +173,9 @@ function registerUi(ctx: Context): void {
     uninstallPersonal: (skill, name) => store.uninstallPersonal(skill, name),
     revealSkill: (path, name) => store.revealSkill(path, name),
     refresh: () => store.refresh(),
+    revalidate: () => store.revalidate(),
+    followCatalog: () => revalidateWhileShown(() => store.revalidate(),
+      () => config.catalogRevalidateMs.get() ?? ABSENT_CATALOG_REVALIDATE_MS),
     loadInstalledSkills: () => store.loadInstalledSkills(),
     importSkill: request => store.importSkill(request),
     importSkillFile: async (file) => {
@@ -214,9 +229,10 @@ function registerUi(ctx: Context): void {
 /**
  * Mount the market Remote namespaces, then the UI that uses them.
  * @param ctx - browser plugin context.
+ * @param config - Host-synced catalog revalidation delay, read before each timed revalidation is scheduled.
  * @returns disposer joining UI and Remote withdrawal.
  */
-export async function apply(ctx: Context): Promise<() => Promise<void>> {
+export async function apply(ctx: Context, config: SyncedConfig<MarketUiConfig>): Promise<() => Promise<void>> {
   // Mounted in order and withdrawn in reverse; a failed mount withdraws the ones before it.
   const mounted: (() => Promise<void>)[] = []
   const withdraw = async (): Promise<void> => { for (const dispose of mounted.splice(0).reverse()) await dispose() }
@@ -230,7 +246,7 @@ export async function apply(ctx: Context): Promise<() => Promise<void>> {
   }
   const ui = ctx.inject([
     'remote.market', 'remote.marketSkills', 'remote.marketConnectors', 'remote.session', 'slots', 'locale', 'layout', 'uiWorkspace',
-  ], registerUi)
+  ], (scope) => { registerUi(scope, config) })
   try {
     await ui
   } catch (error) {

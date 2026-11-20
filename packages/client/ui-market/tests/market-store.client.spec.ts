@@ -194,6 +194,21 @@ it('reveals a skill file and reports only a failed reveal', async () => {
   expect(failing.state.getSnapshot().notice).toMatchObject({ kind: 'reveal-failed', name: 'camera-log' })
 })
 
+it('revalidates the catalog without a notice when the read fails or the call is lost', async () => {
+  const refresh = vi.fn()
+    .mockResolvedValueOnce({ ok: true as const, value: snapshot({ revision: 4 }) })
+    .mockResolvedValueOnce({ ok: false as const, error: { message: 'catalog request returned HTTP 502' } })
+    .mockRejectedValueOnce(new Error('connection lost'))
+  const store = createMarketStore(remote([], { refresh }))
+  await store.revalidate()
+  expect(store.state.getSnapshot().market?.revision).toBe(4)
+  await store.revalidate()
+  await store.revalidate()
+  expect(store.state.getSnapshot()).toMatchObject({ market: { revision: 4 }, notice: null })
+  expect(refresh).toHaveBeenCalledTimes(3)
+  store.dispose()
+})
+
 it('publishes stream frames and marks a stream that failed', async () => {
   const store = createMarketStore(remote([], {
     async *watch() {

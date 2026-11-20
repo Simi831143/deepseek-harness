@@ -59,7 +59,7 @@ it('places plugins after experts, skills, and connectors in the shared market', 
   const state = stateOf()
   const view: MarketView = { kind: 'catalog', tab: 'plugin' }
   const props = {
-    ...actions(state), actions: { setView: vi.fn() }, refresh: vi.fn(() => Promise.resolve()),
+    ...actions(state), actions: { setView: vi.fn() }, refresh: vi.fn(() => Promise.resolve()), followCatalog: vi.fn(() => () => {}),
     useStore: <T,>(select: (value: { view: MarketView }) => T): T => select({ view }),
     useLanguage: <T,>(select: (language: string) => T): T => select('zh'),
   }

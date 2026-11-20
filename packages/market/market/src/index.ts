@@ -506,6 +506,7 @@ export class Market extends TypertRemoteService {
   private async fetchCatalog(): Promise<void> {
     if (this.config.catalogUrl === '') return
     const signal = AbortSignal.any([this.lifetime.signal, AbortSignal.timeout(this.config.catalogTimeoutMs)])
+    const shown = { source: this.source, fetchError: this.fetchError }
     let unchanged = false
     try {
       const response = await fetch(this.config.catalogUrl, {
@@ -535,6 +536,8 @@ export class Market extends TypertRemoteService {
       this.source = this.catalog === undefined ? 'none' : 'cache'
       this.ctx.logger.warn(`market: catalog read failed: ${this.fetchError}`)
     }
+    // Open pages revalidate every minute; a 304 that changes nothing on screen publishes no frame.
+    if (unchanged && shown.source === this.source && shown.fetchError === this.fetchError) return
     this.changed()
     // An unchanged catalog is the one the kinds last synced with; every install reads it again.
     if (unchanged) return
