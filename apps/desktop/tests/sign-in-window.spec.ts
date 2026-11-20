@@ -56,6 +56,8 @@ it('opens only HTTPS Feishu and Lark authorization pages in the app', () => {
   expect(opensInApp('http://accounts.feishu.cn/authorize')).toBe(false)
   expect(opensInApp('https://user:secret@accounts.feishu.cn/authorize')).toBe(false)
   expect(opensInApp('https://feishu.cn.example.com/authorize')).toBe(false)
+  // Doubao is only a hop inside Feishu's login flow, never an issuer opened in the app.
+  expect(opensInApp('https://accounts.doubao.com/flow-account/oauth/authorize/')).toBe(false)
   expect(opensInApp('not a url')).toBe(false)
 })
 
@@ -80,6 +82,11 @@ it('fences navigation to the issuer domains and the attempt callback origin and 
   const window = windows[0]!
   expect(navigation(window, 'will-navigate', 'https://accounts.feishu.cn/accounts/page/login')).toBe(true)
   expect(navigation(window, 'will-redirect', 'https://passport.feishu.cn/suite/passport/page/login')).toBe(true)
+  // Feishu's login page probes Doubao SSO and comes back through www.feishu.cn.
+  expect(navigation(window, 'will-navigate', 'https://accounts.doubao.com/flow-account/oauth/authorize/?prompt=none')).toBe(true)
+  expect(navigation(window, 'will-redirect', 'https://www.feishu.cn/suite/passport/authentication/idpx/doubao/callback')).toBe(true)
+  expect(navigation(window, 'will-navigate', 'http://accounts.doubao.com/')).toBe(false)
+  expect(navigation(window, 'will-navigate', 'https://doubao.com.example.com/')).toBe(false)
   expect(navigation(window, 'will-redirect', 'http://127.0.0.1:19387/feishu/callback?code=c&state=s')).toBe(true)
   expect(navigation(window, 'will-navigate', 'http://127.0.0.1:9999/feishu/callback')).toBe(false)
   expect(navigation(window, 'will-navigate', 'https://example.com/')).toBe(false)

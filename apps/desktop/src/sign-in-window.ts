@@ -10,6 +10,14 @@ import { BrowserWindow, session, type Session } from 'electron'
  */
 const IN_APP_SIGN_IN_DOMAINS = ['feishu.cn', 'larksuite.com'] as const
 
+/**
+ * Registrable domains the in-app window may navigate to besides the issuers.
+ * Feishu's login page first runs a silent Doubao SSO probe (`prompt=none`) on
+ * accounts.doubao.com that redirects back to www.feishu.cn; blocking it leaves
+ * the page on its loading animation forever.
+ */
+const IN_APP_FLOW_DOMAINS = [...IN_APP_SIGN_IN_DOMAINS, 'doubao.com'] as const
+
 /** Packaged placeholder shown until the first remote document commits; it needs no network. */
 const LOADING_PAGE = 'renderer/policy-login-loading.html'
 
@@ -20,8 +28,12 @@ function parse(value: string): URL | undefined {
   try { return new URL(value) } catch (_invalid) { return undefined } // Malformed input is simply not allowed.
 }
 
+function withinDomains(hostname: string, domains: readonly string[]): boolean {
+  return domains.some(domain => hostname === domain || hostname.endsWith(`.${domain}`))
+}
+
 function inAppHost(hostname: string): boolean {
-  return IN_APP_SIGN_IN_DOMAINS.some(domain => hostname === domain || hostname.endsWith(`.${domain}`))
+  return withinDomains(hostname, IN_APP_SIGN_IN_DOMAINS)
 }
 
 /**
@@ -67,8 +79,9 @@ interface OpenAttempt {
 
 /**
  * Owns at most one authorization window. The window has no preload and its main
- * frame may only navigate within the issuer domains and the attempt's loopback
- * callback origin; popups, downloads, permissions, and webviews are refused.
+ * frame may only navigate within the issuer and login-flow domains and the
+ * attempt's loopback callback origin; popups, downloads, permissions, and
+ * webviews are refused.
  */
 export class DesktopSignInWindow {
   private current: OpenAttempt | undefined
@@ -93,7 +106,7 @@ export class DesktopSignInWindow {
       const url = parse(value)
       if (url === undefined || url.username !== '' || url.password !== '') return false
       if (url.origin === callback) return true
-      return url.protocol === 'https:' && (url.origin === authorize.origin || inAppHost(url.hostname))
+      return url.protocol === 'https:' && (url.origin === authorize.origin || withinDomains(url.hostname, IN_APP_FLOW_DOMAINS))
     }
     // A non-`persist:` partition lives in memory, so no attempt inherits another's sign-in.
     const browserSession = session.fromPartition(`dsh-sign-in-${randomUUID()}`, { cache: false })
