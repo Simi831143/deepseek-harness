@@ -41,7 +41,7 @@ function debugPort(name: string, fallback: number): number {
 
 async function run(command: string, args: readonly string[], cwd: string, environment = process.env): Promise<void> {
   await new Promise<void>((resolvePromise, reject) => {
-    const child = spawn(command, args, { cwd, env: environment, stdio: 'inherit' })
+    const child = spawn(command, args, { cwd, env: { ...environment, TSX_TSCONFIG_PATH: undefined }, stdio: 'inherit' })
     child.once('error', reject)
     child.once('exit', (code, signal) => {
       if (code === 0) resolvePromise()
@@ -73,6 +73,7 @@ async function launchElectron(): Promise<void> {
     DSH_DESKTOP_PRIMARY_RUNTIME_DIR: process.env.DSH_DESKTOP_PRIMARY_RUNTIME_DIR ?? developmentRuntimeDirectory(),
     DSH_DESKTOP_HOST_INSPECT_PORT: String(hostPort),
     DSH_DESKTOP_OPEN_DEVTOOLS: process.env.DSH_DESKTOP_OPEN_DEVTOOLS ?? '1',
+    ELECTRON_RUN_AS_NODE: undefined,
     ELECTRON_ENABLE_LOGGING: process.env.ELECTRON_ENABLE_LOGGING ?? '1',
   }
   console.log(`desktop development: DSH_HOME=${home}`)

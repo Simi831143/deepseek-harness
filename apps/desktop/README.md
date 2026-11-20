@@ -215,6 +215,8 @@ The development application menu offers Reload Page (Cmd+R on macOS, Ctrl+R else
 pnpm run dev:desktop
 ```
 
+The development launcher uses the repository's TypeScript source aliases to load workspace imports before any build artifacts exist. It does not pass its tsx configuration override to child commands; each build uses its own configuration. The shell launches in GUI mode even when the calling environment sets `ELECTRON_RUN_AS_NODE`.
+
 Development Harness state defaults to `apps/desktop/.desktop-build/development/home`, the disposable npm project lives at `apps/desktop/.desktop-build/development/project`, and Electron browser data lives at `apps/desktop/.desktop-build/development/electron-user-data`. Sessions, settings, credentials, package links, and browser data therefore stay out of the user's normal Harness home. An explicit `DSH_HOME` replaces only the development Harness home. Renderer DevTools opens automatically; Main, Renderer, and dsh Host debugging listen on ports 9229, 9222, and 9230. `DSH_DESKTOP_MAIN_INSPECT_PORT`, `DSH_DESKTOP_RENDERER_DEBUG_PORT`, and `DSH_DESKTOP_HOST_INSPECT_PORT` replace those ports, while `DSH_DESKTOP_OPEN_DEVTOOLS=0` keeps the detached Renderer tools closed.
 
 After an explicit build, `start:desktop` reconstructs the disposable project and launches the existing artifacts without building again:
