@@ -77,6 +77,8 @@ import { readDeploymentEnvironment } from './deployment-env.ts'
 import { DesktopSignInWindow, opensInApp } from './sign-in-window.ts'
 import type { SignInAttemptId } from '@deepseek-ai/dsh-deepseek-account/types'
 
+const USER_GUIDE_URL = 'https://longcheer.feishu.cn/docx/VKlVdNOaloSpwrxvhqEcExPrnE6'
+
 let focusPrimaryWindow = (): void => {}
 let stopForRecovery = async (): Promise<void> => { await stopOperationReports() }
 let shuttingDown = false
@@ -1264,6 +1266,13 @@ async function main(): Promise<void> {
     { label: currentDesktopLocale().messages.checkUpdatesMenu, click: () => { void openUpdatePrompt(true) } },
     ...process.platform === 'darwin' || process.platform === 'win32'
       ? [{ label: currentDesktopLocale().messages.cliCommandMenu, click: () => { void commandManager.show() } }] : [],
+    { label: currentDesktopLocale().messages.userGuideMenu, click: () => {
+      void shell.openExternal(USER_GUIDE_URL).catch((error: unknown) => {
+        console.error('Opening the user guide failed', error)
+        const { messages } = currentDesktopLocale()
+        dialog.showErrorBox(messages.userGuideMenu, `${messages.userGuideOpenFailed}\n\n${USER_GUIDE_URL}`)
+      })
+    } },
     { type: 'separator' },
     ...development ? [
       { label: currentDesktopLocale().messages.reloadPageMenu, role: 'reload' as const },

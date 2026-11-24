@@ -1021,13 +1021,28 @@ describe('desktop main startup', () => {
     expect(() => handler(event, 'arbitrary-command', 48, 34)).toThrow('invalid popup request')
     expect(() => handler(event, 'application', NaN, 34)).toThrow('invalid popup request')
     const application = handler(event, 'application', 48, 34)
-    expect(harness.menu.buildFromTemplate.mock.lastCall![0].map(item => item.label ?? item.type)).toEqual([
-      '关于 LC Camera Agent', 'separator', '检查更新…', '管理 dsh 命令…', 'separator', zh.toggleDevToolsMenu, 'separator', '退出',
+    const applicationItems = harness.menu.buildFromTemplate.mock.lastCall![0]
+    expect(applicationItems.map(item => item.label ?? item.type)).toEqual([
+      '关于 LC Camera Agent', 'separator', '检查更新…', '管理 dsh 命令…', '使用指南', 'separator', zh.toggleDevToolsMenu, 'separator', '退出',
     ])
     expect(harness.popup.mock.lastCall![0]).toMatchObject({ window, x: 48, y: 34 })
     expect(harness.popup.mock.lastCall![0].callback).toBeTypeOf('function')
     harness.popup.mock.lastCall![0].callback!()
     await application
+    const openUserGuide = applicationItems.find(item => item.label === '使用指南')!.click as () => void
+    const guideUrl = 'https://longcheer.feishu.cn/docx/VKlVdNOaloSpwrxvhqEcExPrnE6'
+    openUserGuide()
+    await Promise.resolve()
+    expect(harness.openExternal).toHaveBeenCalledExactlyOnceWith(guideUrl)
+    expect(harness.dialog.showErrorBox).not.toHaveBeenCalled()
+
+    harness.openExternal.mockRejectedValueOnce(new Error('No default browser'))
+    openUserGuide()
+    await Promise.resolve()
+    expect(harness.dialog.showErrorBox).toHaveBeenCalledExactlyOnceWith(
+      '使用指南', `无法打开使用指南。请在浏览器中打开以下地址。\n\n${guideUrl}`,
+    )
+
     const edit = handler(event, 'edit', 104, 34)
     expect(harness.menu.buildFromTemplate.mock.lastCall![0].map(item => item.label ?? item.type)).toEqual([
       '撤销', '重做', 'separator', '剪切', '复制', '粘贴', '删除', 'separator', '全选',
@@ -1059,8 +1074,9 @@ describe('desktop main startup', () => {
       : ['Application', 'editMenu'])
     const application = template[0]!.submenu as MenuItemConstructorOptions[]
     expect(application.filter(item => item.visible !== false).map(describeItem)).toEqual(platform === 'darwin'
-      ? ['about', 'separator', en.checkUpdatesMenu, en.cliCommandMenu, 'separator', 'toggleDevTools', 'separator', 'hide', 'hideOthers', 'unhide', 'separator', 'quit']
-      : ['about', 'separator', en.checkUpdatesMenu, 'separator', 'toggleDevTools', 'separator', 'quit'])
+      ? ['about', 'separator', en.checkUpdatesMenu, en.cliCommandMenu, en.userGuideMenu, 'separator', 'toggleDevTools',
+        'separator', 'hide', 'hideOthers', 'unhide', 'separator', 'quit']
+      : ['about', 'separator', en.checkUpdatesMenu, en.userGuideMenu, 'separator', 'toggleDevTools', 'separator', 'quit'])
     expect(harness.menu.setApplicationMenu).toHaveBeenCalledOnce()
   })
 
