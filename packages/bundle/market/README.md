@@ -1,5 +1,5 @@
 ---
-description: "Profile bundle that mounts one market for experts, skills, connectors, and plugins."
+description: "Profile bundle that mounts one market for skills, connectors, and plugins."
 kind: "package-bundle"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-This bundle adds one Market page for experts, skills, connectors, and plugins, with shared catalog reads and verified package downloads. It also provides installed-skill switches, local MCP connectors, and profile plugin installation. It is an optional product layer and does not change the base profile when it is absent.
+This bundle adds one Market page for skills, connectors, and plugins, with shared catalog reads and verified package downloads. It also provides installed-skill switches, local MCP connectors, and profile plugin installation. It is an optional product layer and does not change the base profile when it is absent.
 
 ## Table of Contents
 

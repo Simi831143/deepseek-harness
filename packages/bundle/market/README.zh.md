@@ -1,5 +1,5 @@
 ---
-description: "为专家、技能、连接器和插件挂载统一市场的 profile bundle。"
+description: "为技能、连接器和插件挂载统一市场的 profile bundle。"
 kind: "package-bundle"
 ---
 
@@ -9,7 +9,7 @@ kind: "package-bundle"
 
 ## 概述
 
-此 bundle 提供包含专家、技能、连接器和插件的统一市场页面，共享目录读取和已验证的软件包下载。它还提供已安装技能开关、本机 MCP 连接器和 profile 插件安装。它是可选产品层，不存在时不会改变基础 profile。
+此 bundle 提供包含技能、连接器和插件的统一市场页面，共享目录读取和已验证的软件包下载。它还提供已安装技能开关、本机 MCP 连接器和 profile 插件安装。它是可选产品层，不存在时不会改变基础 profile。
 
 ## 目录
 

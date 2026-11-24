@@ -1,0 +1,4 @@
+- tablist "Market sections":
+  - tab "Skills" [selected]
+  - tab "Connectors"
+  - tab "Plugins"

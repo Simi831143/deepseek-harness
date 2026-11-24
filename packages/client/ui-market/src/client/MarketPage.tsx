@@ -1,7 +1,7 @@
-/** The market page: section tabs, the skill catalog, the installed-skill manager, and the connector section. */
+/** The market page: skill, connector, and plugin catalogs and the installed-skill manager. */
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import clsx from 'clsx'
-import type { MarketItemView, MarketKindName, MarketSnapshot, MarketText } from '@deepseek-ai/dsh-market/types'
+import type { MarketItemView, MarketSnapshot, MarketText } from '@deepseek-ai/dsh-market/types'
 import type { InstalledSkillOrigin, InstalledSkillView } from '@deepseek-ai/dsh-market-skills/types'
 import {
   Button, IconChevronDownOutlineRegular, IconChevronLeftOutlineRegular, IconLoadingOutlineRegular, IconPlusOutlineRegular,
@@ -43,13 +43,12 @@ export function MarketPage(props: MarketPageProps): ReactNode {
     (value: MarketText): string => language === 'en' && value.en !== undefined ? value.en : value.zh,
     [language],
   )
-  const tab: MarketKindName = view.kind === 'installed' ? 'skill' : view.tab
+  const tab = view.kind === 'installed' ? 'skill' : view.tab
   // Opening the page revalidates the catalog; an unchanged file costs one 304.
   useEffect(() => { void props.refresh() }, [props.refresh])
   // While it stays open, focus, visibility and a timer revalidate it, so a publish reaches it without reopening.
   useEffect(() => props.followCatalog(), [props.followCatalog])
   const tabs = [
-    { value: 'expert' as const, label: t('tabExperts'), id: 'market-tab-expert', panelId: 'market-panel' },
     { value: 'skill' as const, label: t('tabSkills'), id: 'market-tab-skill', panelId: 'market-panel' },
     { value: 'connector' as const, label: t('tabConnectors'), id: 'market-tab-connector', panelId: 'market-panel' },
     { value: 'plugin' as const, label: t('tabPlugins'), id: 'market-tab-plugin', panelId: 'market-panel' },
@@ -68,7 +67,7 @@ export function MarketPage(props: MarketPageProps): ReactNode {
             ? <SkillCatalog {...props} market={state.market} text={text} />
             : tab === 'plugin'
               ? <PluginCatalog {...props} market={state.market} text={text} />
-              : tab === 'connector' && state.market?.kinds.includes('connector') === true
+              : state.market?.kinds.includes('connector') === true
                 ? <ConnectorCatalog {...props} market={state.market} text={text} />
                 : <p className={css.empty}>{t('comingSoon')}</p>}
       </section>

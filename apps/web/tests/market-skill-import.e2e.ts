@@ -22,7 +22,6 @@ function skillFile(name: string, description: string, body: string): string {
 }
 
 async function openUpload(page: Page): Promise<Locator> {
-  await page.getByRole('navigation', { name: 'Global panels' }).getByRole('button', { name: 'Market', exact: true }).click()
   await page.getByRole('tab', { name: 'Skills', exact: true }).click()
   const back = page.getByRole('button', { name: 'All skills', exact: true })
   if (await back.count() > 0) await back.click()
@@ -127,6 +126,18 @@ it('installs Markdown and packaged skills, refreshes the slash menu, and preserv
   const sessionEvents = session.seq
   await page.keyboard.press('Escape')
 
+  await page.getByRole('navigation', { name: 'Global panels' }).getByRole('button', { name: 'Market', exact: true }).click()
+  const tabs = page.getByRole('tablist', { name: 'Market sections' })
+  const skillsTab = tabs.getByRole('tab', { name: 'Skills', selected: true })
+  await skillsTab.waitFor()
+  await compareOrRefreshGolden(join(EXPECTED_DIR, 'tabs.expected.md'), await tabs.ariaSnapshot(), webSnapshotMode())
+  await skillsTab.press('ArrowRight')
+  await page.getByRole('tabpanel', { name: 'Connectors', exact: true }).waitFor()
+  await tabs.getByRole('tab', { name: 'Connectors', selected: true }).press('ArrowRight')
+  await page.getByRole('tabpanel', { name: 'Plugins', exact: true }).waitFor()
+  await tabs.getByRole('tab', { name: 'Plugins', selected: true }).press('ArrowRight')
+  await page.getByRole('tabpanel', { name: 'Skills', exact: true }).waitFor()
+
   let dialog = await openUpload(page)
   await compareOrRefreshGolden(join(EXPECTED_DIR, 'picker.expected.md'), await dialog.ariaSnapshot(), webSnapshotMode())
   await inspectUploadLayout(page, dialog, 'empty')
@@ -230,5 +241,5 @@ it('installs Markdown and packaged skills, refreshes the slash menu, and preserv
       }
     }
   } finally { await chinese.close() }
-  await assertFixtureInventory(EXPECTED_DIR, ['conflict.expected.md', 'detail.expected.md', 'installed.expected.md', 'invalid.expected.md', 'menu.expected.md', 'picker.expected.md'])
+  await assertFixtureInventory(EXPECTED_DIR, ['conflict.expected.md', 'detail.expected.md', 'installed.expected.md', 'invalid.expected.md', 'menu.expected.md', 'picker.expected.md', 'tabs.expected.md'])
 })

@@ -55,7 +55,7 @@ function detail(state: MarketState) {
 
 afterEach(() => { cleanup() })
 
-it('places plugins after experts, skills, and connectors in the shared market', () => {
+it('places plugins after skills and connectors in the shared market', () => {
   const state = stateOf()
   const view: MarketView = { kind: 'catalog', tab: 'plugin' }
   const props = {
@@ -66,10 +66,6 @@ it('places plugins after experts, skills, and connectors in the shared market', 
   render(<MarketPage {...Object.assign({} as MarketPageProps, props)} />)
   expect(screen.getAllByRole('tab').map(tab => ({ label: tab.textContent, selected: tab.getAttribute('aria-selected') }))).toMatchInlineSnapshot(`
     [
-      {
-        "label": "专家",
-        "selected": "false",
-      },
       {
         "label": "技能",
         "selected": "false",

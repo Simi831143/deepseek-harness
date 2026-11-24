@@ -1,10 +1,9 @@
 /** Market page selection: which section is open, or the installed-skill manager. */
 import { defineStore, type EngineStoreHandle } from '@deepseek-ai/dsh-client-store'
-import type { MarketKindName } from '@deepseek-ai/dsh-market/types'
 
 /** The open view. */
 export type MarketView =
-  | { readonly kind: 'catalog'; readonly tab: MarketKindName }
+  | { readonly kind: 'catalog'; readonly tab: 'skill' | 'connector' | 'plugin' }
   | { readonly kind: 'installed' }
 
 type NavigationState = { view: MarketView }

@@ -1,6 +1,6 @@
 {
   "name": "@deepseek-ai/dsh-client-ui-market",
-  "description": "Market page for LC Camera Agent: browse, install and switch skills, experts and connectors",
+  "description": "Market page for browsing and managing skills, connectors, and plugins",
   "version": "0.2.2-rc.4",
   "publishConfig": {
     "access": "public"

@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-The Market page groups experts, skills, connectors, and plugins in four tabs. Users can install, update, and remove market packages through one Host market service, manage skill switches and personal skills, and connect or configure MCP servers. The page follows installation and connector state and reports operation outcomes through a persistent toast.
+The Market page has three tabs: Skills, Connectors, and Plugins. It opens on Skills by default. Users can install, update, and remove market packages through one Host market service, manage skill switches and personal skills, and connect or configure MCP servers. The page follows installation and connector state and reports operation outcomes through a persistent toast.
 
 ## Table of Contents
 
