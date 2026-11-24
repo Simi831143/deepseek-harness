@@ -1722,17 +1722,17 @@ describe('PluginManagerPage', () => {
   })
 
   it.each([
-    { locale: en, placeholder: 'for example dsh-plugin-whale-pet' },
-    { locale: zh, placeholder: '例如 dsh-plugin-whale-pet' },
-  ])('uses the package example in $placeholder and the install guide', ({ locale, placeholder }) => {
+    { locale: en, placeholder: 'for example dsh-plugin-whale-pet', example: 'dsh-plugin-whale-pet' },
+    { locale: zh, placeholder: '例如 @example/whale-pet', example: '@example/whale-pet' },
+  ])('uses the package example in $placeholder and the install guide', ({ locale, placeholder, example }) => {
     const { actions, setLanguage } = renderTab({ install: { ...IDLE_INSTALL, open: true } })
     setLanguage(locale)
     expect(screen.getByPlaceholderText(placeholder)).toBeTruthy()
     expect(screen.getByText(locale.installUpgradeNotice)).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: locale.installGuideToggle }))
-    expect(screen.getByText('dsh-plugin-whale-pet')).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: locale.installGuideFillAria.replace('{example}', 'dsh-plugin-whale-pet') }))
-    expect(actions.editInstallSpec).toHaveBeenCalledExactlyOnceWith('dsh-plugin-whale-pet')
+    expect(screen.getByText(example)).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: locale.installGuideFillAria.replace('{example}', example) }))
+    expect(actions.editInstallSpec).toHaveBeenCalledExactlyOnceWith(example)
   })
 
   it.each([

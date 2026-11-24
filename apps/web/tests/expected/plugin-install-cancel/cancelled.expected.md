@@ -3,9 +3,9 @@
   - button "关闭"
   - paragraph: 输入插件的包名、GitHub 仓库地址或本地目录路径。
   - textbox "包名或地址":
-    - /placeholder: 例如 dsh-plugin-whale-pet
+    - /placeholder: 例如 @example/whale-pet
     - text: slow-package
   - button "插件安装引导和示例"
   - button "安装源 默认安装源"
-  - note: 请确认插件来源可信。插件在本机以你的权限运行，来源不明的插件可能损坏 DeepSeek Harness，或读取和泄露你的数据。 按需安装的官方插件会在版本与 DSH 不同时提供“更新”。其他插件请先卸载再安装新版。
+  - note: 请确认插件来源可信。插件在本机以你的权限运行，来源不明的插件可能损坏 LC Camera Agent，或读取和泄露你的数据。 按需安装的官方插件版本与当前应用提供的版本不同时，会显示“更新”。其他插件请先卸载再安装新版。
   - button "安装"

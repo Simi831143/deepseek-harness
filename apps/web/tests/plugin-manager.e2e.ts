@@ -1513,14 +1513,16 @@ describe('web e2e: plugin manager', () => {
     await expect.poll(() => field.evaluate(element => document.activeElement === element)).toBe(true)
     const install = dialog.getByRole('button', { name: '安装', exact: true })
     expect(await install.isDisabled()).toBe(true)
+    expect(await field.getAttribute('placeholder')).toBe('例如 @example/whale-pet')
     expect(await dialog.getByRole('note').textContent()).toContain('请确认插件来源可信')
-    expect(await dialog.getByRole('note').textContent()).toContain('按需安装的官方插件会在版本与 DSH 不同时提供“更新”')
+    expect(await dialog.getByRole('note').textContent()).toContain('按需安装的官方插件版本与当前应用提供的版本不同时，会显示“更新”')
     expect(await dialog.getByRole('note').textContent()).toContain('其他插件请先卸载再安装新版')
     await dialog.getByRole('button', { name: '插件安装引导和示例' }).click()
     // The guide carries the package-name example only; the former template strings keep their replacement reminder.
     await expect.poll(() => dialog.getByRole('listitem').count()).toBe(1)
-    await dialog.getByRole('button', { name: '填入示例 dsh-plugin-whale-pet' }).click()
-    expect(await field.inputValue()).toBe('dsh-plugin-whale-pet')
+    expect(await dialog.getByRole('listitem').textContent()).toContain('请从插件 README 的安装命令中复制 npm 包名。')
+    await dialog.getByRole('button', { name: '填入示例 @example/whale-pet' }).click()
+    expect(await field.inputValue()).toBe('@example/whale-pet')
     expect(await dialog.getByRole('status').count()).toBe(0)
     for (const [example, hint] of [
       ['https://github.com/author/dsh-plugin', '请替换为实际的 Git 仓库地址'],
