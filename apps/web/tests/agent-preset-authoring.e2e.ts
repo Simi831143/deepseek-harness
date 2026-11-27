@@ -49,7 +49,7 @@ describe('web e2e: preset roster guidance', () => {
       const sharedGuide = page.getByRole('dialog', { name, exact: true })
       await sharedGuide.getByText(/只读运行时检查/).waitFor()
       expect(await sharedGuide.innerText()).not.toContain('增加了运行时检查')
-      if (name === '创造模式') expect(await sharedGuide.innerText()).toContain('创造模式专注于定制 DSH')
+      if (name === '创造模式') expect(await sharedGuide.innerText()).toContain('Agent 可以创建插件来添加能力或界面')
       await page.keyboard.press('Escape')
       await sharedGuide.waitFor({ state: 'detached' })
     }

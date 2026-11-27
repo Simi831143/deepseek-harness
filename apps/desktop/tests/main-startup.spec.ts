@@ -1023,7 +1023,7 @@ describe('desktop main startup', () => {
     const application = handler(event, 'application', 48, 34)
     const applicationItems = harness.menu.buildFromTemplate.mock.lastCall![0]
     expect(applicationItems.map(item => item.label ?? item.type)).toEqual([
-      '关于 LC Camera Agent', 'separator', '检查更新…', '管理 dsh 命令…', '使用指南', 'separator', zh.toggleDevToolsMenu, 'separator', '退出',
+      '关于 LC Camera Agent', 'separator', '检查更新…', '管理命令行工具…', '使用指南', 'separator', zh.toggleDevToolsMenu, 'separator', '退出',
     ])
     expect(harness.popup.mock.lastCall![0]).toMatchObject({ window, x: 48, y: 34 })
     expect(harness.popup.mock.lastCall![0].callback).toBeTypeOf('function')
